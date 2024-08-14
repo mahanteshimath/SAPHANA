@@ -1,0 +1,310 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Indexes_Overview_2.00.060+
+
+[DESCRIPTION]
+
+- Overview of indexes in the system (row and column store)
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Current memory size is considered, not disk size
+- If a column is part of a primary key or unique index and at the same time there is a single column index
+  on the column, the allocated space for the inverted index is displayed twice, although it is only
+  allocated once. These situations should be avoided, because single column indexes do not provide any advantage
+  on columns of a primary key or unique index.
+- Persistent memory information available starting with SAP HANA 2.00.030
+- Columns MOST_SELECTIVE_COLUMN_NAME and INVERTED_INDIVIDUAL_COST of M_CS_INDEXES available with SAP HANA >= 2.0 SPS 06
+- Type and memory size of FULLTEXT indexes may be wrong (bug 297203), use the 2.00.030+ version if you require accurate information
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.060
+
+[SQL COMMAND VERSION]
+
+- 2014/10/23:  1.0 (initial version)
+- 2014/11/19:  1.1 (unique indexes included)
+- 2014/11/21:  1.2 (STORE filter included)
+- 2014/12/04:  1.3 (consideration of implicit inverted indexes in case of unique / PK indexes)
+- 2014/12/15:  1.4 (INDEX_TYPE included)
+- 2015/01/17:  1.5 (FULLTEXT_INDEXES included)
+- 2015/03/09:  1.6 (AGGREGATE_BY included)
+- 2017/08/02:  1.7 (possibility to sort by table name rather than size, PARTITIONED added)
+- 2017/11/16:  1.8 (EXCLUDE_PK_AND_UNIQUE included)
+- 2019/01/07:  1.9 (EXCLUDE_SYSTEM_INDEXES included)
+- 2019/03/05:  2.0 (MIN_SIZE_GB included)
+- 2019/10/20:  2.1 (dedicated 2.00.030+ version including persistent memory)
+- 2021/02/24:  2.2 (consideration of inverted individual indexes without concat attribute)
+- 2022/10/22:  2.3 (dedicated 2.00.060+ version based on M_CS_INDEXES including MOST_SELECTIVE_COLUMN_NAME and INVERTED_INDIVIDUAL_COST)
+
+[INVOLVED TABLES]
+
+- M_CS_INDEXES
+- M_RS_INDEXES
+- INDEXES
+
+[INPUT PARAMETERS]
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- STORE
+
+  Restriction to store 
+
+  'ROW'           --> Only row store information
+  'COLUMN'        --> Only column store information
+  '%'             --> No store restriction
+
+- INDEX_TYPE
+
+  Index type
+
+  'CPBTREE'       --> Indexes of type CPBTREE
+  '%UNIQUE%'      --> Indexes with type containing 'UNIQUE'
+  '%'             --> No restriction related to index type
+
+- PARTITIONED
+
+  Partitioning restrictions
+
+  'X'             --> Display indexes of partitioned tables
+  ' '             --> Display indexes of non-partitioned tables
+  '%'             --> No restriction related to table partitioning
+
+- EXCLUDE_PK_AND_UNIQUE
+
+  Possibility to exclude primary keys and unique indexes
+
+  'X'             --> Exclude primary keys and unique indexes
+  ' '             --> No restriction related to primary keys and unique indexes
+
+- ONLY_PK_AND_UNIQUE
+
+  Possibility to restrict output to primary keys and unique indexes
+
+  'X'             --> Only display  primary keys and unique indexes
+  ' '             --> No restriction related to primary keys and unique indexes
+
+- EXCLUDE_SYSTEM_INDEXES
+
+  Possibility to exclude indexes related to SAP HANA system / DDIC tables
+
+  'X'             --> Skip indexes related to SAP HANA system / DDIC tables
+  ' '             --> No restriction related to indexes on SAP HANA system / DDIC tables
+
+- MIN_MEM_TOT_GB
+
+  Minimum total memory size (GB)
+
+  5               --> Only display index with a total memory size of at least 5 GB
+  -1              --> No restriction related to index size
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'STORE'         --> Aggregation by store
+  'SCHEMA, TABLE' --> Aggregation by schema and table
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'SIZE'          --> Sorting by size 
+  'TABLE'         --> Sorting by table name
+
+[OUTPUT PARAMETERS]
+
+- SCHEMA_NAME:        Schema name
+- TABLE_NAME:         Table name
+- S:                  Store ('C' for column store, 'R' for row store)
+- P:                  'X' if underlying table is partitioned, otherwise ' '
+- INDEX_NAME:         Index name (_SYS_TREE_CS* are names for primary key indexes in column store)
+- C:                  Constraint type ('P' for primary key constraint, 'U' for unique constraint)
+- INDEX_TYPE:         Index type
+- MEM_TOT_GB:         Current total size of index in memory (GB)
+- MEM_CONC_GB:        Current concat attribute size of index in memory (GB)
+- SEL_COL_NAME:       Name of most selective column for inverted individual index
+- INDIV_COSTS:        Inverted individual costs
+- CNT:                Number of indexes
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------------------------------------------------------------------------
+|SCHEMA_NAME     |TABLE_NAME|S|P|INDEX_NAME                    |C|INDEX_TYPE    |CNT  |MEM_TOT_GB|MEM_CONC_GB|SEL_COL_NAME|INDIV_COSTS|
+---------------------------------------------------------------------------------------------------------------------------------------
+|SAPC11          |BSEG      |C| |BSEG~0                        |P|INVERTED VALUE|    1|     23.71|      17.70|BELNR       |         16|
+|SAPC11          |BSEG      |C| |BSEG~Z01                      | |INVERTED VALUE|    1|      7.38|       5.51|            |          0|
+|SAPC11          |BSEG      |C| |BSEG~Z03                      | |INVERTED VALUE|    1|      5.00|       4.09|            |          0|
+|SAPC11          |BSEG      |C| |BSEG~Z02                      | |INVERTED VALUE|    1|      4.08|       0.00|            |          0|
+|SAPC11          |BSEG      |C| |BSEG~Z22                      | |INVERTED VALUE|    1|      1.86|       0.00|            |          0|
+|SAPC11          |BSEG      |C| |BSEG~H82                      | |INVERTED VALUE|    1|      1.13|       0.00|            |          0|
+|SAPC11          |BSEG      |C| |BSEG~Z21                      | |INVERTED VALUE|    1|      0.59|       0.00|            |          0|
+|SAPC11          |BSEG      |C| |BSEG~HSE                      | |INVERTED VALUE|    1|      0.58|       0.00|            |          0|
+|SAPC11          |BSEG      |C| |BSEG~Z90                      | |INVERTED VALUE|    1|      0.45|       0.00|            |          0|
+|SAPC11          |BSEG      |C| |BSEG~Z20                      | |INVERTED VALUE|    1|      0.35|       0.00|            |          0|
+|SAPC11          |BSEG      |C| |BSEG~H7Y                      | |INVERTED VALUE|    1|      0.31|       0.00|            |          0|
+|SAP_C11_CORE_ERP|BSEG      |C| |BSEG__SGTXT                   | |FULLTEXT      |    1|      0.00|       0.00|            |          0|
+|SAP_C11_CORE_ERP|BSEG      |C| |_SYS_TREE_CS_#197630220_#0_#P0|P|INVERTED VALUE|    1|      0.00|       0.00|            |          0|
+|SAP_C11_CORE_S4 |BSEG      |C| |BSEG~0                        |P|INVERTED VALUE|    1|      0.00|       0.00|            |          0|
+---------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  SCHEMA_NAME,
+  TABLE_NAME,
+  SUBSTR(STORE, 1, 1) S,
+  PARTITIONED P,
+  INDEX_NAME,
+  CONSTRAINT C,
+  INDEX_TYPE,
+  LPAD(TO_DECIMAL(MEM_TOT_GB, 10, 2), 10) MEM_TOT_GB,
+  LPAD(TO_DECIMAL(MEM_CONC_GB, 10, 2), 11) MEM_CONC_GB,
+  SEL_COL_NAME,
+  LPAD(GREATEST(INDIV_COSTS, 0), 11) INDIV_COSTS,
+  LPAD(NUM_INDEXES, 5) CNT
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')     != 0 THEN I.SCHEMA_NAME ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME) END SCHEMA_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')      != 0 THEN I.TABLE_NAME  ELSE MAP(BI.TABLE_NAME,  '%', 'any', BI.TABLE_NAME)  END TABLE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STORE')      != 0 THEN I.STORE       ELSE MAP(BI.STORE,       '%', ' ',   BI.STORE)       END STORE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'INDEX')      != 0 THEN I.INDEX_NAME  ELSE MAP(BI.INDEX_NAME,  '%', 'any', BI.INDEX_NAME)  END INDEX_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CONSTRAINT') != 0 THEN I.CONSTRAINT  ELSE 'any'                                           END CONSTRAINT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')       != 0 THEN I.INDEX_TYPE  ELSE MAP(BI.INDEX_TYPE,  '%', 'any', BI.INDEX_TYPE)  END INDEX_TYPE,
+    MAP(MIN(I.PARTITIONED), MAX(I.PARTITIONED), MIN(I.PARTITIONED), 'any') PARTITIONED,
+    MAP(MIN(I.SEL_COL_NAME), MAX(I.SEL_COL_NAME), MIN(I.SEL_COL_NAME), 'any') SEL_COL_NAME,
+    MAP(MIN(I.INDIV_COSTS), MAX(I.INDIV_COSTS), MIN(I.INDIV_COSTS), -1) INDIV_COSTS,
+    COUNT(*) NUM_INDEXES,
+    SUM(I.MEM_TOT_GB) MEM_TOT_GB,
+    SUM(I.MEM_CONC_GB) MEM_CONC_GB,
+    BI.ORDER_BY
+  FROM
+  ( SELECT            /* Modification section */
+      '%' SCHEMA_NAME,
+      '%' TABLE_NAME,
+      '%' INDEX_NAME,
+      '%' STORE,           /* ROW, COLUMN, % */
+      '%' INDEX_TYPE,
+      '%' PARTITIONED,     /* YES, NO, % */
+      ' ' EXCLUDE_PK_AND_UNIQUE,
+      'X' ONLY_PK_AND_UNIQUE,
+      'X' EXCLUDE_SYSTEM_INDEXES,
+      10 MIN_MEM_TOT_GB,
+      'NONE' AGGREGATE_BY,                    /* SCHEMA, TABLE, STORE, INDEX, TYPE, CONSTRAINT, COLUMNS or comma separated combinations, NONE for no aggregation */
+      'SIZE' ORDER_BY                        /* SIZE, TABLE */
+    FROM
+      DUMMY
+  ) BI,
+  ( SELECT
+      STORE,
+      SCHEMA_NAME,
+      TABLE_NAME,
+      INDEX_NAME,
+      CONSTRAINT,
+      INDEX_TYPE,
+      SEL_COL_NAME,
+      INDIV_COSTS,
+      SUM(MEM_TOT_GB) MEM_TOT_GB,
+      SUM(MEM_CONC_GB) MEM_CONC_GB,
+      MAP(COUNT(*), 1, ' ', 'X') PARTITIONED
+    FROM
+    ( SELECT
+        'COLUMN' STORE,
+        CI.SCHEMA_NAME,
+        CI.TABLE_NAME,
+        CI.INDEX_NAME,
+        CASE
+          WHEN I.CONSTRAINT = 'PRIMARY KEY' THEN 'P'
+          WHEN I.CONSTRAINT LIKE '%UNIQUE%' THEN 'U'
+          ELSE ''
+        END CONSTRAINT,
+        I.INDEX_TYPE,
+        FIRST_VALUE(CI.MOST_SELECTIVE_COLUMN_NAME) OVER (PARTITION BY CI.SCHEMA_NAME, CI.TABLE_NAME, CI.INDEX_NAME ORDER BY CI.MEMORY_SIZE_IN_TOTAL DESC) SEL_COL_NAME,
+        FIRST_VALUE(CI.INVERTED_INDIVIDUAL_COST) OVER (PARTITION BY CI.SCHEMA_NAME, CI.TABLE_NAME, CI.INDEX_NAME ORDER BY CI.MEMORY_SIZE_IN_TOTAL DESC) INDIV_COSTS,
+        CI.MEMORY_SIZE_IN_TOTAL / 1024 / 1024 / 1024 MEM_TOT_GB,
+        CI.MEMORY_SIZE_IN_CONCAT / 1024 / 1024 / 1024 MEM_CONC_GB
+      FROM
+        M_CS_INDEXES CI INNER JOIN
+        INDEXES I ON
+          CI.SCHEMA_NAME = I.SCHEMA_NAME AND
+          CI.TABLE_NAME = I.TABLE_NAME AND
+          CI.INDEX_NAME = I.INDEX_NAME
+    )
+    GROUP BY
+      STORE,
+      SCHEMA_NAME,
+      TABLE_NAME,
+      INDEX_NAME,
+      CONSTRAINT,
+      INDEX_TYPE,
+      SEL_COL_NAME,
+      INDIV_COSTS
+    UNION ALL
+    SELECT
+      'ROW' STORE,
+      R.SCHEMA_NAME,
+      R.TABLE_NAME,
+      R.INDEX_NAME,
+      I.INDEX_TYPE,
+      MAP(R.IS_UNIQUE, 'TRUE', 'U', ' ') CONSTRAINT,
+      '' SEL_COL_NAME,
+      -1 INDIV_COSTS,   
+      R.INDEX_SIZE / 1024 / 1024 / 1024 MEM_TOT_GB,
+      0 MEM_CONC_GB,
+      ' ' PARTITIONED
+    FROM
+      M_RS_INDEXES R,
+      INDEXES I
+    WHERE
+      R.SCHEMA_NAME = I.SCHEMA_NAME AND
+      R.TABLE_NAME = I.TABLE_NAME AND
+      R.INDEX_NAME = I.INDEX_NAME
+  ) I
+  WHERE
+    I.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    I.TABLE_NAME LIKE BI.TABLE_NAME AND
+    I.INDEX_NAME LIKE BI.INDEX_NAME AND
+    I.PARTITIONED LIKE BI.PARTITIONED AND
+    I.STORE LIKE BI.STORE AND
+    I.INDEX_TYPE LIKE BI.INDEX_TYPE AND
+    ( BI.MIN_MEM_TOT_GB = -1 OR I.MEM_TOT_GB >= BI.MIN_MEM_TOT_GB ) AND
+    ( BI.EXCLUDE_PK_AND_UNIQUE = ' ' OR I.CONSTRAINT NOT IN ('P', 'U') ) AND
+    ( BI.ONLY_PK_AND_UNIQUE = ' ' OR I.CONSTRAINT IN ('P', 'U') ) AND
+    ( BI.EXCLUDE_SYSTEM_INDEXES = ' ' OR ( I.SCHEMA_NAME NOT IN ( 'SYS', 'SYSTEM' ) AND SUBSTR(I.SCHEMA_NAME, 1, 4) != '_SYS' ) )
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')     != 0 THEN I.SCHEMA_NAME ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')      != 0 THEN I.TABLE_NAME  ELSE MAP(BI.TABLE_NAME,  '%', 'any', BI.TABLE_NAME)  END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STORE')      != 0 THEN I.STORE       ELSE MAP(BI.STORE,       '%', ' ',   BI.STORE)       END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'INDEX')      != 0 THEN I.INDEX_NAME  ELSE MAP(BI.INDEX_NAME,  '%', 'any', BI.INDEX_NAME)  END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CONSTRAINT') != 0 THEN I.CONSTRAINT  ELSE 'any'                                           END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')       != 0 THEN I.INDEX_TYPE  ELSE MAP(BI.INDEX_TYPE,  '%', 'any', BI.INDEX_TYPE)  END,
+    ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'SIZE', MEM_TOT_GB) DESC, 
+  SCHEMA_NAME, 
+  TABLE_NAME, 
+  INDEX_NAME

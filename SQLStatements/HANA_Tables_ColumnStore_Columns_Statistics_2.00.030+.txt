@@ -1,0 +1,267 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Tables_ColumnStore_Columns_Statistics_2.00.030+
+
+[DESCRIPTION]
+
+- Provides statistics for columns located in column store (e.g. scanned records or index lookups)
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- M_CS_ALL_COLUMN_STATISTICS available with SAP HANA >= 2.00.030
+- Information not available with SAP HANA 2.00.040 (but again available with 2.00.041 and higher)
+- Statistics are supposed to be reset during unload (but with SAP HANA >= 2.00.040 not during table optimization),
+  but it looks like there are exceptions, so at the moment the scans are considered to be since startup
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.030
+
+[SQL COMMAND VERSION]
+
+- 2018/06/26:  1.0 (initial version)
+- 2018/12/17:  1.1 (ONLY_UNUSED_CONCAT_ATTRIBUTES added)
+- 2018/12/18:  1.2 (MIN_SCANNED_RECORDS_PER_S added)
+- 2020/03/18:  1.3 (RECORDS, DIST_COUNT and COMPRESSION added)
+- 2020/11/03:  1.4 (MIN_DIST_COUNT added)
+- 2021/03/20:  1.5 (INDEX_TYPE added)
+
+[INVOLVED TABLES]
+
+- M_CS_ALL_COLUMNS
+- M_CS_ALL_COLUMN_STATISTICS
+- M_SERVICE_STATISTICS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- COLUMN_NAME
+
+  Column name
+
+  'MATNR'         --> Column MATNR
+  'Z%'            --> Columns starting with "Z"
+  '%'             --> No restriction related to columns
+
+- INDEX_TYPE
+
+  Column index type
+
+  'FULL'          --> FULL index
+  'NONE'          --> no single column index defined on column
+
+- MIN_MEM_SIZE_MB
+
+  Minimum memory size (MB)
+
+  10              --> Only consider results with a memory size of at least 10 MB
+  -1              --> No restriction related to minimum memory size
+
+- MIN_DIST_COUNT
+
+  Minimum number of distinct column values
+
+  100             --> Only display columns with at least 100 distinct values
+  -1              --> No restriction related to distinct column values
+
+- MIN_SCANNED_RECORDS_PER_S
+
+  Minimum number of scanned records per second
+
+  5000000         --> Only display columns with at least 5 million scanned records per second
+  -1              --> No restriction related to minimum number of scanned records per second
+
+- ONLY_UNUSED_CONCAT_ATTRIBUTES
+
+  Possibility to restrict the output to concat attributes that aren't used
+
+  'X'             --> Only show concat attributes (i.e. multi-column indexes) that aren't used so far
+  ' '             --> No restriction related to concat attributes
+
+- OBJECT_LEVEL
+
+  Controls display of partitions
+
+  'PARTITION'     --> Result is shown on partition level
+  'TABLE'         --> Result is shown on table level
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TABLE'         --> Aggregation by table
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort order (available values are provided in comment)
+
+  'SIZE'          --> Sorting by size
+  'NAME'          --> Sorting by column name
+
+[OUTPUT PARAMETERS]
+
+- HOST:            Host name
+- PORT:            Port
+- SCHEMA_NAME:     Schema name
+- TABLE_NAME:      Table name
+- COLUMN_NAME:     Column name
+- SCANNED_RECORDS: Number of scanned records
+- SCR_PER_S:       Average scanned records per second
+- INDEX_LOOKUPS:   Number of index lookups
+- IL_PER_S:        Average index lookups per second
+- MEM_SIZE_MB:     Memory size (MB)
+- RECORDS:         Average nNumber of records
+- DIST_COUNT:      Average number of distinct values
+- COMPRESSION:     Column compression type
+- INDEX_TYPE:      Type of index defined on column (NONE, BLOCK, FULL)
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|HOST       |PORT |SCHEMA_NAME    |TABLE_NAME                      |COLUMN_NAME               |SCANNED_RECORDS|SCR_PER_S|INDEX_LOOKUPS|IL_PER_S|MEM_SIZE_MB|INDEX_TYPE|
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|saphana0001|30001|_SYS_STATISTICS|STATISTICS_ALERTS_BASE          |ALERT_ID                  |         391085|     0.65|          393|    0.00|       0.01|BLOCK     |
+|saphana0001|30001|_SYS_STATISTICS|HOST_SQL_PLAN_CACHE_BASE        |STATEMENT_HASH            |         203266|     0.34|            0|    0.00|       0.37|NONE      |
+|saphana0001|30001|_SYS_STATISTICS|HOST_SERVICE_MEMORY_BASE        |EFFECTIVE_ALLOCATION_LIMIT|         140954|     0.23|            0|    0.00|       1.27|NONE      |
+|saphana0001|30001|_SYS_STATISTICS|HOST_SERVICE_THREAD_SAMPLES_BASE|LOCK_WAIT_NAME            |         139532|     0.23|            2|    0.00|       0.02|BLOCK     |
+|saphana0001|30001|_SYS_STATISTICS|HOST_SERVICE_THREAD_SAMPLES_BASE|THREAD_METHOD             |          69766|     0.11|            1|    0.00|       0.01|BLOCK     |
+|saphana0001|30001|_SYS_STATISTICS|HOST_SERVICE_THREAD_SAMPLES_BASE|THREAD_STATE              |          40070|     0.06|            0|    0.00|       0.01|BLOCK     |
+|saphana0001|30001|_SYS_STATISTICS|HOST_HEAP_ALLOCATORS_BASE       |CATEGORY                  |          36003|     0.06|            0|    0.00|       0.01|BLOCK     |
+|saphana0001|30001|_SYS_STATISTICS|HOST_SERVICE_THREAD_SAMPLES_BASE|STATEMENT_HASH            |          35974|     0.06|            0|    0.00|       0.05|NONE      |
+|saphana0001|30001|_SYS_STATISTICS|STATISTICS_ALERTS_BASE          |ALERT_RATING              |           6918|     0.01|            0|    0.00|       0.00|NONE      |
+|saphana0001|30001|_SYS_RT        |PP_A_KYF                        |DESCRIPTION               |              0|     0.00|            0|    0.00|       0.00|NONE      |
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  COLUMN_NAME,
+  LPAD(SCANNED_RECORDS, 17) SCANNED_RECORDS,
+  LPAD(TO_DECIMAL(MAP(TIMEFRAME_S, 0, 0, SCANNED_RECORDS / TIMEFRAME_S), 9, 0), 11) SCR_PER_S,
+  LPAD(INDEX_LOOKUPS, 13) INDEX_LOOKUPS,
+  LPAD(TO_DECIMAL(MAP(TIMEFRAME_S, 0, 0, INDEX_LOOKUPS / TIMEFRAME_S), 7, 2), 8) IL_PER_S,
+  LPAD(TO_DECIMAL(MEM_SIZE_MB, 10, 2), 11) MEM_SIZE_MB,
+  LPAD(TO_DECIMAL(RECORDS, 12, 0), 12) RECORDS,
+  LPAD(TO_DECIMAL(DIST_COUNT, 12, 0), 12) DIST_COUNT,
+  COMPRESSION,
+  INDEX_TYPE
+FROM
+( SELECT
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')   != 0 THEN CS.HOST             ELSE MAP(BI.HOST, '%', 'any', BI.HOST)               END HOST,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')   != 0 THEN TO_VARCHAR(CS.PORT) ELSE MAP(BI.PORT, '%', 'any', BI.PORT)               END PORT,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SCHEMA') != 0 THEN CS.SCHEMA_NAME      ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME) END SCHEMA_NAME,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TABLE')  != 0 THEN CS.TABLE_NAME || CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND CS.PART_ID != 0 THEN CHAR(32) || 
+                                                              '(' || CS.PART_ID || ')' ELSE '' END ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME)   END TABLE_NAME,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'COLUMN') != 0 THEN CS.COLUMN_NAME      ELSE MAP(BI.COLUMN_NAME, '%', 'any', BI.COLUMN_NAME) END COLUMN_NAME,
+ /* MAX(SECONDS_BETWEEN(IFNULL(C.LAST_LOAD_TIME, SS.START_TIME), CURRENT_TIMESTAMP)) TIMEFRAME_S, */
+    MAX(SECONDS_BETWEEN(SS.START_TIME, CURRENT_TIMESTAMP)) TIMEFRAME_S,
+    SUM(CS.SCANNED_RECORD_COUNT) SCANNED_RECORDS,
+    SUM(CS.INDEX_LOOKUP_COUNT) INDEX_LOOKUPS,
+    SUM(C.MEMORY_SIZE_IN_TOTAL + C.PERSISTENT_MEMORY_SIZE_IN_TOTAL) / 1024 / 1024 MEM_SIZE_MB,
+    MAP(MIN(C.COMPRESSION_TYPE), MAX(C.COMPRESSION_TYPE), MIN(C.COMPRESSION_TYPE), 'various') COMPRESSION,
+    MAP(MIN(C.INDEX_TYPE), MAX(C.INDEX_TYPE), MIN(C.INDEX_TYPE), 'various') INDEX_TYPE,
+    AVG(C.COUNT) RECORDS,
+    AVG(C.DISTINCT_COUNT) DIST_COUNT,
+    BI.ORDER_BY,
+    BI.MIN_MEM_SIZE_MB,
+    BI.MIN_SCANNED_RECORDS_PER_S
+  FROM
+  ( SELECT               /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      '%' SCHEMA_NAME,
+      '%' TABLE_NAME,
+      '%' COLUMN_NAME,
+      '%' INDEX_TYPE,
+      -1 MIN_MEM_SIZE_MB,
+      1000 MIN_DIST_COUNT,
+      10000000 MIN_SCANNED_RECORDS_PER_S,
+      ' ' ONLY_UNUSED_CONCAT_ATTRIBUTES,
+      'TABLE' OBJECT_LEVEL,    /* TABLE, PARTITION */
+      'NONE' AGGREGATE_BY,     /* HOST, PORT, SCHEMA, TABLE, COLUMN,  or comma separated combinations, NONE for no aggregation */
+      'SCANNED_RECORDS' ORDER_BY                          /* NAME, SCANNED_RECORDS, INDEX_LOOKUPS, SIZE */
+    FROM
+      DUMMY
+  ) BI,
+    M_CS_ALL_COLUMN_STATISTICS CS,
+    M_CS_ALL_COLUMNS C,
+    M_SERVICE_STATISTICS SS
+  WHERE
+    CS.HOST LIKE BI.HOST AND
+    CS.PORT LIKE TO_VARCHAR(BI.PORT) AND
+    CS.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    CS.TABLE_NAME LIKE BI.TABLE_NAME AND
+    CS.COLUMN_NAME LIKE BI.COLUMN_NAME AND
+    C.INDEX_TYPE LIKE BI.INDEX_TYPE AND
+    C.HOST = CS.HOST AND
+    C.PORT = CS.PORT AND
+    C.SCHEMA_NAME = CS.SCHEMA_NAME AND
+    C.TABLE_NAME = CS.TABLE_NAME AND
+    C.PART_ID = CS.PART_ID AND
+    C.COLUMN_NAME = CS.COLUMN_NAME AND
+    ( BI.MIN_DIST_COUNT = -1 OR C.DISTINCT_COUNT >= BI.MIN_DIST_COUNT ) AND
+    SS.HOST = CS.HOST AND
+    SS.PORT = CS.PORT AND
+    ( ONLY_UNUSED_CONCAT_ATTRIBUTES = ' ' OR
+      ONLY_UNUSED_CONCAT_ATTRIBUTES = 'X' AND CS.INDEX_LOOKUP_COUNT = 0 AND C.INTERNAL_ATTRIBUTE_TYPE = 'CONCAT_ATTRIBUTE' AND CS.COLUMN_NAME NOT LIKE '$uc%'
+    )
+  GROUP BY
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')   != 0 THEN CS.HOST             ELSE MAP(BI.HOST, '%', 'any', BI.HOST)               END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')   != 0 THEN TO_VARCHAR(CS.PORT) ELSE MAP(BI.PORT, '%', 'any', BI.PORT)               END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SCHEMA') != 0 THEN CS.SCHEMA_NAME      ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME) END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TABLE')  != 0 THEN CS.TABLE_NAME || CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND CS.PART_ID != 0 THEN CHAR(32) || 
+                                                              '(' || CS.PART_ID || ')' ELSE '' END ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME)   END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'COLUMN') != 0 THEN CS.COLUMN_NAME      ELSE MAP(BI.COLUMN_NAME, '%', 'any', BI.COLUMN_NAME) END,
+    BI.ORDER_BY,
+    BI.MIN_MEM_SIZE_MB,
+    BI.MIN_SCANNED_RECORDS_PER_S
+)
+WHERE
+( MIN_MEM_SIZE_MB = -1 OR MEM_SIZE_MB >= MIN_MEM_SIZE_MB ) AND
+( MIN_SCANNED_RECORDS_PER_S = -1 OR MAP(TIMEFRAME_S, 0, 0, SCANNED_RECORDS / TIMEFRAME_S) >= MIN_SCANNED_RECORDS_PER_S )
+ORDER BY
+  MAP(ORDER_BY, 'NAME', HOST || PORT || SCHEMA_NAME || TABLE_NAME || COLUMN_NAME),
+  MAP(ORDER_BY, 'SCANNED_RECORDS', SCANNED_RECORDS, 'INDEX_LOOKUPS', INDEX_LOOKUPS, 'SIZE', MEM_SIZE_MB) DESC

@@ -1,0 +1,674 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Memory_Overview_2.00.040+
+
+[DESCRIPTION]
+
+- Memory overview
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- INSTANCE_SHARED_MEMORY_ALLOCATED_SIZE, INSTANCE_TOTAL_MEMORY_ALLOCATED_SIZE and INSTANCE_TOTAL_MEMORY_USED_SIZE not available with revisions before 60
+- INSTANCE_TOTAL_MEMORY_PEAK_USED_SIZE not available before revision 90
+- Specifying a non-existing HOST in "Modification section" on SAP HANA <= 1.00.121 can result in a crash (SAP Note 2391546)
+- M_PERSISTENT_MEMORY_VOLUME_STATISTICS available with SAP HANA >= 2.00.030
+- M_SERVICE_MEMORY.FRAGMENTED_MEMORY_SIZE and M_HEAP_MEMORY_AREAS available with SAP HANA >= 2.00.040
+- With SAP HANA 2.00.060 - 2.00.063 the implicit M_CACHES access can result in indexserver crashes (bug 289445). In order to avoid this risk you can
+  remove the M_CACHES section from the command before running it.
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.040
+
+[SQL COMMAND VERSION]
+
+- 2014/03/06:  1.0 (initial version)
+- 2014/05/09:  1.1 ('Disk size' section added)
+- 2014/12/02:  1.2 (INSTANCE_TOTAL_MEMORY_PEAK_USED_SIZE added)
+- 2015/02/24:  1.3 (liveCache size information included)
+- 2015/08/26:  1.4 ('Physical memory (used)' included)
+- 2018/11/29:  1.5 ('Caches' section included)
+- 2019/06/04:  1.6 (dedicated 2.00.030+ version including persistent memory details)
+- 2019/06/07:  1.7 (dedicated 2.00.040+ version including FRAGMENTED_MEMORY_SIZE)
+- 2019/11/27:  1.8 ('Planning engine object types' section included)
+- 2020/01/05:  1.9 (M_HEAP_MEMORY_AREAS included)
+- 2021/08/17:  2.0 (available persistent memory included)
+- 2021/12/21:  2.1 (temporary tables included)
+
+[INVOLVED TABLES]
+
+- HOST_RESOURCE_UTILIZATION_STATISTICS 
+- M_CS_TABLES
+- M_HEAP_MEMORY
+- M_HEAP_MEMORY_AREAS
+- M_HOST_INFORMATION
+- M_HOST_RESOURCE_UTILIZATION
+- M_LANDSCAPE_HOST_CONFIGURATION
+- M_LIVECACHE_CONTAINER_STATISTICS 
+- M_PERSISTENT_MEMORY_VOLUMES
+- M_RS_TABLES
+- M_RS_INDEXES
+- M_SERVICE_MEMORY
+- M_TABLE_PERSISTENCE_STATISTICS
+
+[INPUT PARAMETERS]
+
+ 
+[OUTPUT PARAMETERS]
+
+- NAME:       Description
+- TOTAL_GB:   Total size (GB)
+- DETAIL_GB:  Size on detail level (GB)
+- DETAIL2_GB: Size on 2nd detail level (GB)
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+|NAME                                |TOTAL_GB |DETAIL_GB                        |DETAIL2_GB                                                            |
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+|User-defined global allocation limit|not set  |                                 |                                                                      |
+|                                    |         |                                 |                                                                      |
+|License memory limit                |      256|                                 |                                                                      |
+|                                    |         |                                 |                                                                      |
+|License usage                       |      143|      124 (2014/03/01-2014/03/31)|                                                                      |
+|                                    |         |      143 (2014/04/01-2014/04/30)|                                                                      |
+|                                    |         |      113 (2014/05/01-2014/05/09)|                                                                      |
+|                                    |         |                                 |                                                                      |
+|Physical memory                     |      256|      256 (vhbshk0sdb)           |                                                                      |
+|                                    |         |                                 |                                                                      |
+|HANA instance memory (allocated)    |      113|      113 (vhbshk0sdb)           |                                                                      |
+|                                    |         |                                 |                                                                      |
+|HANA instance memory (used)         |       85|       85 (vhbshk0sdb)           |                                                                      |
+|                                    |         |                                 |                                                                      |
+|HANA shared memory                  |       23|       23 (vhbshk0sdb)           |                                                                      |
+|                                    |         |                                 |                                                                      |
+|HANA heap memory (used)             |       52|       52 (vhbshk0sdb)           |       10 (Pool/NameIdMapping/RoDict)                                 |
+|                                    |         |                                 |        7 (Pool/RowEngine/CpbTree)                                    |
+|                                    |         |                                 |        5 (Pool/PersistenceManager/PersistentSpace(0)/DefaultLPA/Page)|
+|                                    |         |                                 |        3 (Pool/RowEngine/SQLPlan)                                    |
+|                                    |         |                                 |        3 (Pool/malloc/libhdbcs.so)                                   |
+|                                    |         |                                 |        2 (Pool/AttributeEngine-IndexVector-Single)                   |
+|                                    |         |                                 |        2 (Pool/RowEngine/LockTable)                                  |
+|                                    |         |                                 |        2 (Pool/RowEngine/QueryExecution)                             |
+|                                    |         |                                 |        1 (Pool/Statistics)                                           |
+|                                    |         |                                 |        1 (Pool/AttributeEngine)                                      |
+|                                    |         |                                 |                                                                      |
+|Column store size                   |       19|       19 (vhbshk0sdb)           |        3 (WBCROSSGT)                                                 |
+|                                    |         |                                 |        2 (BALDAT)                                                    |
+|                                    |         |                                 |        1 (DBTABLOG)                                                  |
+|                                    |         |                                 |        1 (DOKTL)                                                     |
+|                                    |         |                                 |        1 (HOST_SQL_PLAN_CACHE)                                       |
+|                                    |         |                                 |        1 (COMM_PRODUCT_IDX)                                          |
+|                                    |         |                                 |        1 (REPOSRC)                                                   |
+|                                    |         |                                 |                                                                      |
+|Row store size                      |       30|       26 (vhbshk0sdb)           |        5 (D010TAB)                                                   |
+|                                    |         |                                 |        3 (D010INC)                                                   |
+|                                    |         |                                 |        2 (REPOSRC)                                                   |
+|                                    |         |                                 |        2 (INDX)                                                      |
+|                                    |         |                                 |        2 (DD03L)                                                     |
+|                                    |         |                                 |        1 (VRSMODISRC)                                                |
+|                                    |         |                                 |        1 (SMIMCONT1)                                                 |
+|                                    |         |                                 |        1 (SEOCOMPODF)                                                |
+|                                    |         |                                 |        1 (CWBCIDATAOBJ)                                              |
+|                                    |         |                                 |        1 (DD04T)                                                     |
+|                                    |         |                                 |                                                                      |
+|Disk size                           |       66|       66 (global)               |       10 (REPOLOAD)                                                  |
+|                                    |         |                                 |        6 (REPOSRC)                                                   |
+|                                    |         |                                 |        3 (WBCROSSGT)                                                 |
+|                                    |         |                                 |        3 (D010TAB)                                                   |
+|                                    |         |                                 |        3 (DBTABLOG)                                                  |
+|                                    |         |                                 |        2 (INDX)                                                      |
+|                                    |         |                                 |        2 (D010INC)                                                   |
+|                                    |         |                                 |        2 (BALDAT)                                                    |
+|                                    |         |                                 |        2 (DOKTL)                                                     |
+|                                    |         |                                 |        1 (HOST_SQL_PLAN_CACHE)                                       |
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  NAME,
+  TOTAL_GB,
+  DETAIL_GB,
+  DETAIL2_GB
+FROM
+( SELECT
+  1000 LINE_NO,
+    'License memory limit' NAME,
+    LPAD(TO_DECIMAL(ROUND(PRODUCT_LIMIT), 10, 0), 8) TOTAL_GB,
+    ' ' DETAIL_GB,
+    ' ' DETAIL2_GB
+  FROM
+    M_LICENSE
+  UNION ALL ( SELECT 1990, ' ', ' ', ' ', ' ' FROM DUMMY )
+/* UNION ALL
+  SELECT
+    2000 + ROW_NUMBER() OVER (ORDER BY PERIOD_START_TIME),
+    MAP(ROW_NUMBER () OVER (ORDER BY LH.PERIOD_START_TIME), 1, 'License usage', ' '),
+    MAP(ROW_NUMBER () OVER (ORDER BY LH.PERIOD_START_TIME), 1, LPAD(TO_DECIMAL(ROUND(L.PRODUCT_USAGE), 9), 10, 0), ' '),
+    LPAD(TO_DECIMAL(ROUND(LH.PRODUCT_USAGE), 10, 0), 8) || ' (' || TO_VARCHAR(PERIOD_START_TIME, 'YYYY/MM/DD') ||
+      '-' || TO_VARCHAR(PERIOD_END_TIME, 'YYYY/MM/DD') || ')',
+    ' '
+  FROM
+    M_LICENSE L,
+    M_LICENSE_USAGE_HISTORY LH
+  UNION ALL ( SELECT 2990, ' ', ' ', ' ', ' ' FROM DUMMY )
+*/
+  UNION ALL
+  SELECT
+    3000 + ROW_NUMBER() OVER (ORDER BY HOST),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, 'Physical memory (available)', ' '),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, LPAD(TO_DECIMAL(ROUND(SUM(TO_NUMBER(VALUE)) OVER () / 1024 / 1024 / 1024), 10, 0), 8), ' '),
+    LPAD(TO_DECIMAL(ROUND(TO_NUMBER(VALUE) / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || HOST || ')',
+    ' '
+  FROM
+    M_HOST_INFORMATION
+  WHERE
+    KEY = 'mem_phys'
+  UNION ALL ( SELECT 3990, ' ', ' ', ' ', ' ' FROM DUMMY )
+  UNION ALL
+  SELECT
+    4000 + ROW_NUMBER() OVER (ORDER BY HOST),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, 'Physical memory (used)', ' '),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, LPAD(TO_DECIMAL(ROUND(SUM(USED_PHYSICAL_MEMORY) OVER () / 1024 / 1024 / 1024), 10, 0), 8), ' '),
+    LPAD(TO_DECIMAL(ROUND(USED_PHYSICAL_MEMORY / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || HOST || ')',
+    ' '
+  FROM
+    M_HOST_RESOURCE_UTILIZATION
+  UNION ALL ( SELECT 4990, ' ', ' ', ' ', ' ' FROM DUMMY )
+  UNION ALL 
+  SELECT
+    5000 + ROW_NUMBER() OVER (ORDER BY HOST),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, 'Global allocation limit', ' ') NAME,    
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, LPAD(TO_DECIMAL(ROUND(SUM(ALLOCATION_LIMIT / 1024 / 1024 / 1024) OVER ()), 10, 0), 8), ' ') TOTAL_GB,
+    LPAD(TO_DECIMAL(ROUND(ALLOCATION_LIMIT / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || HOST || ')' DETAIL_GB,
+    ' ' DETAIL2_GB
+  FROM
+    M_HOST_RESOURCE_UTILIZATION
+  UNION ALL ( SELECT 5990, ' ', ' ', ' ', ' ' FROM DUMMY )
+  UNION ALL
+  SELECT
+    6000 + ROW_NUMBER() OVER (ORDER BY HOST),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, 'HANA instance memory (allocated)', ' '),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, LPAD(TO_DECIMAL(ROUND(SUM(INSTANCE_TOTAL_MEMORY_ALLOCATED_SIZE) OVER () / 1024 / 1024 / 1024), 10, 0), 8), ' '),
+    LPAD(TO_DECIMAL(ROUND(INSTANCE_TOTAL_MEMORY_ALLOCATED_SIZE / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || HOST || ')',
+    ' '
+  FROM
+    M_HOST_RESOURCE_UTILIZATION
+  UNION ALL ( SELECT 6990, ' ', ' ', ' ', ' ' FROM DUMMY )
+  UNION ALL
+  SELECT
+    7000 + ROW_NUMBER() OVER (ORDER BY HOST),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, 'HANA instance memory (peak used)', ' '),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, LPAD(TO_DECIMAL(ROUND(TOTAL_SIZE / 1024 / 1024 / 1024), 10, 0), 8), ' '),      
+    LPAD(TO_DECIMAL(ROUND(HOST_SIZE / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || HOST || ')',
+    ' '
+  FROM
+  ( SELECT
+      HOST,
+      HOST_SIZE,
+      GREATEST(TOTAL_SIZE, MAX(HOST_SIZE) OVER ()) TOTAL_SIZE
+    FROM
+    ( SELECT
+        HOST,
+        HOST_SIZE,
+        IFNULL(TOTAL_SIZE, SUM(HOST_SIZE) OVER ()) TOTAL_SIZE
+      FROM
+      ( SELECT
+          IFNULL(CURR_HOST, HIST_HOST) HOST,
+          GREATEST(IFNULL(CURR_SIZE, 0), IFNULL(HIST_SIZE, 0)) HOST_SIZE,
+          TOTAL_SIZE
+        FROM
+        ( SELECT
+            HOST CURR_HOST,
+            INSTANCE_TOTAL_MEMORY_PEAK_USED_SIZE CURR_SIZE
+          FROM
+            M_HOST_RESOURCE_UTILIZATION
+        ) C FULL OUTER JOIN
+        ( SELECT
+            R.HOST HIST_HOST,
+            MAX(R.INSTANCE_TOTAL_MEMORY_USED_SIZE) HIST_SIZE,
+            T.TOTAL_SIZE
+          FROM
+            M_LANDSCAPE_HOST_CONFIGURATION L,
+            _SYS_STATISTICS.HOST_RESOURCE_UTILIZATION_STATISTICS R,
+          ( SELECT 
+              TOP 1 SUM(R.INSTANCE_TOTAL_MEMORY_USED_SIZE) TOTAL_SIZE 
+            FROM 
+              M_LANDSCAPE_HOST_CONFIGURATION L,
+              _SYS_STATISTICS.HOST_RESOURCE_UTILIZATION_STATISTICS R
+            WHERE
+              L.HOST = R.HOST
+            GROUP BY 
+              R.SNAPSHOT_ID 
+            ORDER BY 
+              SUM(R.INSTANCE_TOTAL_MEMORY_USED_SIZE) DESC 
+          ) T
+          WHERE
+            L.HOST = R.HOST
+          GROUP BY
+            T.TOTAL_SIZE,
+            R.HOST
+        ) H ON
+          C.CURR_HOST = H.HIST_HOST 
+      )
+    )
+  )
+  UNION ALL ( SELECT 7990, ' ', ' ', ' ', ' ' FROM DUMMY )
+  UNION ALL
+  SELECT
+    8000 + ROW_NUMBER () OVER (ORDER BY HOST),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, 'HANA instance memory (used)', ' '),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, LPAD(TO_DECIMAL(ROUND(SUM(INSTANCE_TOTAL_MEMORY_USED_SIZE) OVER () / 1024 / 1024 / 1024), 10, 0), 8), ' '),
+    LPAD(TO_DECIMAL(ROUND(INSTANCE_TOTAL_MEMORY_USED_SIZE / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || HOST || ')',
+    ' '
+  FROM
+    M_HOST_RESOURCE_UTILIZATION
+  UNION ALL ( SELECT 8990, ' ', ' ', ' ', ' ' FROM DUMMY )
+  UNION ALL
+  SELECT
+    9000 + ROW_NUMBER () OVER (ORDER BY HOST),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, 'HANA shared memory', ' '),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, LPAD(TO_DECIMAL(ROUND(SUM(INSTANCE_SHARED_MEMORY_ALLOCATED_SIZE) OVER () / 1024 / 1024 / 1024), 10, 0), 8), ' '),
+    LPAD(TO_DECIMAL(ROUND(INSTANCE_SHARED_MEMORY_ALLOCATED_SIZE / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || HOST || ')',
+    ' '
+  FROM
+  ( SELECT
+      HOST,
+      SUM(INSTANCE_SHARED_MEMORY_ALLOCATED_SIZE) INSTANCE_SHARED_MEMORY_ALLOCATED_SIZE
+    FROM
+      M_HOST_RESOURCE_UTILIZATION
+    GROUP BY
+      HOST
+    HAVING
+      SUM(INSTANCE_SHARED_MEMORY_ALLOCATED_SIZE) / 1024 / 1024 / 1024 >= 1
+  )
+  UNION ALL ( SELECT 9290, ' ', ' ', ' ', ' ' FROM DUMMY )
+  UNION ALL
+  SELECT
+    9300 + ROW_NUMBER () OVER (ORDER BY HOST),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, 'HANA persistent memory (available)', ' '),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, LPAD(TO_DECIMAL(ROUND(SUM(TOTAL_SIZE) OVER () / 1024 / 1024 / 1024), 10, 0), 8), ' '),
+    LPAD(TO_DECIMAL(ROUND(TOTAL_SIZE / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || HOST || ')',
+    ' '
+  FROM
+  ( SELECT
+      HOST,
+      MAX(TOTAL_SIZE) TOTAL_SIZE
+    FROM
+    ( SELECT
+        HOST,
+        PORT,
+        SUM(TOTAL_SIZE) TOTAL_SIZE
+      FROM
+        M_PERSISTENT_MEMORY_VOLUMES
+      GROUP BY
+        HOST,
+        PORT
+    )
+    GROUP BY
+      HOST
+    HAVING
+      SUM(TOTAL_SIZE) / 1024 / 1024 / 1024 >= 1
+  )
+  UNION ALL ( SELECT TOP 1 9349, ' ', ' ', ' ', ' ' FROM M_PERSISTENT_MEMORY_VOLUMES )
+  UNION ALL
+  SELECT
+    9350 + ROW_NUMBER () OVER (ORDER BY HOST),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, 'HANA persistent memory (used)', ' '),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, LPAD(TO_DECIMAL(ROUND(SUM(TOTAL_ACTIVE_SIZE) OVER () / 1024 / 1024 / 1024), 10, 0), 8), ' '),
+    LPAD(TO_DECIMAL(ROUND(TOTAL_ACTIVE_SIZE / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || HOST || ')',
+    ' '
+  FROM
+  ( SELECT
+      HOST,
+      SUM(TOTAL_ACTIVE_SIZE) TOTAL_ACTIVE_SIZE
+    FROM
+      M_PERSISTENT_MEMORY_VOLUME_STATISTICS
+    GROUP BY
+      HOST
+    HAVING
+      SUM(TOTAL_ACTIVE_SIZE) / 1024 / 1024 / 1024 >= 1
+  )
+  UNION ALL ( SELECT TOP 1 9399, ' ', ' ', ' ', ' ' FROM M_PERSISTENT_MEMORY_VOLUME_STATISTICS WHERE TOTAL_ACTIVE_SIZE > 0 )
+  UNION ALL
+  ( SELECT
+      9400 + ROW_NUMBER () OVER (ORDER BY HOST),
+      MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, 'HANA heap memory fragmentation', ' '),
+      MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, LPAD(TO_DECIMAL(ROUND(SUM(FRAGMENTATION_BYTE) OVER () / 1024 / 1024 / 1024), 10, 0), 8), ' '),
+      LPAD(TO_DECIMAL(ROUND(FRAGMENTATION_BYTE / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || HOST || ')',
+      ' '
+    FROM
+    ( SELECT
+        HOST,
+        SUM(FRAGMENTED_MEMORY_SIZE) FRAGMENTATION_BYTE
+      FROM
+        M_SERVICE_MEMORY
+      GROUP BY
+        HOST
+      HAVING
+        SUM(FRAGMENTED_MEMORY_SIZE) / 1024 / 1024 / 1024 > 10
+    )
+    ORDER BY
+      HOST
+  )
+  UNION ALL ( SELECT TOP 1 9440, ' ', ' ', ' ', ' ' FROM M_SERVICE_MEMORY GROUP BY HOST HAVING SUM(FRAGMENTED_MEMORY_SIZE) / 1024 / 1024 / 1024 > 10 )
+  UNION ALL
+  ( SELECT
+      9450 + ROW_NUMBER () OVER (ORDER BY HOST),
+      MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, 'HANA free memory cache', ' '),
+      MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, LPAD(TO_DECIMAL(ROUND(SUM(FMC_BYTE) OVER () / 1024 / 1024 / 1024), 10, 0), 8), ' '),
+      LPAD(TO_DECIMAL(ROUND(FMC_BYTE / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || HOST || ')',
+      ' '
+    FROM
+    ( SELECT
+        HOST,
+        SUM(TOTAL_SIZE) FMC_BYTE
+      FROM
+        M_HEAP_MEMORY_AREAS
+      WHERE
+        AREA = 'FreeMemoryCache'
+      GROUP BY
+        HOST
+      HAVING
+        SUM(TOTAL_SIZE) / 1024 / 1024 / 1024 > 10
+    )
+    ORDER BY
+      HOST
+  )
+  UNION ALL ( SELECT TOP 1 9490, ' ', ' ', ' ', ' ' FROM M_HEAP_MEMORY_AREAS WHERE AREA = 'FreeMemoryCache' GROUP BY HOST HAVING SUM(TOTAL_SIZE) > 10 * 1024 * 1024 * 1024 )
+  UNION ALL
+  SELECT
+    10000 + LINE_NO / 1000,
+    NAME,
+    TOTAL_GB,
+    DETAIL_GB,
+    DETAIL2_GB
+  FROM
+  ( SELECT
+      ROW_NUMBER () OVER (ORDER BY HOST, EXCLUSIVE_SIZE_IN_USE DESC) LINE_NO,
+      MAP(ROW_NUMBER () OVER (ORDER BY HOST, EXCLUSIVE_SIZE_IN_USE DESC), 1, 'HANA heap memory (used)', ' ') NAME,
+      MAP(ROW_NUMBER () OVER (ORDER BY HOST, EXCLUSIVE_SIZE_IN_USE DESC), 1, LPAD(TO_DECIMAL(ROUND(SUM(EXCLUSIVE_SIZE_IN_USE) OVER () / 1024 / 1024 / 1024), 10, 0), 8), ' ') TOTAL_GB,
+      MAP(ROW_NUMBER () OVER (PARTITION BY HOST ORDER BY EXCLUSIVE_SIZE_IN_USE DESC), 1, 
+        LPAD(TO_DECIMAL(ROUND(SUM(EXCLUSIVE_SIZE_IN_USE) OVER (PARTITION BY HOST) / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || HOST || ')', ' ') DETAIL_GB,
+      LPAD(TO_DECIMAL(ROUND(SUM(EXCLUSIVE_SIZE_IN_USE) / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || CATEGORY || ')' DETAIL2_GB,
+      ROW_NUMBER () OVER (PARTITION BY HOST ORDER BY EXCLUSIVE_SIZE_IN_USE DESC) ROW_NUM,
+      TO_DECIMAL(ROUND(SUM(EXCLUSIVE_SIZE_IN_USE) / 1024 / 1024 / 1024), 10, 0) USED_GB
+    FROM
+    ( SELECT
+        HOST,
+        CATEGORY,
+        SUM(EXCLUSIVE_SIZE_IN_USE) EXCLUSIVE_SIZE_IN_USE
+      FROM
+        M_HEAP_MEMORY
+      GROUP BY
+        HOST,
+        CATEGORY
+    )
+    GROUP BY
+      HOST,
+      CATEGORY,
+      EXCLUSIVE_SIZE_IN_USE
+  )
+  WHERE
+    USED_GB > 0 AND
+    ROW_NUM <= 10
+  UNION ALL ( SELECT TOP 1 10490, ' ', ' ', ' ', ' ' FROM M_CACHES GROUP BY HOST, CACHE_ID HAVING ROUND(SUM(USED_SIZE / 1024 / 1024 / 1024)) > 0 )
+  UNION ALL
+  SELECT
+    10500 + LINE_NO / 1000,
+    NAME,
+    TOTAL_GB,
+    DETAIL_GB,
+    DETAIL2_GB
+  FROM
+  ( SELECT
+      ROW_NUMBER () OVER (ORDER BY HOST, SUM(MEMORY_SIZE_IN_TOTAL) DESC) / 10000 LINE_NO,
+      MAP(ROW_NUMBER () OVER (ORDER BY HOST, MEMORY_SIZE_IN_TOTAL DESC), 1, 'Caches', ' ') NAME,
+      MAP(ROW_NUMBER () OVER (ORDER BY HOST, MEMORY_SIZE_IN_TOTAL DESC), 1, LPAD(TO_DECIMAL(ROUND(SUM(MEMORY_SIZE_IN_TOTAL) OVER () / 1024 / 1024 / 1024), 10, 0), 8), ' ') TOTAL_GB,
+      MAP(ROW_NUMBER () OVER (PARTITION BY HOST ORDER BY MEMORY_SIZE_IN_TOTAL DESC), 1, 
+        LPAD(TO_DECIMAL(ROUND(SUM(MEMORY_SIZE_IN_TOTAL) OVER (PARTITION BY HOST) / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || HOST || ')', ' ') DETAIL_GB,
+      LPAD(TO_DECIMAL(ROUND(SUM(MEMORY_SIZE_IN_TOTAL) / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || CACHE_ID || ')' DETAIL2_GB,
+      ROW_NUMBER () OVER (PARTITION BY HOST ORDER BY MEMORY_SIZE_IN_TOTAL DESC) ROW_NUM,
+      TO_DECIMAL(ROUND(SUM(MEMORY_SIZE_IN_TOTAL) / 1024 / 1024 / 1024), 10, 0) CACHE_SIZE_GB
+    FROM
+    ( SELECT
+        HOST,
+        CACHE_ID,
+        SUM(USED_SIZE) MEMORY_SIZE_IN_TOTAL
+      FROM
+        M_CACHES
+      WHERE
+        CACHE_ID NOT IN ( 'L/Code', 'L/Interpret' )
+      GROUP BY
+        HOST,
+        CACHE_ID
+    )
+    GROUP BY
+      HOST,
+      CACHE_ID,
+      MEMORY_SIZE_IN_TOTAL
+  )
+  WHERE
+    CACHE_SIZE_GB > 0 AND
+    ROW_NUM <= 10
+  UNION ALL ( SELECT TOP 1 10590, ' ', ' ', ' ', ' ' FROM M_TEMPORARY_TABLES GROUP BY HOST HAVING SUM(TABLE_SIZE / 1024 / 1024 / 1024) > 1 )
+  UNION ALL
+  SELECT
+    10600 + ROW_NUMBER () OVER (ORDER BY HOST),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, 'Temporary tables', ' '),
+    MAP(ROW_NUMBER () OVER (ORDER BY HOST), 1, LPAD(TO_DECIMAL(ROUND(SUM(TT_BYTE) OVER () / 1024 / 1024 / 1024), 10, 0), 8), ' '),
+    LPAD(TO_DECIMAL(ROUND(TT_BYTE / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || HOST || ')',
+    ' '
+  FROM
+  ( SELECT
+      HOST,
+      SUM(TABLE_SIZE) TT_BYTE
+    FROM
+      M_TEMPORARY_TABLES
+    GROUP BY
+      HOST
+    HAVING
+      SUM(TABLE_SIZE) / 1024 / 1024 / 1024 > 1
+  )
+/* skipping due to risk of crash with SAP HANA <= 2.00.047 described in SAP Note 2937241
+  UNION ALL ( SELECT TOP 1 10690, ' ', ' ', ' ', ' ' FROM M_PLE_RUNTIME_OBJECTS GROUP BY HOST, OBJECT_TYPE HAVING ROUND(SUM(MEMORY_SIZE / 1024 / 1024 / 1024)) > 0 )
+  UNION ALL
+  SELECT
+    10700 + LINE_NO / 1000,
+    NAME,
+    TOTAL_GB,
+    DETAIL_GB,
+    DETAIL2_GB
+  FROM
+  ( SELECT
+      ROW_NUMBER () OVER (ORDER BY HOST, SUM(MEMORY_SIZE_IN_TOTAL) DESC) / 10000 LINE_NO,
+      MAP(ROW_NUMBER () OVER (ORDER BY HOST, MEMORY_SIZE_IN_TOTAL DESC), 1, 'Planning engine object types', ' ') NAME,
+      MAP(ROW_NUMBER () OVER (ORDER BY HOST, MEMORY_SIZE_IN_TOTAL DESC), 1, LPAD(TO_DECIMAL(ROUND(SUM(MEMORY_SIZE_IN_TOTAL) OVER () / 1024 / 1024 / 1024), 10, 0), 8), ' ') TOTAL_GB,
+      MAP(ROW_NUMBER () OVER (PARTITION BY HOST ORDER BY MEMORY_SIZE_IN_TOTAL DESC), 1, 
+        LPAD(TO_DECIMAL(ROUND(SUM(MEMORY_SIZE_IN_TOTAL) OVER (PARTITION BY HOST) / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || HOST || ')', ' ') DETAIL_GB,
+      LPAD(TO_DECIMAL(ROUND(SUM(MEMORY_SIZE_IN_TOTAL) / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || OBJECT_TYPE || ')' DETAIL2_GB,
+      ROW_NUMBER () OVER (PARTITION BY HOST ORDER BY MEMORY_SIZE_IN_TOTAL DESC) ROW_NUM,
+      TO_DECIMAL(ROUND(SUM(MEMORY_SIZE_IN_TOTAL) / 1024 / 1024 / 1024), 10, 0) OBJECT_SIZE_GB
+    FROM
+    ( SELECT
+        HOST,
+        OBJECT_TYPE,
+        SUM(MEMORY_SIZE) MEMORY_SIZE_IN_TOTAL
+      FROM
+        M_PLE_RUNTIME_OBJECTS
+      GROUP BY
+        HOST,
+        OBJECT_TYPE
+    )
+    GROUP BY
+      HOST,
+      OBJECT_TYPE,
+      MEMORY_SIZE_IN_TOTAL
+  )
+  WHERE
+    OBJECT_SIZE_GB > 0 AND
+    ROW_NUM <= 10
+*/
+  UNION ALL ( SELECT 10990, ' ', ' ', ' ', ' ' FROM DUMMY )
+  UNION ALL
+  SELECT
+    11000 + LINE_NO / 1000,
+    NAME,
+    TOTAL_GB,
+    DETAIL_GB,
+    DETAIL2_GB
+  FROM
+  ( SELECT
+      ROW_NUMBER () OVER (ORDER BY HOST, SUM(MEMORY_SIZE_IN_TOTAL) DESC) / 10000 LINE_NO,
+      MAP(ROW_NUMBER () OVER (ORDER BY HOST, MEMORY_SIZE_IN_TOTAL DESC), 1, 'Column store size', ' ') NAME,
+      MAP(ROW_NUMBER () OVER (ORDER BY HOST, MEMORY_SIZE_IN_TOTAL DESC), 1, LPAD(TO_DECIMAL(ROUND(SUM(MEMORY_SIZE_IN_TOTAL) OVER () / 1024 / 1024 / 1024), 10, 0), 8), ' ') TOTAL_GB,
+      MAP(ROW_NUMBER () OVER (PARTITION BY HOST ORDER BY MEMORY_SIZE_IN_TOTAL DESC), 1, 
+        LPAD(TO_DECIMAL(ROUND(SUM(MEMORY_SIZE_IN_TOTAL) OVER (PARTITION BY HOST) / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || HOST || ')', ' ') DETAIL_GB,
+      LPAD(TO_DECIMAL(ROUND(SUM(MEMORY_SIZE_IN_TOTAL) / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || TABLE_NAME || ')' DETAIL2_GB,
+      ROW_NUMBER () OVER (PARTITION BY HOST ORDER BY MEMORY_SIZE_IN_TOTAL DESC) ROW_NUM,
+      TO_DECIMAL(ROUND(SUM(MEMORY_SIZE_IN_TOTAL) / 1024 / 1024 / 1024), 10, 0) TABLE_SIZE_GB
+    FROM
+    ( SELECT
+        HOST,
+        TABLE_NAME,
+        SUM(MEMORY_SIZE_IN_TOTAL + PERSISTENT_MEMORY_SIZE_IN_TOTAL) MEMORY_SIZE_IN_TOTAL
+      FROM
+        M_CS_TABLES
+      GROUP BY
+        HOST,
+        TABLE_NAME
+    )
+    GROUP BY
+      HOST,
+      TABLE_NAME,
+      MEMORY_SIZE_IN_TOTAL
+  )
+  WHERE
+    TABLE_SIZE_GB > 0 AND
+    ROW_NUM <= 10
+  UNION ALL ( SELECT 11990, ' ', ' ', ' ', ' ' FROM DUMMY )
+  UNION ALL
+  SELECT
+    12000 + LINE_NO / 1000,
+    MAP(ROW_NUM_GLOBAL, 1, NAME, ' ') NAME,
+    MAP(ROW_NUM_GLOBAL, 1, TOTAL_GB, ' ') TOTAL_GB,
+    DETAIL_GB,
+    DETAIL2_GB
+  FROM
+  ( SELECT
+      'Row store size' NAME,
+      ROW_NUMBER () OVER (ORDER BY HOST, SUM(TABLE_SIZE) DESC) LINE_NO,
+      LPAD(TO_DECIMAL(ROUND(AVG(R.ROW_STORE_USED_SIZE) OVER () / 1024 / 1024 / 1024), 10, 0), 8) TOTAL_GB,
+      MAP(ROW_NUMBER () OVER (PARTITION BY HOST ORDER BY SUM(T.TABLE_SIZE) DESC), 1, 
+        LPAD(TO_DECIMAL(ROUND(SUM(SUM(TABLE_SIZE)) OVER (PARTITION BY HOST) / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || HOST || ')', ' ') DETAIL_GB,
+      LPAD(TO_DECIMAL(ROUND(SUM(TABLE_SIZE) / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || TABLE_NAME || ')' DETAIL2_GB,
+      ROW_NUMBER () OVER (PARTITION BY HOST ORDER BY SUM(TABLE_SIZE) DESC) ROW_NUM,
+      ROW_NUMBER () OVER (ORDER BY SUM(TABLE_SIZE) DESC) ROW_NUM_GLOBAL,
+      TO_DECIMAL(ROUND(SUM(TABLE_SIZE) / 1024 / 1024 / 1024), 10, 0) TABLE_SIZE_GB
+    FROM
+    ( SELECT
+        HOST,
+        TABLE_NAME,
+        ALLOCATED_FIXED_PART_SIZE + ALLOCATED_VARIABLE_PART_SIZE TABLE_SIZE
+      FROM
+        M_RS_TABLES 
+      UNION ALL
+      ( SELECT
+          HOST,
+          TABLE_NAME,
+          INDEX_SIZE TABLE_SIZE
+        FROM
+          M_RS_INDEXES
+      )
+    ) T,
+    ( SELECT SUM(ALLOCATED_SIZE) ROW_STORE_USED_SIZE FROM M_RS_MEMORY ) R
+    GROUP BY
+      T.HOST,
+      T.TABLE_NAME,
+      R.ROW_STORE_USED_SIZE
+  )
+  WHERE
+    TABLE_SIZE_GB > 0 AND
+    ROW_NUM <= 10
+  UNION ALL ( SELECT TOP 1 12990, ' ', ' ', ' ', ' ' FROM M_LIVECACHE_CONTAINER_STATISTICS )
+  UNION ALL
+  SELECT
+    13000 + LINE_NO / 1000,
+    MAP(ROW_NUM_GLOBAL, 1, NAME, ' ') NAME,
+    MAP(ROW_NUM_GLOBAL, 1, TOTAL_GB, ' ') TOTAL_GB,
+    DETAIL_GB,
+    DETAIL2_GB
+  FROM
+  ( SELECT
+      'liveCache size' NAME,
+      ROW_NUMBER () OVER (ORDER BY HOST, SUM(HEAP_USAGE_BYTE) DESC) LINE_NO,
+      LPAD(TO_DECIMAL(ROUND(SUM(SUM(HEAP_USAGE_BYTE)) OVER () / 1024 / 1024 / 1024), 10, 0), 8) TOTAL_GB,
+      MAP(ROW_NUMBER () OVER (PARTITION BY HOST ORDER BY SUM(HEAP_USAGE_BYTE) DESC), 1, 
+        LPAD(TO_DECIMAL(ROUND(SUM(SUM(HEAP_USAGE_BYTE)) OVER (PARTITION BY HOST) / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || HOST || ')', ' ') DETAIL_GB,
+      LPAD(TO_DECIMAL(ROUND(SUM(HEAP_USAGE_BYTE) / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || OMS_CLASS_NAME || ')' DETAIL2_GB,
+      ROW_NUMBER () OVER (PARTITION BY HOST ORDER BY SUM(HEAP_USAGE_BYTE) DESC) ROW_NUM,
+      ROW_NUMBER () OVER (ORDER BY SUM(HEAP_USAGE_BYTE) DESC) ROW_NUM_GLOBAL,
+      TO_DECIMAL(ROUND(SUM(HEAP_USAGE_BYTE) / 1024 / 1024 / 1024), 10, 0) CONTAINER_SIZE_GB
+    FROM
+    ( SELECT
+        HOST,
+        OMS_CLASS_NAME,
+        SUM(HEAP_USAGE) HEAP_USAGE_BYTE
+      FROM
+        M_LIVECACHE_CONTAINER_STATISTICS
+      GROUP BY
+        HOST,
+        OMS_CLASS_NAME
+    ) 
+    GROUP BY
+      HOST,
+      OMS_CLASS_NAME
+  )
+  WHERE
+    CONTAINER_SIZE_GB > 0 AND
+    ROW_NUM <= 10
+  UNION ALL ( SELECT 13990, ' ', ' ', ' ', ' ' FROM DUMMY )
+  UNION ALL
+  SELECT
+    14000 + LINE_NO / 1000,
+    NAME,
+    TOTAL_GB,
+    DETAIL_GB,
+    DETAIL2_GB
+  FROM
+  ( SELECT
+      ROW_NUMBER () OVER (ORDER BY SUM(TP.TABLE_SIZE) DESC)  LINE_NO,
+      MAP(ROW_NUMBER () OVER (ORDER BY SUM(TP.TABLE_SIZE) DESC), 1, 'Disk size', ' ') NAME,
+      MAP(ROW_NUMBER () OVER (ORDER BY SUM(TP.TABLE_SIZE) DESC), 1, LPAD(TO_DECIMAL(ROUND(SUM(TP.TABLE_SIZE) OVER () / 1024 / 1024 / 1024), 10, 0), 8), ' ') TOTAL_GB,
+      MAP(ROW_NUMBER () OVER (ORDER BY SUM(TP.TABLE_SIZE) DESC), 1, 
+        LPAD(TO_DECIMAL(ROUND(SUM(TP.TABLE_SIZE) OVER () / 1024 / 1024 / 1024), 10, 0), 6) || ' (global)', ' ') DETAIL_GB,
+      LPAD(TO_DECIMAL(ROUND(TP.TABLE_SIZE / 1024 / 1024 / 1024), 10, 0), 6) || ' (' || TP.TABLE_NAME || ')' DETAIL2_GB,
+      ROW_NUMBER () OVER (ORDER BY TP.TABLE_SIZE DESC) ROW_NUM,
+      TO_DECIMAL(ROUND(TP.TABLE_SIZE / 1024 / 1024 / 1024), 10, 0) TABLE_SIZE_GB
+    FROM
+    ( SELECT
+        TABLE_NAME,
+        SUM(DISK_SIZE) TABLE_SIZE
+      FROM
+        M_TABLE_PERSISTENCE_STATISTICS
+      GROUP BY
+        TABLE_NAME
+    ) TP
+    GROUP BY
+      TP.TABLE_NAME,
+      TP.TABLE_SIZE
+  )
+  WHERE
+    TABLE_SIZE_GB > 0 AND
+    ROW_NUM <= 10
+)
+ORDER BY
+  LINE_NO
+

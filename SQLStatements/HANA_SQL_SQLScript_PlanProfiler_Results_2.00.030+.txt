@@ -1,0 +1,366 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_SQL_SQLScript_PlanProfiler_Results
+
+[DESCRIPTION]
+
+- Display of SQLScript plan profiler results
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- M_SQLSCRIPT_PLAN_PROFILER_RESULTS available with SAP HANA >= 2.0 SPS 03
+- SQLScript plan profiler is inactive per default and needs to be activated to collect information for SQLScript procedure executions.
+- See SAP Note 2119087 -> "SQLScript plan profiler" fore more details
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.030
+
+[SQL COMMAND VERSION]
+
+- 2021/09/09:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_SQLSCRIPT_PLAN_PROFILER_RESULTS
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- PROCEDURE_NAME
+
+  Procedure name
+
+  'STATISTICS_SCHEDULABLEWRAPPER' --> Procedure STATISTICS_SCHEDULABLEWRAPPER
+  '%'                             --> No restriction related to procedure
+
+- OPERATOR
+
+  Procedure operator (start with "%" because leading indent spaces exist)
+
+  '%Execute SQL Statement' --> Display "Execute SQL Statement" operators
+  '%'                      --> No restriction related to SQLScript operators
+
+- STATEMENT_STRING
+
+  Statement string
+
+  'INSERT%'       --> Statements starting with "INSERT"
+  '%'             --> No restriction related to statement string
+
+- CONN_ID
+
+  Connection ID
+
+  330655          --> Connection ID 330655
+  -1              --> No connection ID restriction
+
+- MIN_ACTIVE_MS
+
+  Minimum threshold for active time (ms)
+
+  100             --> Only consider operations taking at least 100 ms
+  -1              --> No restriction related to active time
+
+- MIN_MEM_MB
+
+  Minimum threshold for memory consumption (MB)
+
+  20              --> Only display operations using at least 20 MB of memory
+  -1              --> No restriction related to memory consumption
+
+- STATEMENT_ID
+
+  SQL statement identifier (varies for different executions of same statement hash)
+
+  '859110927564988' --> Only display samples with statement ID 859110927564988
+  '%'               --> No restriction related to statement ID
+
+- AGGREGATION_TYPE
+
+  Type of aggregation (e.g. average, sum, maximum)
+
+  'AVG'           --> Average value
+  'SUM'           --> Total value
+  'MAX'           --> Maximum value
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by timestamp
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'TIME'          --> Sorting by start time
+  'COUNT'         --> Sorting by count
+
+[OUTPUT PARAMETERS]
+
+- START_TIME:       Start time
+- HOST:             Host name
+- PORT:             Port
+- CNT:              Count
+- CONN_ID:          Connection ID
+- SCHEMA_NAME:      Schema name
+- PROCEDURE_NAME:   Procedure name
+- ACTIVE_MS:        Active time (ms)
+- MEM_MB:           Used memory (MB)
+- OPERATOR:         Procedure operator
+- STATEMENT_STRING: Statement text
+
+[EXAMPLE OUTPUT]
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|START_TIME                 |HOST        |PORT |CNT  |CONN_ID   |SCHEMA_NAME    |PROCEDURE_NAME               |OPERATOR                     |STATEMENT_STRING                                                                                                                                                                                        |
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|2021/09/09 11:33:19:0422110|saphananode1|30001|    1|    100062|_SYS_STATISTICS|STATISTICS_SCHEDULABLEWRAPPER|  Execute SQL Statement      |SELECT * FROM "SYS"."_SYS_SS2_TMP_TABLE_479122_USED_VALUES_A1A20134C9659B47AFB5C4E8AB731423_1"                                                                                                          |
+|2021/09/09 11:33:19:0418430|saphananode1|30001|    1|    100062|_SYS_STATISTICS|STATISTICS_SCHEDULABLEWRAPPER|   Terminal Op               |                                                                                                                                                                                                        |
+|2021/09/09 11:33:19:0418090|saphananode1|30001|    1|    100062|_SYS_STATISTICS|STATISTICS_SCHEDULABLEWRAPPER|   Flow Control Op           |                                                                                                                                                                                                        |
+|2021/09/09 11:33:19:0417700|saphananode1|30001|    1|    100062|_SYS_STATISTICS|STATISTICS_SCHEDULABLEWRAPPER|     Conditional Op          |                                                                                                                                                                                                        |
+|2021/09/09 11:33:19:0414070|saphananode1|30001|    1|    100062|_SYS_STATISTICS|STATISTICS_SCHEDULABLEWRAPPER|        Execute SQL Statement|/* procedure: "_SYS_STATISTICS"."STATISTICS_SCHEDULABLEWRAPPER" line: 3 col: 55473 (at pos 56515)  / update _SYS_STATISTICS.statistics_schedule set status='Idle' where id=__typed_Integer__($1) and ...|
+|2021/09/09 11:33:19:0412450|saphananode1|30001|    1|    100063|_SYS_STATISTICS|STATISTICS_SCHEDULABLEWRAPPER|  Execute SQL Statement      |SELECT * FROM "SYS"."_SYS_SS2_TMP_TABLE_479122_USED_VALUES_A1A20134C9659B47AFB5C4E8AB731423_1"                                                                                                          |
+|2021/09/09 11:33:19:0410750|saphananode1|30001|    1|    100062|_SYS_STATISTICS|STATISTICS_SCHEDULABLEWRAPPER|       Dml Op                |/* procedure: "_SYS_STATISTICS"."STATISTICS_SCHEDULABLEWRAPPER" line: 3 col: 55473 (at pos 56515)  / update _SYS_STATISTICS.statistics_schedule set status='Idle' where id=__typed_Integer__($1) and ...|
+|2021/09/09 11:33:19:0408960|saphananode1|30001|    1|    100063|_SYS_STATISTICS|STATISTICS_SCHEDULABLEWRAPPER|   Terminal Op               |                                                                                                                                                                                                        |
+|2021/09/09 11:33:19:0408680|saphananode1|30001|    1|    100063|_SYS_STATISTICS|STATISTICS_SCHEDULABLEWRAPPER|   Flow Control Op           |                                                                                                                                                                                                        |
+|2021/09/09 11:33:19:0408280|saphananode1|30001|    1|    100063|_SYS_STATISTICS|STATISTICS_SCHEDULABLEWRAPPER|     Conditional Op          |                                                                                                                                                                                                        |
+|2021/09/09 11:33:19:0407540|saphananode1|30001|    1|    100062|_SYS_STATISTICS|STATISTICS_SCHEDULABLEWRAPPER|        Execute SQL Statement|/* procedure: "_SYS_STATISTICS"."STATISTICS_SCHEDULABLEWRAPPER" line: 3 col: 55358 (at pos 56400)  / update _SYS_STATISTICS.statistics_schedule set start_count=0 where id=__typed_Integer__($1)        |
+|2021/09/09 11:33:19:0406520|saphananode1|30001|    1|    100064|_SYS_STATISTICS|STATISTICS_SCHEDULABLEWRAPPER|  Execute SQL Statement      |SELECT * FROM "SYS"."_SYS_SS2_TMP_TABLE_479122_USED_VALUES_A1A20134C9659B47AFB5C4E8AB731423_1"                                                                                                          |
+|2021/09/09 11:33:19:0405260|saphananode1|30001|    1|    100063|_SYS_STATISTICS|STATISTICS_SCHEDULABLEWRAPPER|        Execute SQL Statement|/* procedure: "_SYS_STATISTICS"."STATISTICS_SCHEDULABLEWRAPPER" line: 3 col: 55473 (at pos 56515)  / update _SYS_STATISTICS.statistics_schedule set status='Idle' where id=__typed_Integer__($1) and ...|
+|2021/09/09 11:33:19:0403740|saphananode1|30001|    1|    100062|_SYS_STATISTICS|STATISTICS_SCHEDULABLEWRAPPER|       Dml Op                |/* procedure: "_SYS_STATISTICS"."STATISTICS_SCHEDULABLEWRAPPER" line: 3 col: 55358 (at pos 56400)  / update _SYS_STATISTICS.statistics_schedule set start_count=0 where id=__typed_Integer__($1)        |
+|2021/09/09 11:33:19:0403390|saphananode1|30001|    1|    100062|_SYS_STATISTICS|STATISTICS_SCHEDULABLEWRAPPER|      Sequential Op          |                                                                                                                                                                                                        |
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  START_TIME,
+  HOST,
+  LPAD(PORT, 5) PORT,
+  LPAD(CONN_ID, 10) CONN_ID,
+  LPAD(CNT, 5) CNT,
+  SCHEMA_NAME,
+  PROCEDURE_NAME,
+  LPAD(ACTIVE_MS, 10) ACTIVE_MS,
+  LPAD(MEM_MB, 10) MEM_MB,
+  REPLACE(OPERATOR, CHAR(32) || CHAR(32), CHAR(32)) OPERATOR,
+  STATEMENT_STRING
+FROM
+( SELECT
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(SP.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE SP.START_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(SP.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE SP.START_TIME END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END START_TIME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')      != 0 THEN SP.PROCEDURE_HOST                        ELSE MAP(BI.HOST,             '%', 'any', BI.HOST)                END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(SP.PROCEDURE_PORT)            ELSE MAP(BI.PORT,             '%', 'any', BI.PORT)                END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CONN_ID')   != 0 THEN TO_VARCHAR(SP.PROCEDURE_CONNECTION_ID)   ELSE MAP(BI.CONN_ID,          -1,  'any', TO_VARCHAR(BI.CONN_ID)) END CONN_ID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OPERATOR')  != 0 THEN SP.OPERATOR                              ELSE MAP(BI.OPERATOR,         '%', 'any', BI.OPERATOR)            END OPERATOR,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')    != 0 THEN SP.PROCEDURE_SCHEMA_NAME                 ELSE MAP(BI.SCHEMA_NAME,      '%', 'any', BI.SCHEMA_NAME)         END SCHEMA_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PROCEDURE') != 0 THEN SP.PROCEDURE_NAME                        ELSE MAP(BI.PROCEDURE_NAME,   '%', 'any', BI.PROCEDURE_NAME)      END PROCEDURE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STATEMENT') != 0 THEN TO_VARCHAR(SP.OPERATOR_STATEMENT_STRING) ELSE MAP(BI.STATEMENT_STRING, '%', 'any', BI.STATEMENT_STRING)    END STATEMENT_STRING,
+    COUNT(*) CNT,
+    TO_DECIMAL(MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(SP.ACTIVE_TIME_SELF), 'SUM', SUM(SP.ACTIVE_TIME_SELF), 'AVG', AVG(SP.ACTIVE_TIME_SELF)) / 1000, 10, 2) ACTIVE_MS,
+    TO_DECIMAL(MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(SP.USED_MEMORY_SIZE_SELF), 'SUM', SUM(SP.USED_MEMORY_SIZE_SELF), 'AVG', AVG(SP.USED_MEMORY_SIZE_SELF)) / 1024 / 1024, 10, 2) MEM_MB,
+    BI.ORDER_BY
+  FROM
+  ( SELECT
+      CASE
+        WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+        WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+        WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+        WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+        WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+        WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+        WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END BEGIN_TIME,
+      CASE
+        WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+        WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+        WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+        WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+        WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+        WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+        WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+        WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+        WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+        WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+        WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END END_TIME,
+      TIMEZONE,
+      HOST,
+      PORT,
+      SCHEMA_NAME,
+      PROCEDURE_NAME,
+      OPERATOR,
+      STATEMENT_STRING,
+      CONN_ID,
+      MIN_ACTIVE_MS,
+      MIN_MEM_MB,
+      AGGREGATION_TYPE,
+      AGGREGATE_BY,
+      MAP(TIME_AGGREGATE_BY,
+        'NONE',        'YYYY/MM/DD HH24:MI:SS:FF7',
+        'HOUR',        'YYYY/MM/DD HH24',
+        'DAY',         'YYYY/MM/DD (DY)',
+        'HOUR_OF_DAY', 'HH24',
+        TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+      ORDER_BY
+    FROM
+    ( SELECT                         /* Modification section */
+        '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+        '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+        'SERVER' TIMEZONE,                              /* SERVER, UTC */
+        '%' HOST,
+        '%' PORT,
+        '%' SCHEMA_NAME,
+        '%' PROCEDURE_NAME,
+        '%' OPERATOR,
+        '%' STATEMENT_STRING,
+        -1 CONN_ID,
+        -1 MIN_ACTIVE_MS,
+        -1 MIN_MEM_MB,
+        'AVG' AGGREGATION_TYPE,                       /* MAX, AVG, SUM */
+        'NONE' AGGREGATE_BY,                         /* TIME, HOST, PORT, CONN_ID, SCHEMA, PROCEDURE, STATUS, STATEMENT or comma separated combinations, NONE for no aggregation */
+        'NONE' TIME_AGGREGATE_BY,                    /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+        'TIME' ORDER_BY                              /* TIME, PROCEDURE, COUNT, ACTIVE, MEMORY */
+      FROM
+        DUMMY
+    )
+  ) BI,
+    M_SQLSCRIPT_PLAN_PROFILER_RESULTS SP
+  WHERE
+    CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(SP.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE SP.START_TIME END BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+    SP.PROCEDURE_HOST LIKE BI.HOST AND
+    TO_VARCHAR(SP.PROCEDURE_PORT) LIKE BI.PORT AND
+    SP.PROCEDURE_SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    SP.PROCEDURE_NAME LIKE BI.PROCEDURE_NAME AND
+    ( BI.CONN_ID = -1 OR SP.PROCEDURE_CONNECTION_ID = BI.CONN_ID ) AND
+    SP.OPERATOR LIKE BI.OPERATOR AND
+    TO_VARCHAR(SP.OPERATOR_STATEMENT_STRING) LIKE BI.STATEMENT_STRING AND
+    ( BI.MIN_ACTIVE_MS = -1 OR SP.ACTIVE_TIME_SELF / 1000 >= BI.MIN_ACTIVE_MS ) AND
+    ( BI.MIN_MEM_MB = -1 OR SP.USED_MEMORY_SIZE_SELF / 1024 / 1024 >= BI.MIN_MEM_MB )
+  GROUP BY
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(SP.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE SP.START_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(SP.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE SP.START_TIME END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')      != 0 THEN SP.PROCEDURE_HOST                        ELSE MAP(BI.HOST,             '%', 'any', BI.HOST)                END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(SP.PROCEDURE_PORT)            ELSE MAP(BI.PORT,             '%', 'any', BI.PORT)                END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CONN_ID')   != 0 THEN TO_VARCHAR(SP.PROCEDURE_CONNECTION_ID)   ELSE MAP(BI.CONN_ID,          -1,  'any', TO_VARCHAR(BI.CONN_ID)) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OPERATOR')  != 0 THEN SP.OPERATOR                              ELSE MAP(BI.OPERATOR,         '%', 'any', BI.OPERATOR)            END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')    != 0 THEN SP.PROCEDURE_SCHEMA_NAME                 ELSE MAP(BI.SCHEMA_NAME,      '%', 'any', BI.SCHEMA_NAME)         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PROCEDURE') != 0 THEN SP.PROCEDURE_NAME                        ELSE MAP(BI.PROCEDURE_NAME,   '%', 'any', BI.PROCEDURE_NAME)      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STATEMENT') != 0 THEN TO_VARCHAR(SP.OPERATOR_STATEMENT_STRING) ELSE MAP(BI.STATEMENT_STRING, '%', 'any', BI.STATEMENT_STRING)    END,
+    BI.AGGREGATION_TYPE,
+    BI.ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'PROCEDURE', SCHEMA_NAME || PROCEDURE_NAME),
+  MAP(ORDER_BY, 'COUNT', CNT, 'ACTIVE', ACTIVE_MS, 'MEMORY', MEM_MB) DESC,
+  START_TIME DESC

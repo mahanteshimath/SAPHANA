@@ -1,0 +1,316 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Indexes_TextIndexes_Overview
+
+[DESCRIPTION]
+
+- Overview of fulltext indexes
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Fails in SAP HANA Cloud (SHC) environments because fulltext indexes are no longer available:
+
+  invalid table name:  Could not find table/view M_FULLTEXT_QUEUES
+
+- See SAP Note 2800008 for details about fulltext indexes.
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2019/12/07:  1.0 (initial version)
+- 2020/05/05:  1.1 (SIZE_MB and MIN_SIZE_MB included)
+- 2023/03/10:  1.2 (TOKEN_SEPARATORS included)
+
+[INVOLVED TABLES]
+
+- FULLTEXT_INDEXES
+- M_CS_ALL_COLUMNS
+
+[INPUT PARAMETERS]
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- INDEX_NAME
+
+  Index name or pattern
+
+  'EDIDC~1'       --> Specific index EDIDC~1
+  '%~2'           --> All indexes ending with '~2'
+  '%'             --> All indexes
+
+- FAST_PREPROCESS
+
+  Fast preprocess option
+
+  'X'             --> Show fulltext indexes with activated FAST PREPROCESS option
+  ' '             --> show fulltext indexes without activated FAST PREPROCESS option
+  '%'             --> No restriction related to FAST PREPROCESS option	
+
+- FUZZY_SEARCH_INDEX
+
+  Fuzzy search index option
+
+  'X'             --> Show fulltext indexes with activated FUZZY SEARCH INDEX option
+  ' '             --> show fulltext indexes without activated FUZZY SEARCH INDEX option
+  '%'             --> No restriction related to FUZZY SEARCH INDEX option	
+
+- SEARCH_ONLY
+
+  Search only option
+
+  'X'             --> Show fulltext indexes with activated SEARCH ONLY option
+  ' '             --> show fulltext indexes without activated SEARCH ONLY option
+  '%'             --> No restriction related to SEARCH ONLY option	
+
+- IS_EXPLICIT
+
+  Flag for explicitly specified fulltext indexes
+
+  'X'             --> Show explicitly defined fulltext indexes (CREATE FULLTEXT INDEX)
+  ' '             --> show implicitly defined fulltext indexes (TEXT columns)
+  '%'             --> No restriction related explicit / implicit fulltext index definition
+
+- TEXT_ANALYSIS
+
+  Text analysis option
+
+  'X'             --> Show fulltext indexes with activated TEXT ANALYSIS option
+  ' '             --> show fulltext indexes without activated TEXT ANALYSIS option
+  '%'             --> No restriction related to TEXT ANALYSIS option	
+
+- TEXT_MINING
+
+  Text mining option
+
+  'X'             --> Show fulltext indexes with activated TEXT MINING option
+  ' '             --> show fulltext indexes without activated TEXT MINING option
+  '%'             --> No restriction related to TEXT MINING option	
+
+- INTERNAL_COLUMN_NAME
+
+  Internal column name
+
+  '%MATNR%'       --> Internal column with name containing 'MATNR'
+  '%'             --> No restriction related to internal column name
+
+- TOKEN_SEPARATORS
+
+  Fulltext token separators
+
+  '%()%'          --> Fulltext indexes with token separators '(' and ')'
+  '%'             --> No restriction related to token separators
+
+- PHRASE_INDEX_RATION
+
+  Phrase index ratio
+
+  0.20            --> Phrase index ratio 0.20
+  -1              --> No restriction related to phrase index ratio
+
+- MIN_SIZE_MB
+
+  Minimum index size (MB)
+
+  10              --> Only display indexes with a size of at least 10 MB
+  -1              --> No restriction related to index size
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TABLE'         --> Aggregation by table
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'ERROR_COUNT'   --> Sorting by error count
+  'TABLE'         --> Sorting by table name
+
+[OUTPUT PARAMETERS]
+
+- SCHEMA_NAME:  Schema name
+- TABLE_NAME:   Table name
+- INDEX_NAME:   Index name
+- EXP:          Explicit ('X') or implicit (' ') index
+- FPR:          Fast preprocess option activated ('X') or deactivated (' ')
+- FUZ:          Fuzzy search index option activated ('X') or deactivated (' ')
+- SEO:          Search only option activated ('X') or deactivated (' ')
+- TAN:          Text analysis option activated ('X') or deactivated (' ')
+- TMI:          Text mining option activated ('X') or deactivated (' ')
+- PIR:          Phrase index ratio
+- COLUMN_NAME:  Column name
+- SIZE_MB:      Index size (MB)
+- SEPARATORS:   Token separators
+- COUNT:        Number of indexes
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------------------------------
+|SCHEMA_NAME|TABLE_NAME      |INDEX_NAME             |EXP|FPR|FUZ|SEO|TAN|TMI|PIR  |COLUMN_NAME                 |SIZE_MB   |
+----------------------------------------------------------------------------------------------------------------------------
+|SAPABAP1   |FRA_D_DOC       |FRA_D_DOC~C01          |X  |   |X  |   |   |   | 0.00|$_SYS_SHADOW_CONTENT$       | 271421.84|
+|_SYS_REPO  |ACTIVE_OBJECT   |FTI_ACTIVE_OBJECT_CDATA|X  |   |X  |   |   |   | 0.00|$_SYS_SHADOW_CDATA$         |    552.33|
+|SAPABAP1   |DD07T           |DD07T__DDTEXT          |X  |   |X  |   |   |   | 0.00|$_SYS_SHADOW_DDTEXT$        |     22.76|
+|SAPABAP1   |GRCAUD_D_FINDING|GRCAUD_D_FINDINGD0     |X  |   |X  |   |   |   | 0.00|$_SYS_SHADOW_DESCRIPTION$   |     18.50|
+|SAPABAP1   |GRCAUD_D_ACTION |GRCAUD_D_ACTION~M0     |X  |   |X  |   |   |   | 0.00|$_SYS_SHADOW_MILESTONE$     |     16.00|
+|SAPABAP1   |GRCAUD_D_FINDING|GRCAUD_D_FINDINGR0     |X  |   |X  |   |   |   | 0.00|$_SYS_SHADOW_RECOMMENDATION$|     10.43|
+----------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  SCHEMA_NAME,
+  TABLE_NAME,
+  INDEX_NAME,
+  MAP(IS_EXPLICIT,        'TRUE', 'X', ' ') EXP,
+  MAP(FAST_PREPROCESS,    'TRUE', 'X', ' ') FPR,
+  MAP(FUZZY_SEARCH_INDEX, 'TRUE', 'X', ' ') FUZ,
+  MAP(SEARCH_ONLY,        'TRUE', 'X', ' ') SEO,
+  MAP(TEXT_ANALYSIS,      'TRUE', 'X', ' ') TAN,
+  MAP(TEXT_MINING,        'TRUE', 'X', ' ') TMI,
+  LPAD(PHRASE_INDEX_RATIO, 5) PIR,
+  IFNULL(COLUMN_NAME, '') COLUMN_NAME,
+  LPAD(TO_DECIMAL(SIZE_MB, 10, 2), 10) SIZE_MB,
+  TOKEN_SEPARATORS SEPARATORS,
+  LPAD(CNT, 5) COUNT
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')             != 0 THEN T.SCHEMA_NAME          ELSE MAP(BI.SCHEMA_NAME,          '%', 'any', BI.SCHEMA_NAME)          END SCHEMA_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')              != 0 THEN T.TABLE_NAME           ELSE MAP(BI.TABLE_NAME,           '%', 'any', BI.TABLE_NAME)           END TABLE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'INDEX_NAME')         != 0 THEN T.INDEX_NAME           ELSE MAP(BI.INDEX_NAME,           '%', 'any', BI.INDEX_NAME)           END INDEX_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'IS_EXPLICIT')        != 0 THEN T.IS_EXPLICIT          ELSE MAP(BI.IS_EXPLICIT,          '%', 'any', BI.IS_EXPLICIT)          END IS_EXPLICIT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'FAST_PREPROCESS')    != 0 THEN T.FAST_PREPROCESS      ELSE MAP(BI.FAST_PREPROCESS,      '%', 'any', BI.FAST_PREPROCESS)      END FAST_PREPROCESS,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'FUZZY_SEARCH_INDEX') != 0 THEN T.FUZZY_SEARCH_INDEX   ELSE MAP(BI.FUZZY_SEARCH_INDEX,   '%', 'any', BI.FUZZY_SEARCH_INDEX)   END FUZZY_SEARCH_INDEX,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SEARCH_ONLY')        != 0 THEN T.SEARCH_ONLY          ELSE MAP(BI.SEARCH_ONLY,          '%', 'any', BI.SEARCH_ONLY)          END SEARCH_ONLY,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TEXT_ANALYSIS')      != 0 THEN T.TEXT_ANALYSIS        ELSE MAP(BI.TEXT_ANALYSIS,        '%', 'any', BI.TEXT_ANALYSIS)        END TEXT_ANALYSIS,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TEXT_MINING')        != 0 THEN T.TEXT_MINING          ELSE MAP(BI.TEXT_MINING,          '%', 'any', BI.TEXT_MINING)          END TEXT_MINING,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PHRASE_INDEX_RATIO') != 0 THEN T.PIR_ROUNDED          ELSE MAP(BI.PHRASE_INDEX_RATIO,    -1, 'any', TO_VARCHAR(TO_DECIMAL(BI.PHRASE_INDEX_RATIO, 10, 2))) END PHRASE_INDEX_RATIO,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'COLUMN')             != 0 THEN T.INTERNAL_COLUMN_NAME ELSE MAP(BI.INTERNAL_COLUMN_NAME, '%', 'any', BI.INTERNAL_COLUMN_NAME) END COLUMN_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TOKEN_SEPARATORS')   != 0 THEN T.TOKEN_SEPARATORS     ELSE MAP(BI.TOKEN_SEPARATORS,     '%', 'any', BI.TOKEN_SEPARATORS)     END TOKEN_SEPARATORS,
+    COUNT(*) CNT,
+    SUM(T.SIZE_MB) SIZE_MB,
+    BI.ORDER_BY,
+    BI.MIN_SIZE_MB
+  FROM
+  ( SELECT                   /* Modification section */
+      '%' SCHEMA_NAME,
+      '%' TABLE_NAME,
+      '%' INDEX_NAME,
+      '%' FAST_PREPROCESS,
+      '%' FUZZY_SEARCH_INDEX,
+      '%' SEARCH_ONLY,
+      '%' IS_EXPLICIT,
+      '%' TEXT_ANALYSIS,
+      '%' TEXT_MINING,
+      '%' INTERNAL_COLUMN_NAME,
+      '%' TOKEN_SEPARATORS,
+      -1 PHRASE_INDEX_RATIO,
+      10 MIN_SIZE_MB,
+      'NONE' AGGREGATE_BY,             /* SCHEMA, TABLE, INDEX_NAME, COLUMN, FAST_PREPROCESS, FUZZY_SEARCH_INDEX, SEARCH_ONLY, IS_EXPLICIT, TEXT_ANALYSIS, TEXT_MINING, PHRASE_INDEX_RATIO or comma-separated combinations, NONE for no aggregation */
+      'SIZE' ORDER_BY                  /* NAME, COUNT, SIZE */
+    FROM
+      DUMMY
+  ) BI,
+  ( SELECT
+      T.SCHEMA_NAME,
+      T.TABLE_NAME,
+      T.INDEX_NAME,
+      T.IS_EXPLICIT,
+      T.FAST_PREPROCESS,
+      T.FUZZY_SEARCH_INDEX,
+      T.SEARCH_ONLY,
+      T.TEXT_ANALYSIS,
+      T.TEXT_MINING,
+      T.PIR_ROUNDED,
+      T.TOKEN_SEPARATORS,
+      IFNULL(T.INTERNAL_COLUMN_NAME, C.COLUMN_NAME) INTERNAL_COLUMN_NAME,
+      SUM(C.MEMORY_SIZE_IN_TOTAL / 1024 / 1024) SIZE_MB
+    FROM
+    ( SELECT
+        T.*,
+        TO_VARCHAR(TO_DECIMAL(T.PHRASE_INDEX_RATIO, 10, 2)) PIR_ROUNDED
+      FROM
+        FULLTEXT_INDEXES T
+    ) T,
+      M_CS_ALL_COLUMNS C
+    WHERE
+      C.SCHEMA_NAME = T.SCHEMA_NAME AND
+      C.TABLE_NAME = T.TABLE_NAME AND
+      ( T.INTERNAL_COLUMN_NAME = C.COLUMN_NAME OR
+        SUBSTR(T.INDEX_NAME, LOCATE(T.INDEX_NAME, '#', -1) + 1) = C.COLUMN_NAME
+      )
+    GROUP BY
+      T.SCHEMA_NAME,
+      T.TABLE_NAME,
+      T.INDEX_NAME,
+      T.IS_EXPLICIT,
+      T.FAST_PREPROCESS,
+      T.FUZZY_SEARCH_INDEX,
+      T.SEARCH_ONLY,
+      T.TEXT_ANALYSIS,
+      T.TEXT_MINING,
+      T.PIR_ROUNDED,
+      T.TOKEN_SEPARATORS,
+      IFNULL(T.INTERNAL_COLUMN_NAME, C.COLUMN_NAME) 
+  ) T
+  WHERE
+    T.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    T.TABLE_NAME LIKE BI.TABLE_NAME AND
+    T.INDEX_NAME LIKE BI.INDEX_NAME AND
+    T.FAST_PREPROCESS LIKE MAP(BI.FAST_PREPROCESS, 'X', 'TRUE', ' ', 'FALSE', BI.FAST_PREPROCESS) AND
+    T.FUZZY_SEARCH_INDEX LIKE MAP(BI.FUZZY_SEARCH_INDEX, 'X', 'TRUE', ' ', 'FALSE', BI.FUZZY_SEARCH_INDEX) AND
+    T.SEARCH_ONLY LIKE MAP(BI.SEARCH_ONLY, 'X', 'TRUE', ' ', 'FALSE', BI.SEARCH_ONLY) AND
+    T.IS_EXPLICIT LIKE MAP(BI.IS_EXPLICIT, 'X', 'TRUE', ' ', 'FALSE', BI.IS_EXPLICIT) AND
+    T.TEXT_ANALYSIS LIKE MAP(BI.TEXT_ANALYSIS, 'X', 'TRUE', ' ', 'FALSE', BI.TEXT_ANALYSIS) AND
+    T.TEXT_MINING LIKE MAP(BI.TEXT_MINING, 'X', 'TRUE', ' ', 'FALSE', BI.TEXT_MINING) AND
+    T.INTERNAL_COLUMN_NAME LIKE BI.INTERNAL_COLUMN_NAME AND
+    T.TOKEN_SEPARATORS LIKE BI.TOKEN_SEPARATORS AND
+    ( BI.PHRASE_INDEX_RATIO = -1 OR T.PIR_ROUNDED LIKE TO_VARCHAR(TO_DECIMAL(BI.PHRASE_INDEX_RATIO, 10, 2)) )
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')             != 0 THEN T.SCHEMA_NAME          ELSE MAP(BI.SCHEMA_NAME,          '%', 'any', BI.SCHEMA_NAME)          END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')              != 0 THEN T.TABLE_NAME           ELSE MAP(BI.TABLE_NAME,           '%', 'any', BI.TABLE_NAME)           END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'INDEX_NAME')         != 0 THEN T.INDEX_NAME           ELSE MAP(BI.INDEX_NAME,           '%', 'any', BI.INDEX_NAME)           END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'IS_EXPLICIT')        != 0 THEN T.IS_EXPLICIT          ELSE MAP(BI.IS_EXPLICIT,          '%', 'any', BI.IS_EXPLICIT)          END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'FAST_PREPROCESS')    != 0 THEN T.FAST_PREPROCESS      ELSE MAP(BI.FAST_PREPROCESS,      '%', 'any', BI.FAST_PREPROCESS)      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'FUZZY_SEARCH_INDEX') != 0 THEN T.FUZZY_SEARCH_INDEX   ELSE MAP(BI.FUZZY_SEARCH_INDEX,   '%', 'any', BI.FUZZY_SEARCH_INDEX)   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SEARCH_ONLY')        != 0 THEN T.SEARCH_ONLY          ELSE MAP(BI.SEARCH_ONLY,          '%', 'any', BI.SEARCH_ONLY)          END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TEXT_ANALYSIS')      != 0 THEN T.TEXT_ANALYSIS        ELSE MAP(BI.TEXT_ANALYSIS,        '%', 'any', BI.TEXT_ANALYSIS)        END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TEXT_MINING')        != 0 THEN T.TEXT_MINING          ELSE MAP(BI.TEXT_MINING,          '%', 'any', BI.TEXT_MINING)          END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PHRASE_INDEX_RATIO') != 0 THEN T.PIR_ROUNDED          ELSE MAP(BI.PHRASE_INDEX_RATIO,    -1, 'any', TO_VARCHAR(TO_DECIMAL(BI.PHRASE_INDEX_RATIO, 10, 2))) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'COLUMN')             != 0 THEN T.INTERNAL_COLUMN_NAME ELSE MAP(BI.INTERNAL_COLUMN_NAME, '%', 'any', BI.INTERNAL_COLUMN_NAME) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TOKEN_SEPARATORS')   != 0 THEN T.TOKEN_SEPARATORS     ELSE MAP(BI.TOKEN_SEPARATORS,     '%', 'any', BI.TOKEN_SEPARATORS)     END,
+    BI.ORDER_BY,
+    BI.MIN_SIZE_MB
+)
+WHERE
+  MIN_SIZE_MB = -1 OR SIZE_MB >= MIN_SIZE_MB
+ORDER BY
+  MAP(ORDER_BY, 'NAME', SCHEMA_NAME || TABLE_NAME || INDEX_NAME),
+  MAP(ORDER_BY, 'COUNT', CNT, 'SIZE', SIZE_MB) DESC

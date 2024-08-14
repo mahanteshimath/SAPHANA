@@ -1,0 +1,435 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_SQL_SQLCache_Overview_1.00.70+
+
+[DESCRIPTION]
+
+- General SQL cache information including evictions
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- PLAN_CACHE_HIT_RATIO and EVICTED_PLAN_AVG_CACHE_TIME available as of SAP HANA 1.00.70
+- HOST_SQL_PLAN_CACHE_OVERVIEW available as of SAP HANA 1.00.70
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.70
+
+[SQL COMMAND VERSION]
+
+- 2014/05/28:  1.0 (initial version)
+- 2014/10/06:  1.1 (recommendation formulas of SAP Note 2040002 included)
+- 2016/05/31:  1.2 (HOST_SQL_PLAN_CACHE_OVERVIEW included)
+- 2016/12/31:  1.3 (TIME_AGGREGATE_BY = 'TS<seconds>' included)
+- 2017/10/26:  1.4 (TIMEZONE included)
+- 2017/10/31:  1.5 (EVICT_PER_H correction)
+- 2018/12/04:  1.6 (shortcuts for BEGIN_TIME and END_TIME like 'C', 'E-S900' or 'MAX')
+- 2020/08/04:  1.7 (hit ratio calculation based on delta values)
+- 2021/12/20:  1.8 (misleading and unreliable recommendation columns removed)
+
+[INVOLVED TABLES]
+
+- M_SQL_PLAN_CACHE_OVERVIEW
+- HOST_SQL_PLAN_CACHE_OVERVIEW
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_ tables)
+  'HISTORY'       --> Data from persisted history information (HOST_ tables)
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+[OUTPUT PARAMETERS]
+
+- SAMPLE_TIME:        Timestamp
+- HOST:               Host name
+- PORT:               Port
+- SERVICE:            Service name
+- CONF_GB:            Configured SQL cache size (GB)
+- USED_GB:            Used SQL cache size (GB)
+- USED_PCT:           Used compared to configured SQL cache size (%)
+- CACHED_SQLS:        Number of currently cached plans
+- AVG_SIZE_KB:        Average size of a currently cached plan (KB)
+- HIT_PCT:            SQL cache hit ratio (%)
+- EVICT_PER_H:        Number of evictions per hour
+- TIME_TO_EVICT_H:    Average time between load and eviction (h)
+- EVICT_OVERHEAD_PCT: Response time overhead due to evictions (%)
+- CONNECTIONS:        Number of existing connections
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+|SAMPLE_TIME  |HOST     |PORT |SERVICE    |CONF_GB|USED_GB|USED_PCT|HIT_PCT|EVICT_PER_H|TIME_TO_EVICT_H|EVICT_OVERHEAD_PCT|CACHED_SQLS|AVG_SIZE_KB|CONNECTIONS|
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+|2016/05/31 15|saphana01|30003|indexserver|  15.00|   1.95|   13.05|  88.17|         14|       29646.69|              0.69|      56258|      36.50|        879|
+|2016/05/31 14|saphana01|30003|indexserver|  15.00|   0.66|    4.45|  87.58|          5|       83010.56|              0.54|      17221|      40.64|        879|
+|2016/05/31 12|saphana01|30003|indexserver|   2.00|   0.29|   14.76|  12.59|     237755|           1.49|             27.01|       5333|      58.05|        879|
+|2016/05/31 11|saphana01|30003|indexserver|   2.00|   1.99|   99.77|  85.93|       6127|          50.41|              1.78|      52961|      39.50|        879|
+|2016/05/31 10|saphana01|30003|indexserver|   2.00|   0.72|   36.45|  86.41|          2|      150558.35|              0.29|      16451|      46.47|        879|
+|2016/05/31 09|saphana01|30003|indexserver|   2.00|   1.14|   57.31|  88.80|          5|       51929.05|              0.49|      29065|      41.35|        879|
+|2016/05/31 08|saphana01|30003|indexserver|   2.00|   0.48|   24.15|  86.96|          3|       86548.12|              0.15|      10453|      48.46|        879|
+|2016/05/31 07|saphana01|30003|indexserver|   2.00|   0.83|   41.77|  93.37|          4|       60353.82|              0.67|      12569|      69.70|        879|
+|2016/05/31 06|saphana01|30003|indexserver|   2.00|   0.28|   14.27|  92.09|          1|      241414.01|              0.14|       4412|      67.84|        879|
+|2016/05/31 05|saphana01|30003|indexserver|   2.00|   0.50|   25.14|  93.83|          4|       56268.70|              0.69|      10842|      48.63|        879|
+|2016/05/31 04|saphana01|30003|indexserver|   2.00|   0.23|   11.92|  92.09|          3|       75024.59|              0.65|       4633|      53.97|        879|
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  BEGIN_TIME SAMPLE_TIME,
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SERVICE_NAME SERVICE,
+  LPAD(TO_DECIMAL(PLAN_CACHE_CAPACITY / 1024 / 1024 / 1024, 10, 2), 7) CONF_GB,
+  LPAD(TO_DECIMAL(CACHED_PLAN_SIZE / 1024 / 1024 / 1024, 10, 2), 7) USED_GB,
+  LPAD(TO_DECIMAL(MAP(PLAN_CACHE_CAPACITY, 0, 0, CACHED_PLAN_SIZE / PLAN_CACHE_CAPACITY * 100), 10, 2), 8) USED_PCT,
+  LPAD(TO_DECIMAL(PLAN_CACHE_HIT_RATIO * 100, 10, 2), 7) HIT_PCT,
+  LPAD(TO_DECIMAL(ROUND(MAP(INTERVAL_S, 0, 0, EVICTED_PLAN_COUNT / INTERVAL_S) * 3600), 11, 0), 11) EVICT_PER_H,
+  LPAD(TO_DECIMAL(EVICTED_PLAN_AVG_CACHE_TIME / 3600 / 1000000, 10, 2), 15) TIME_TO_EVICT_H,
+  LPAD(TO_DECIMAL(MAP(CACHED_PLAN_PREPARATION_TIME + EVICTED_PLAN_PREPARATION_TIME + CACHED_PLAN_TOTAL_EXECUTION_TIME + EVICTED_PLAN_TOTAL_EXECUTION_TIME, 0, 0,
+    EVICTED_PLAN_PREPARATION_TIME / (CACHED_PLAN_PREPARATION_TIME + EVICTED_PLAN_PREPARATION_TIME + 
+    CACHED_PLAN_TOTAL_EXECUTION_TIME + EVICTED_PLAN_TOTAL_EXECUTION_TIME) * 100), 10, 2), 18) EVICT_OVERHEAD_PCT,
+  LPAD(TO_DECIMAL(ROUND(CACHED_PLAN_COUNT), 11, 0), 11) CACHED_SQLS,
+  LPAD(TO_DECIMAL(MAP(CACHED_PLAN_COUNT, 0 , 0, CACHED_PLAN_SIZE / CACHED_PLAN_COUNT / 1024), 10, 2), 11) AVG_SIZE_KB,
+  LPAD(TO_DECIMAL(ROUND(NUM_CONNECTIONS), 11, 0), 11) CONNECTIONS
+FROM
+( SELECT
+    CASE 
+      WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), BEGIN_TIME) / SUBSTR(TIME_AGGREGATE_BY, 3)) * SUBSTR(TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(BEGIN_TIME, TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END BEGIN_TIME,
+    HOST,
+    PORT,
+    SERVICE_NAME,
+    VERSION,
+    SUM(INTERVAL_S) INTERVAL_S,
+    AVG(PLAN_CACHE_CAPACITY) PLAN_CACHE_CAPACITY,
+    AVG(CACHED_PLAN_COUNT) CACHED_PLAN_COUNT,
+    AVG(CACHED_PLAN_SIZE) CACHED_PLAN_SIZE,
+    AVG(PLAN_CACHE_HIT_RATIO) PLAN_CACHE_HIT_RATIO,
+    TO_DECIMAL(SUM(CACHED_PLAN_PREPARATION_TIME)) CACHED_PLAN_PREPARATION_TIME,
+    TO_DECIMAL(SUM(CACHED_PLAN_TOTAL_EXECUTION_TIME)) CACHED_PLAN_TOTAL_EXECUTION_TIME,
+    TO_DECIMAL(SUM(EVICTED_PLAN_COUNT)) EVICTED_PLAN_COUNT,
+    AVG(EVICTED_PLAN_AVG_CACHE_TIME) EVICTED_PLAN_AVG_CACHE_TIME,
+    TO_DECIMAL(SUM(EVICTED_PLAN_PREPARATION_TIME)) EVICTED_PLAN_PREPARATION_TIME,
+    TO_DECIMAL(SUM(EVICTED_PLAN_TOTAL_EXECUTION_TIME)) EVICTED_PLAN_TOTAL_EXECUTION_TIME,
+    AVG(NUM_CONNECTIONS) NUM_CONNECTIONS
+  FROM
+  ( SELECT
+      CASE TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(BEGIN_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE BEGIN_TIME                     END BEGIN_TIME,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')    != 0 THEN HOST             ELSE MAP(BI_HOST, '%', 'any', BI_HOST)                 END HOST,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(PORT) ELSE MAP(BI_PORT, '%', 'any', BI_PORT)                 END PORT,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SERVICE') != 0 THEN SERVICE_NAME     ELSE MAP(BI_SERVICE_NAME, '%', 'any', BI_SERVICE_NAME) END SERVICE_NAME,
+      AVG(INTERVAL_S) INTERVAL_S,
+      TO_DECIMAL(SUM(PLAN_CACHE_CAPACITY)) PLAN_CACHE_CAPACITY,
+      TO_DECIMAL(SUM(CACHED_PLAN_COUNT)) CACHED_PLAN_COUNT,
+      TO_DECIMAL(SUM(CACHED_PLAN_SIZE)) CACHED_PLAN_SIZE,
+      AVG(PLAN_CACHE_HIT_RATIO) PLAN_CACHE_HIT_RATIO,
+      TO_DECIMAL(SUM(CACHED_PLAN_PREPARATION_TIME)) CACHED_PLAN_PREPARATION_TIME,
+      TO_DECIMAL(SUM(CACHED_PLAN_TOTAL_EXECUTION_TIME)) CACHED_PLAN_TOTAL_EXECUTION_TIME,
+      TO_DECIMAL(SUM(EVICTED_PLAN_COUNT)) EVICTED_PLAN_COUNT,
+      TO_DECIMAL(SUM(EVICTED_PLAN_AVG_CACHE_TIME)) EVICTED_PLAN_AVG_CACHE_TIME,
+      TO_DECIMAL(SUM(EVICTED_PLAN_PREPARATION_TIME)) EVICTED_PLAN_PREPARATION_TIME,
+      TO_DECIMAL(SUM(EVICTED_PLAN_TOTAL_EXECUTION_TIME)) EVICTED_PLAN_TOTAL_EXECUTION_TIME,
+      TO_DECIMAL(SUM(NUM_CONNECTIONS)) NUM_CONNECTIONS,
+      VERSION,
+      AGGREGATE_BY,
+      TIME_AGGREGATE_BY
+    FROM
+    ( SELECT
+        SO.BEGIN_TIME,
+        SO.HOST,
+        SO.PORT,
+        S.SERVICE_NAME,
+        SO.INTERVAL_S,
+        SO.PLAN_CACHE_CAPACITY,
+        SO.CACHED_PLAN_COUNT,
+        SO.CACHED_PLAN_SIZE,
+        MAP(SO.PLAN_CACHE_LOOKUP_COUNT, 0, 0, SO.PLAN_CACHE_HIT_COUNT / SO.PLAN_CACHE_LOOKUP_COUNT) PLAN_CACHE_HIT_RATIO,
+        SO.CACHED_PLAN_PREPARATION_TIME,
+        SO.CACHED_PLAN_TOTAL_EXECUTION_TIME,
+        SO.EVICTED_PLAN_COUNT,
+        SO.EVICTED_PLAN_AVG_CACHE_TIME,
+        SO.EVICTED_PLAN_PREPARATION_TIME,
+        SO.EVICTED_PLAN_TOTAL_EXECUTION_TIME,
+        C.NUM_CONNECTIONS,
+        D.VERSION,
+        BI.HOST BI_HOST,
+        BI.PORT BI_PORT,
+        BI.SERVICE_NAME BI_SERVICE_NAME,
+        BI.TIMEZONE,
+        BI.AGGREGATE_BY,
+        BI.TIME_AGGREGATE_BY
+      FROM
+      ( SELECT
+          CASE
+            WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+            WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+            WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+            WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+            WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+            WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+            WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+            WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+            WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+            WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+            WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+            WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+            WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+          END BEGIN_TIME,
+          CASE
+            WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+            WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+            WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+            WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+            WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+            WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+            WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+            WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+            WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+            WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+            WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+            WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+            WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+          END END_TIME,
+          TIMEZONE,
+          HOST,
+          PORT,
+          SERVICE_NAME,
+          DATA_SOURCE,
+          AGGREGATE_BY,
+          MAP(TIME_AGGREGATE_BY,
+            'NONE',        'YYYY/MM/DD HH24:MI:SS',
+            'HOUR',        'YYYY/MM/DD HH24',
+            'DAY',         'YYYY/MM/DD (DY)',
+            'HOUR_OF_DAY', 'HH24',
+            TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY
+        FROM
+        ( SELECT                 /* Modification section */
+            '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+            '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+            'SERVER' TIMEZONE,                              /* SERVER, UTC */
+            '%' HOST,
+            '%' PORT,
+            '%' SERVICE_NAME,
+            'HISTORY' DATA_SOURCE,           /* CURRENT, HISTORY */
+            'NONE' AGGREGATE_BY,             /* HOST, PORT, SERVICE, TIME or comma separated combinations, NONE for no aggregation */
+            'NONE' TIME_AGGREGATE_BY         /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+          FROM
+            DUMMY
+        )
+      ) BI,
+      M_SERVICES S,
+      M_DATABASE D,
+      ( SELECT
+          'CURRENT' DATA_SOURCE,
+          CURRENT_TIMESTAMP BEGIN_TIME,
+          SECONDS_BETWEEN(S.START_TIME, CURRENT_TIMESTAMP) INTERVAL_S,
+          P.HOST,
+          P.PORT,
+          P.PLAN_CACHE_CAPACITY,
+          P.CACHED_PLAN_COUNT,
+          P.CACHED_PLAN_SIZE,
+          P.CACHED_PLAN_PREPARATION_TIME,
+          P.CACHED_PLAN_TOTAL_EXECUTION_TIME,
+          P.EVICTED_PLAN_COUNT,
+          P.PLAN_CACHE_LOOKUP_COUNT,
+          P.PLAN_CACHE_HIT_COUNT,
+          P.EVICTED_PLAN_AVG_CACHE_TIME,
+          P.EVICTED_PLAN_PREPARATION_TIME,
+          P.EVICTED_PLAN_TOTAL_EXECUTION_TIME
+        FROM
+          M_SQL_PLAN_CACHE_OVERVIEW P,
+          M_SERVICE_STATISTICS S
+        WHERE
+          P.HOST = S.HOST AND
+          P.PORT = S.PORT
+        UNION ALL
+        SELECT
+          'HISTORY' DATA_SOURCE,
+          SERVER_TIMESTAMP,
+          SECONDS_BETWEEN(LEAD(SERVER_TIMESTAMP, 1) OVER (PARTITION BY HOST, PORT ORDER BY SERVER_TIMESTAMP DESC), SERVER_TIMESTAMP) INTERVAL_S,
+          HOST,
+          PORT,
+          PLAN_CACHE_CAPACITY,
+          CACHED_PLAN_COUNT,
+          CACHED_PLAN_SIZE,
+          CACHED_PLAN_PREPARATION_TIME,
+          CACHED_PLAN_TOTAL_EXECUTION_TIME,
+          CASE WHEN EVICTED_PLAN_COUNT < LAST_EVICTED_PLAN_COUNT THEN EVICTED_PLAN_COUNT ELSE EVICTED_PLAN_COUNT - LAST_EVICTED_PLAN_COUNT END EVICTED_PLAN_COUNT,
+          CASE WHEN PLAN_CACHE_LOOKUP_COUNT < LAST_PLAN_CACHE_LOOKUP_COUNT THEN PLAN_CACHE_LOOKUP_COUNT ELSE PLAN_CACHE_LOOKUP_COUNT - LAST_PLAN_CACHE_LOOKUP_COUNT END PLAN_CACHE_LOOKUP_COUNT,
+          CASE WHEN PLAN_CACHE_HIT_COUNT < LAST_PLAN_CACHE_HIT_COUNT THEN PLAN_CACHE_HIT_COUNT ELSE PLAN_CACHE_HIT_COUNT - LAST_PLAN_CACHE_HIT_COUNT END PLAN_CACHE_HIT_COUNT,
+          EVICTED_PLAN_AVG_CACHE_TIME,
+          EVICTED_PLAN_PREPARATION_TIME,
+          EVICTED_PLAN_TOTAL_EXECUTION_TIME
+        FROM
+        ( SELECT
+            C.*,
+            LEAD(EVICTED_PLAN_COUNT, 1) OVER (PARTITION BY HOST, PORT ORDER BY SERVER_TIMESTAMP DESC) LAST_EVICTED_PLAN_COUNT,
+            LEAD(PLAN_CACHE_LOOKUP_COUNT, 1) OVER (PARTITION BY HOST, PORT ORDER BY SERVER_TIMESTAMP DESC) LAST_PLAN_CACHE_LOOKUP_COUNT,
+            LEAD(PLAN_CACHE_HIT_COUNT, 1) OVER (PARTITION BY HOST, PORT ORDER BY SERVER_TIMESTAMP DESC) LAST_PLAN_CACHE_HIT_COUNT
+          FROM
+            _SYS_STATISTICS.HOST_SQL_PLAN_CACHE_OVERVIEW C
+        )
+      ) SO,
+      ( SELECT
+          S.HOST,
+          S.PORT,
+          S.SERVICE_NAME,
+          S.START_TIME,
+          SUM(MAP(C.CONNECTION_ID, NULL, 0, 1)) NUM_CONNECTIONS
+        FROM
+          M_SERVICE_STATISTICS S LEFT OUTER JOIN
+          M_CONNECTIONS C
+        ON
+          C.HOST = S.HOST AND
+          C.PORT = S.PORT AND
+          C.CONNECTION_ID > 0 AND
+          C.CREATED_BY = 'Session'
+        GROUP BY
+          S.HOST,
+          S.PORT,
+          S.SERVICE_NAME,
+          S.START_TIME
+      ) C
+      WHERE
+        CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(SO.BEGIN_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE SO.BEGIN_TIME END BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+        S.HOST LIKE BI.HOST AND
+        TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+        S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+        SO.HOST = S.HOST AND
+        SO.PORT = S.PORT AND
+        C.HOST = SO.HOST AND
+        C.PORT = SO.PORT AND
+        BI.DATA_SOURCE = SO.DATA_SOURCE
+    )
+    GROUP BY
+      BEGIN_TIME,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')    != 0 THEN HOST             ELSE MAP(BI_HOST, '%', 'any', BI_HOST)                 END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(PORT) ELSE MAP(BI_PORT, '%', 'any', BI_PORT)                 END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SERVICE') != 0 THEN SERVICE_NAME     ELSE MAP(BI_SERVICE_NAME, '%', 'any', BI_SERVICE_NAME) END,
+      VERSION,
+      AGGREGATE_BY,
+      TIME_AGGREGATE_BY,
+      TIMEZONE
+  )
+  GROUP BY
+    CASE 
+      WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), BEGIN_TIME) / SUBSTR(TIME_AGGREGATE_BY, 3)) * SUBSTR(TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(BEGIN_TIME, TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    HOST,
+    PORT,
+    SERVICE_NAME,
+    VERSION
+)
+ORDER BY
+  BEGIN_TIME DESC,
+  HOST,
+  PORT,
+  SERVICE

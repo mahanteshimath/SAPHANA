@@ -1,0 +1,243 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_MDS_StatementStatistics_1.00.122.16+
+
+[DESCRIPTION]
+
+- Overview of MDS database requests
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- See SAP Note 2670064 for more details related to multi-dimensional services (MDS).
+- M_MULTIDIMENSIONAL_STATEMENT_STATISTICS available with SAP HANA >= 1.00.122.16 and >= 2.00.024.01
+- In order to collect memory information the following parameter needs to be set:
+
+  indexserver.ini -> [mds] -> per_request_memory_usage_estimation = true
+
+- Running this command with SAP HANA 2.0 Revisions before 2.00.024.01 will fail with:
+
+  Could not find table/view M_MULTIDIMENSIONAL_STATEMENT_STATISTICS
+
+- CALCVIEW_NAME is not properly considered in case of BATCH requests with several data sources
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.122.16
+
+[SQL COMMAND VERSION]
+
+- 2018/11/03:  1.0 (initial version)
+- 2020/08/15:  1.1 (CALCVIEW_NAME added)
+
+[INVOLVED TABLES]
+
+- M_MULTIDIMENSIONAL_STATEMENT_STATISTICS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- STATEMENT_STRING
+
+  Statement string text
+
+  '%SupportsEncodedResultSet%' --> Statement strings including "SupportsEncodedResultSet"
+  '%'                          --> No restriction related to statement string
+
+- STATEMENT_HASH      
+ 
+  Hash of SQL statement to be analyzed
+
+  '2e960d7535bf4134e2bd26b9d80bd4fa' --> SQL statement with hash '2e960d7535bf4134e2bd26b9d80bd4fa'
+  '%'                                --> No statement hash restriction
+
+- DB_USER
+
+  Database user
+
+  'SYSTEM'        --> Database user 'SYSTEM'
+  '%'             --> No database user restriction
+
+- APP_USER
+
+  Application user
+
+  'SAPSYS'        --> Application user 'SAPSYS'
+  '%'             --> No application user restriction
+
+- APP_NAME
+
+  Name of application
+
+  'ABAP:C11'      --> Application name 'ABAP:C11'
+  '%'             --> No application name restriction
+
+- STATEMENT_TYPE
+
+  'INA'           --> Statements with type INA
+  '%'             --> No restriction related to statement type
+
+- CALCIEW_NAME
+
+  Name of underlying calculation view
+
+  '%FIN%'         --> Calculation views with names containing 'FIN'
+  '%'             --> No restriction related to calculation view name
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'CALCVIEW'      --> Aggregation by calculation view
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'TIME'          --> Sorting by time
+  'DURATION'      --> Sorting by duration of execution
+  
+[OUTPUT PARAMETERS]
+
+- HOST:             Host name
+- PORT:             Port
+- STATEMENT_HASH:   Statement hash
+- EXECUTIONS:       Number of executions
+- TOT_TIME_S:       Total execution time (s)
+- AVG_TIME_MS:      Average execution time (ms)
+- METADATA_HITS:    Metadata cache hits
+- DATA_HITS:        Data cache hits
+- MAX_THREADS:      Maximum number of threads called
+- MAX_MEM_MB:       Maximum amount of memory used (MB)
+- CALCVIEW_NAME:    Name of underlying calculation view
+- DB_USER:          Database user name
+- APP_USER:         Application user name
+- APP_NAME:         Application name
+- TYPE:             Statement type
+- STATEMENT_STRING: Statement text
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|HOST     |PORT |STATEMENT_HASH                  |EXECUTIONS|TOT_TIME_S|AVG_TIME_MS|METADATA_HITS|DATA_HITS|MAX_THREADS|MAX_MEM_MB|DB_USER |APP_USER|APP_NAME             |STATEMENT_TYPE|STATEMENT_STRING                                                                                                                                                                                        |
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|saphana01|30003|ef003965cbe4bc4642fc192f8efdd6c8|         2|     51.04|   25521.50|            0|        0|          0|      0.00|SAPMDS01|SAPMDS01|sap.bc.ina.service.v2|INA           |{"Analytics":{"Capabilities":["SP9","SupportsEncodedResultSet2","ReturnResultSetSizeWhenResultSetExceeded","SupportsSetOperand","ResultSetCellMeasure","HierarchyNavigationDeltaMode","ResultSetHiera...|
+|saphana01|30003|edbd630dbdc19d0c871ae01dcc342ebb|         1|     36.26|   36260.00|            0|        0|          0|      0.00|SAPMDS01|SAPMDS01|sap.bc.ina.service.v2|INA           |{"Analytics":{"Capabilities":["SP9","SupportsEncodedResultSet2","ReturnResultSetSizeWhenResultSetExceeded","SupportsSetOperand","ResultSetCellMeasure","HierarchyNavigationDeltaMode","ResultSetHiera...|
+|saphana01|30003|d6c2cf75aa203ed288d91945d91f7088|         1|     35.67|   35676.00|            0|        0|          0|      0.00|SAPMDS01|SAPMDS01|sap.bc.ina.service.v2|INA           |{"Analytics":{"Capabilities":["SP9","SupportsEncodedResultSet2","ReturnResultSetSizeWhenResultSetExceeded","SupportsSetOperand","ResultSetCellMeasure","HierarchyNavigationDeltaMode","ResultSetHiera...|
+|saphana01|30003|5259f70b537b51663555481c4c76f843|         1|     33.21|   33212.00|            0|        0|          0|      0.00|SAPMDS01|SAPMDS01|sap.bc.ina.service.v2|INA           |{"Analytics":{"Capabilities":["SP9","SupportsEncodedResultSet2","ReturnResultSetSizeWhenResultSetExceeded","SupportsSetOperand","ResultSetCellMeasure","HierarchyNavigationDeltaMode","ResultSetHiera...|
+|saphana01|30003|e72f7c0d9b7d61819b1cde0a7b6cd821|         2|     25.83|   12917.50|            0|        0|          0|      0.00|SAPMDS01|SAPMDS01|sap.bc.ina.service.v2|INA           |{"Analytics":{"Capabilities":["SP9","SupportsEncodedResultSet2","ReturnResultSetSizeWhenResultSetExceeded","SupportsSetOperand","ResultSetCellMeasure","HierarchyNavigationDeltaMode","ResultSetHiera...|
+|saphana01|30003|a8bd31ad453a30a8f226492692ab3fdc|         1|     25.46|   25467.00|            0|        0|          0|      0.00|SAPMDS01|SAPMDS01|sap.bc.ina.service.v2|INA           |{"Analytics":{"Capabilities":["SP9","SupportsEncodedResultSet2","ReturnResultSetSizeWhenResultSetExceeded","SupportsSetOperand","ResultSetCellMeasure","HierarchyNavigationDeltaMode","ResultSetHiera...|
+|saphana01|30003|7c6e03d1c9de2daf739da47d0eb07d90|        28|     18.44|     658.75|            0|        0|          0|      0.00|SAPMDS01|SAPMDS01|sap.bc.ina.service.v2|INA           |{"Analytics":{"Capabilities":["SP9","UniqueAttributeNames","HierarchyDataAndExcludingFilters","HierarchyTrapezoidFilter"],"DataSource":{"InstanceId":"A8EBBB28B46EE94CBC0DE40C82B7738A","ObjectName":...|
+|saphana01|30003|097add2a6f5b2fa92f36307009cdb64b|        12|     18.11|    1509.25|            0|        0|          0|      0.00|SAPMDS01|SAPMDS01|sap.bc.ina.service.v2|INA           |{"Analytics":{"Capabilities":["SP9","UniqueAttributeNames","HierarchyDataAndExcludingFilters","HierarchyTrapezoidFilter"],"DataSource":{"InstanceId":"2851FD5F3125CA449E43457FB256D8A7","ObjectName":...|
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  STATEMENT_HASH,
+  LPAD(EXECUTIONS, 10) EXECUTIONS,
+  LPAD(TO_DECIMAL(TOT_TIME_S, 10, 2), 10) TOT_TIME_S,
+  LPAD(TO_DECIMAL(AVG_TIME_MS, 10, 2), 11) AVG_TIME_MS,
+  LPAD(METADATA_HITS, 13) METADATA_HITS,
+  LPAD(DATA_HITS, 9) DATA_HITS,
+  LPAD(MAX_THREADS, 11) MAX_THREADS,
+  LPAD(TO_DECIMAL(MAX_MEM_MB, 10, 2), 10) MAX_MEM_MB,
+  CALCVIEW_NAME,
+  DB_USER,
+  APP_USER,
+  APP_NAME,
+  STATEMENT_TYPE TYPE,
+  STATEMENT_STRING
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')     != 0 THEN MS.HOST                         ELSE MAP(BI.HOST,             '%', 'any', BI.HOST)             END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')     != 0 THEN TO_VARCHAR(MS.PORT)             ELSE MAP(BI.PORT,             '%', 'any', BI.PORT)             END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HASH')     != 0 THEN TO_VARCHAR(MS.STATEMENT_STRING) ELSE MAP(BI.STATEMENT_STRING, '%', 'any', BI.STATEMENT_STRING) END STATEMENT_STRING,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HASH')     != 0 THEN MS.STATEMENT_HASH               ELSE MAP(BI.STATEMENT_HASH,   '%', 'any', BI.STATEMENT_HASH)   END STATEMENT_HASH,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'DB_USER')  != 0 THEN MS.USER_NAME                    ELSE MAP(BI.DB_USER,          '%', 'any', BI.DB_USER)          END DB_USER,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_USER') != 0 THEN MS.APPLICATION_USER_NAME        ELSE MAP(BI.APP_USER,         '%', 'any', BI.APP_USER)         END APP_USER,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_NAME') != 0 THEN MS.APPLICATION_NAME             ELSE MAP(BI.APP_NAME,         '%', 'any', BI.APP_NAME)         END APP_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')     != 0 THEN MS.STATEMENT_TYPE               ELSE MAP(BI.STATEMENT_TYPE,   '%', 'any', BI.STATEMENT_TYPE)   END STATEMENT_TYPE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CALCVIEW') != 0 THEN MS.CALCVIEW_NAME                ELSE MAP(BI.CALCVIEW_NAME,    '%', 'any', BI.CALCVIEW_NAME)    END CALCVIEW_NAME,
+    SUM(MS.EXECUTION_COUNT) EXECUTIONS,
+    SUM(MS.TOTAL_EXECUTION_TIME) / 1000 TOT_TIME_S,
+    MAP(SUM(MS.EXECUTION_COUNT), 0, 0, SUM(MS.TOTAL_EXECUTION_TIME) / SUM(MS.EXECUTION_COUNT)) AVG_TIME_MS,
+    SUM(MS.TOTAL_METADATA_CACHE_HIT_COUNT) METADATA_HITS,
+    SUM(MS.TOTAL_DATA_CACHE_HIT_COUNT) DATA_HITS,
+    MAX(MS.MAX_CALLED_THREAD_COUNT) MAX_THREADS,
+    MAX(MS.MAX_EXECUTION_MEMORY_SIZE) / 1024 / 1024 MAX_MEM_MB,
+    BI.ORDER_BY
+  FROM
+  ( SELECT                /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      '%' STATEMENT_STRING,
+      '%' STATEMENT_HASH,
+      '%' DB_USER,
+      '%' APP_USER,
+      '%' APP_NAME,
+      '%' STATEMENT_TYPE,
+      '%' CALCVIEW_NAME,
+      'HASH' AGGREGATE_BY,               /* HOST, PORT, HASH, DB_USER, APP_USER, APP_NAME, TYPE, CALCVIEW or comma separated combinations, NONE for no aggregation */
+      'DURATION' ORDER_BY                    /* EXECUTIONS, DURATION, THREADS, MEMORY */
+    FROM
+      DUMMY
+  ) BI,
+  ( SELECT
+      MS.*,
+      IFNULL(CASE
+        WHEN JSON_VALUE(STATEMENT_STRING, '$.*.DataSource.ObjectName') LIKE '%::%' THEN JSON_VALUE(STATEMENT_STRING, '$.*.DataSource.ObjectName')
+        ELSE JSON_VALUE(STATEMENT_STRING, '$.*.DataSource.PackageName') || '/' || JSON_VALUE(STATEMENT_STRING, '$.*.DataSource.ObjectName')
+      END, '') CALCVIEW_NAME
+    FROM
+      M_MULTIDIMENSIONAL_STATEMENT_STATISTICS MS
+  ) MS
+  WHERE
+    MS.HOST LIKE BI.HOST AND
+    TO_VARCHAR(MS.PORT) LIKE BI.PORT AND
+    TO_VARCHAR(MS.STATEMENT_STRING) LIKE BI.STATEMENT_STRING AND
+    MS.STATEMENT_HASH LIKE BI.STATEMENT_HASH AND
+    MS.USER_NAME LIKE BI.DB_USER AND
+    MS.APPLICATION_NAME LIKE BI.APP_NAME AND
+    MS.STATEMENT_TYPE LIKE BI.STATEMENT_TYPE AND
+    MS.APPLICATION_USER_NAME LIKE BI.APP_USER AND
+    MS.CALCVIEW_NAME LIKE BI.CALCVIEW_NAME
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')     != 0 THEN MS.HOST                         ELSE MAP(BI.HOST,             '%', 'any', BI.HOST)             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')     != 0 THEN TO_VARCHAR(MS.PORT)             ELSE MAP(BI.PORT,             '%', 'any', BI.PORT)             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HASH')     != 0 THEN TO_VARCHAR(MS.STATEMENT_STRING) ELSE MAP(BI.STATEMENT_STRING, '%', 'any', BI.STATEMENT_STRING) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HASH')     != 0 THEN MS.STATEMENT_HASH               ELSE MAP(BI.STATEMENT_HASH,   '%', 'any', BI.STATEMENT_HASH)   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'DB_USER')  != 0 THEN MS.USER_NAME                    ELSE MAP(BI.DB_USER,          '%', 'any', BI.DB_USER)          END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_USER') != 0 THEN MS.APPLICATION_USER_NAME        ELSE MAP(BI.APP_USER,         '%', 'any', BI.APP_USER)         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_NAME') != 0 THEN MS.APPLICATION_NAME             ELSE MAP(BI.APP_NAME,         '%', 'any', BI.APP_NAME)         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')     != 0 THEN MS.STATEMENT_TYPE               ELSE MAP(BI.STATEMENT_TYPE,   '%', 'any', BI.STATEMENT_TYPE)   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CALCVIEW') != 0 THEN MS.CALCVIEW_NAME                ELSE MAP(BI.CALCVIEW_NAME,    '%', 'any', BI.CALCVIEW_NAME)    END,
+    BI.ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'EXECUTIONS', EXECUTIONS, 'DURATION', TOT_TIME_S, 'THREADS', MAX_THREADS, 'MEMORY', MAX_MEM_MB) DESC

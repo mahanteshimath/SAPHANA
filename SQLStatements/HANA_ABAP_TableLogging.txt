@@ -1,0 +1,348 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_ABAP_TableLogging
+
+[DESCRIPTION]
+
+- Overview of records in table logging table DBTABLOG
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Table DBTABLOG only available in SAP ABAP environments
+- You have to be connected to the SAP<sid> schema otherwise the following error is issued:
+
+  [259]: invalid table name: Could not find table/view DBTABLOG in schema
+
+- If access to ABAP objects is possible but you cannot log on as ABAP user, you can switch the default schema before executing the command:
+
+  SET SCHEMA SAP<sid>
+
+[VALID FOR]
+
+- Revisions:              all
+- Client application:     ABAP
+
+[SQL COMMAND VERSION]
+
+- 2019/05/13:  1.0 (initial version)
+- 2021/08/03:  1.1 (TMY06 added)
+
+[INVOLVED TABLES]
+
+- DBTABLOG
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TABNAME
+
+  Table name
+
+  'DOKHL'         --> Table DOKHL
+  'RS%'           --> All tables starting with 'RS'
+  '%'             --> All tables
+
+- HOSTNAME
+
+  Host name
+
+  'R3trans'       --> Host name R3trans
+  'hana%'         --> All hosts starting with 'hana'
+  '%'             --> No restriction to hosts
+
+- USERNAME
+
+  User name
+
+  'USER001'       --> User name USER001
+  '%'             --> No restriction to user name
+
+- TCODE
+
+  Transaction code
+
+  'VA01'          --> Transaction name VA01
+  '%'             --> No restriction to transaction name
+
+- PROGNAME
+
+  Program name
+
+  'ZPROG01'       --> Program name ZPROG01
+  '%'             --> No restriction to program name
+
+- OPTYPE
+
+  Operation type
+
+  'I'             --> Operation type I (INSERT)
+  'U'             --> Operation type U (UPDATE)
+  '%'             --> No restriction to operation type
+
+- ONLY_UNNECESSARY_TABLES
+
+  Possibility to restrict result to tables that are logged unnecessarily
+
+  The following SAP Notes and tables from the "Data Management Guide for SAP Business Suite" are considered:
+
+  - SAP Note 1303671: /SAPAPO/TSTROBJR
+  - SAP Note 1598473: /VIRSA/ZFFCDHDR
+  - SAP Note 1500422: /VIRSA/ZFFTNSLOG, /VIRSA/ZFFCDHDR, /VIRSA/ZVIRFFLOG
+  - SAP Note 1524924: ALPFASSIGN
+  - SAP Note 1395163: BKK40, BKK42, BKK45, BKK46, BKK98
+  - SAP Note 1622495: BKKSONT
+  - SAP Note 1225992: CRMM_PRP*
+  - SAP Note 1311786: DB6TREORG, DB6IREORG
+  - SAP Note 1084360: DFKKCOLL, DFKKCOLLH
+  - SAP Note 732470:  EVER
+  - SAP Note 661574:  FMSNRULE, FMSNRULEC, FMDECKHK, FMDECKRG, FMDECKRGT, FMDECKUNG, FMUDRULE, FMUDRULEC
+  - SAP Note 1589734: IST_TDATA
+  - SAP Note 672503:  KONP
+  - SAP Note 1567106: LOGIC_DEST
+  - SAP Note 781433:  SKAT, SKAS, SKA1, SKB1
+  - SAP Note 1227243: SWD_HEADER
+  - SAP Note 434902:  T811F, T811K, T811C, T811S, T811L, T811G, T811C
+  - SAP Note 1685088: TE107
+  - SAP Note 503637:  TF260, TF261, TF270, TF271
+  - SAP Note 3084147: TMY06
+  - SAP Note 728141:  TRACT_POSCONTEXT
+  - SAP Note 667979:  TRLT_DERIVFLOWS
+  - SAP Note 1303588: TTSTR
+
+  'X'             --> Only display tables that are logged unnecessarily
+  ' '             --> No restriction to unnecessarily logged tables
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'HOST, USER'    --> Aggregation by host and user
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+  
+[OUTPUT PARAMETERS]
+
+- LOGTIME:     Log timestamp
+- TABNAME:     Table name
+- HOSTNAME:    Host name
+- USERNAME:    User name
+- TCODE:       Transaction code
+- PROGNAME:    Program name
+- OPTYPE:      Operation type (I -> INSERT, U -> UPDATE)
+- COUNT:       Number of records
+- AVG_DATA_KB: Average data size (KB)
+- SUM_DATA_GB: Total data size (GB)
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------------------------
+|LOGTIME            |TABNAME |HOSTNAME|USERNAME  |TCODE|PROGNAME|OPTYPE|COUNT     |AVG_DATA_KB|SUM_DATA_GB|
+-----------------------------------------------------------------------------------------------------------
+|2016/09/15 20:55:35|TADIR   |R3trans |SAPABAP001|     |R3TRANS |U     |        39|       0.45|       0.00|
+|2016/09/15 20:55:34|TADIR   |R3trans |SAPABAP001|     |R3TRANS |U     |        27|       0.45|       0.00|
+|2016/09/15 20:55:34|SMIMLOIO|R3trans |SAPABAP001|     |R3TRANS |U     |         1|       0.65|       0.00|
+|2016/09/15 20:55:33|TADIR   |R3trans |SAPABAP001|     |R3TRANS |U     |        48|       0.45|       0.00|
+|2016/09/15 20:55:32|TADIR   |R3trans |SAPABAP001|     |R3TRANS |U     |        63|       0.45|       0.00|
+|2016/09/15 20:55:31|TADIR   |R3trans |SAPABAP001|     |R3TRANS |U     |        62|       0.45|       0.00|
+|2016/09/15 20:55:30|TADIR   |R3trans |SAPABAP001|     |R3TRANS |U     |        48|       0.45|       0.00|
+|2016/09/15 20:55:29|TADIR   |R3trans |SAPABAP001|     |R3TRANS |U     |        63|       0.45|       0.00|
+|2016/09/15 20:55:28|TADIR   |R3trans |SAPABAP001|     |R3TRANS |U     |        87|       0.45|       0.00|
+|2016/09/15 20:55:28|TADIR   |R3trans |SAPABAP001|     |R3TRANS |I     |         1|       0.45|       0.00|
+|2016/09/15 20:55:27|TADIR   |R3trans |SAPABAP001|     |R3TRANS |U     |        92|       0.45|       0.00|
+|2016/09/15 20:55:26|TADIR   |R3trans |SAPABAP001|     |R3TRANS |U     |        98|       0.45|       0.00|
+|2016/09/15 20:55:25|TADIR   |R3trans |SAPABAP001|     |R3TRANS |U     |       125|       0.45|       0.00|
+|2016/09/15 20:55:25|TADIR   |R3trans |SAPABAP001|     |R3TRANS |I     |         2|       0.45|       0.00|
+-----------------------------------------------------------------------------------------------------------
+
+*/
+
+  LOGTIME,
+  TABNAME,
+  HOSTNAME,
+  USERNAME,
+  TCODE,
+  PROGNAME,
+  OPTYPE,
+  LPAD(COUNT, 10) COUNT,
+  LPAD(TO_DECIMAL(DATA_SIZE / COUNT / 1024, 10, 2), 11) AVG_DATA_KB,
+  LPAD(TO_DECIMAL(DATA_SIZE / 1024 / 1024 / 1024, 10, 2), 11) SUM_DATA_GB
+FROM
+( SELECT
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), TO_TIMESTAMP(D.LOGDATE || D.LOGTIME, 'YYYYMMDDHH24MISS')) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(TO_TIMESTAMP(D.LOGDATE || D.LOGTIME, 'YYYYMMDDHH24MISS'), BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END LOGTIME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')       != 0 THEN D.TABNAME             ELSE MAP(BI.TABNAME,       '%', 'any', BI.TABNAME)       END TABNAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')        != 0 THEN D.HOSTNAME            ELSE MAP(BI.HOSTNAME,      '%', 'any', BI.HOSTNAME)      END HOSTNAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'USER')        != 0 THEN D.USERNAME            ELSE MAP(BI.USERNAME,      '%', 'any', BI.USERNAME)      END USERNAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TCODE')       != 0 THEN D.TCODE               ELSE MAP(BI.TCODE,         '%', 'any', BI.TCODE)         END TCODE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PROGNAME')    != 0 THEN D.PROGNAME            ELSE MAP(BI.PROGNAME,      '%', 'any', BI.PROGNAME)      END PROGNAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OPERATION')   != 0 THEN D.OPTYPE              ELSE MAP(BI.OPTYPE,        '%', 'any', BI.OPTYPE)        END OPTYPE,
+    COUNT(*) COUNT,
+    SUM(TO_DECIMAL(DATALN)) DATA_SIZE,
+    BI.ORDER_BY
+  FROM
+  ( SELECT
+      CASE
+        WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+        WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+        WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+        WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+        WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+        WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+        WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END BEGIN_TIME,
+      CASE
+        WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+        WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+        WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+        WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+        WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+        WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+        WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+        WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+        WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+        WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+        WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END END_TIME,
+      TABNAME,
+      HOSTNAME,
+      USERNAME,
+      TCODE,
+      PROGNAME,
+      OPTYPE,
+      ONLY_UNNECESSARY_TABLES,
+      AGGREGATE_BY,
+      MAP(TIME_AGGREGATE_BY,
+        'NONE',        'YYYY/MM/DD HH24:MI:SS',
+        'HOUR',        'YYYY/MM/DD HH24',
+        'DAY',         'YYYY/MM/DD (DY)',
+        'HOUR_OF_DAY', 'HH24',
+        TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+      ORDER_BY
+    FROM
+    ( SELECT                    /* Modification section */
+        '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+        '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+        '%' TABNAME,
+        '%' HOSTNAME,
+        '%' USERNAME,
+        '%' TCODE,
+        '%' PROGNAME,
+        '%' OPTYPE,
+        'X' ONLY_UNNECESSARY_TABLES,
+        'TABLE' AGGREGATE_BY,               /* TIME, TABLE, HOST, USER, TRANSACTION, PROGRAM, OPERATION or comma separated combinations, NONE for no aggregation */
+        'NONE' TIME_AGGREGATE_BY,     /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+        'SIZE' ORDER_BY               /* TABLE, COUNT, TIME, SIZE */
+      FROM
+        DUMMY
+    ) 
+  ) BI,
+    DBTABLOG D
+  WHERE
+    TO_TIMESTAMP(D.LOGDATE || D.LOGTIME, 'YYYYMMDDHH24MISS') BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+    D.TABNAME LIKE BI.TABNAME AND
+    D.HOSTNAME LIKE BI.HOSTNAME AND
+    D.USERNAME LIKE BI.USERNAME AND
+    D.TCODE LIKE BI.TCODE AND
+    D.PROGNAME LIKE BI.PROGNAME AND
+    D.OPTYPE LIKE BI.OPTYPE AND
+    ( BI.ONLY_UNNECESSARY_TABLES = ' ' OR
+      D.TABNAME IN
+      ( '/SAPAPO/TSTROBJR', '/VIRSA/ZFFCDHDR', '/VIRSA/ZFFTNSLOG', '/VIRSA/ZVIRFFLOG', 'ALPFASSIGN', 'BKK40', 'BKK42', 'BKK45', 'BKK46', 'BKK98', 'BKKSONT',
+        'DB6TREORG', 'DB6IREORG', 'DFKKCOLL', 'DFKKCOLLH', 'EVER', 'FMSNRULE', 'FMSNRULEC', 'FMDECKHK', 'FMDECKRG', 'FMDECKRGT', 'FMDECKUNG', 'FMUDRULE', 'FMUDRULEC', 'IST_TDATA',
+        'KONP', 'LOGIC_DEST', 'SKAT', 'SKAS', 'SKA1', 'SKB1', 'SWD_HEADER', 'T811F', 'T811K', 'T811C', 'T811S', 'T811L', 'T811G', 'T811C', 'TE107', 'TF260', 'TF261', 'TF270', 'TF271',
+        'TMY06', 'TRACT_POSCONTEXT', 'TRLT_DERIVFLOWS', 'TTSTR'
+      ) OR
+      D.TABNAME LIKE 'CRMM_PRP%'
+    )
+  GROUP BY
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), TO_TIMESTAMP(D.LOGDATE || D.LOGTIME, 'YYYYMMDDHH24MISS')) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(TO_TIMESTAMP(D.LOGDATE || D.LOGTIME, 'YYYYMMDDHH24MISS'), BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')       != 0 THEN D.TABNAME             ELSE MAP(BI.TABNAME,       '%', 'any', BI.TABNAME)       END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')        != 0 THEN D.HOSTNAME            ELSE MAP(BI.HOSTNAME,      '%', 'any', BI.HOSTNAME)      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'USER')        != 0 THEN D.USERNAME            ELSE MAP(BI.USERNAME,      '%', 'any', BI.USERNAME)      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TCODE')       != 0 THEN D.TCODE               ELSE MAP(BI.TCODE,         '%', 'any', BI.TCODE)         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PROGNAME')    != 0 THEN D.PROGNAME            ELSE MAP(BI.PROGNAME,      '%', 'any', BI.PROGNAME)      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OPERATION')   != 0 THEN D.OPTYPE              ELSE MAP(BI.OPTYPE,        '%', 'any', BI.OPTYPE)        END,
+    BI.ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'TABLE', TABNAME),
+  MAP(ORDER_BY, 'TIME', LOGTIME) DESC,
+  MAP(ORDER_BY, 'SIZE', DATA_SIZE) DESC,
+  COUNT DESC

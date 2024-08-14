@@ -1,0 +1,563 @@
+WITH 
+
+/* 
+
+[NAME]
+
+- HANA_SQL_SQLCache_SpecialStatements
+
+[DESCRIPTION]
+
+- List of special statements in SQL cache, e.g. TREXviaDBSLWithParameter calls
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- SLT variant may be empty with DATA_SOURCE = 'CURRENT' (bug 281236) 
+- RESET can be performed via:
+
+  ALTER SYSTEM RESET MONITORING VIEW M_SQL_PLAN_CACHE_RESET
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2019/04/05:  1.0 (initial version)
+- 2019/05/18:  1.1 (COMPAT_VIEW and '%' filter for all classes included)
+- 2019/06/25:  1.2 (INLIST filter added)
+- 2020/08/07:  1.3 (SRC_REFRESH for statistic result cache refresh activities added)
+- 2020/09/17:  1.4 ("generic TREXviaDBSL call" added to TREXVIADBSL)
+- 2020/12/04:  1.5 (STATSERV_MAN added)
+- 2021/01/11:  1.6 (LIVECACHE included)
+- 2021/02/03:  1.7 (CDS_VIEW included)
+- 2021/03/08:  1.8 (CONCAT included)
+- 2021/05/17:  1.9 (PROC_NOT_UNFOLDED included)
+- 2021/07/01:  2.0 (TREXVIADBSL_TRACE added)
+- 2021/11/11:  2.1 (SLT added)
+- 2021/11/23:  2.2 (CONTAINS added)
+- 2021/11/25:  2.3 (NATIVE added)
+- 2022/05/05:  2.4 (PROC_CALL added)
+
+[INVOLVED TABLES]
+
+- M_SQL_PLAN_CACHE
+- M_SQL_PLAN_CACHE_RESET
+- HOST_SQL_PLAN_CACHE
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- STATEMENT_HASH      
+ 
+  Hash of SQL statement to be analyzed
+
+  '2e960d7535bf4134e2bd26b9d80bd4fa' --> SQL statement with hash '2e960d7535bf4134e2bd26b9d80bd4fa'
+  '%'                                --> No statement hash restriction
+
+- STATEMENT_CLASS
+
+  Statement class
+
+  'ABAP_BUFFER'       --> Statements for ABAP table buffer load
+  'AGING_COLD'        --> Statements with data aging suffix with scope different from CURRENT
+  'AGING_CURR'        --> Statements with data aging suffix with scope CURRENT
+  'AGING_OTHER'       --> Statements with data aging suffix (WITH RANGE_RESTRICTION)
+  'CDS_VIEW'          --> Statements accessing core data services (CDS) views
+  'COMPAT_VIEW'       --> Statements accessing compatibility views in context of S/4HANA
+  'CONCAT'            --> Statements with at least MIN_CONCAT_LEN multi value OR concatenations
+  'CONTAINS'          --> Statements with CONTAINS clause for fulltext indexes
+  'FDA_READ'          --> Statements executed with FDA READ
+  'FDA_WRITE'         --> Statements executed with FDA WRITE
+  'INLIST'            --> Statements with a single column IN list of at least the length specified in MIN_INLIST_LEN
+  'LIVECACHE'         --> Statements with calls to liveCache application procedures
+  'NATIVE'            --> Statements originating from ABAP Open SQL with native components (e.g. CONTAINS, FUZZY), indicated on ABAP side with %_NATIVE
+  'PROC_CALL'         --> Procedure calls
+  'PROC_NOT_UNFOLDED' --> Statements executing parts of procedures that cannot be unfolded
+  'SLT'               --> Statements related to SLT
+  'SRC_REFRESH'       --> Statements executed for refreshing the static result cache
+  'STATSERV_MAN'      --> Statements triggering manual statistics server calls (e.g. in context of Solution Manager when SAP Note 2374274 is not implemented, yet)
+  'TREXVIADBSL'       --> Statements related to TREXviaDBSLWithParameter calls
+  'TREXVIADBSL_TRACE' --> Statements related to TREXviaDBSL trace (indexserver.ini -> [sql] -> plan_cache_trexviadbsl_enabled = true)
+  '%'                 --> All classes above
+
+- MIN_INLIST_LEN
+
+  Minimum length of single column IN list in case of STATEMENT_CLASS = 'INLIST'
+
+  100            --> Only consider statements with a single column IN list of at least 100 elements
+
+- MIN_CONCAT_LEN
+
+  Minimum length of multi value OR concatenation in case of STATEMENT_CLASS = 'CONCAT'
+
+  50             --> Only consider statements with at least 50 multi value OR concatenations
+
+- MIN_EXEC_TIME_S
+
+  Minimum execution time (s)
+
+  1000           --> Only display lines with a minimum total execution time of 1000 seconds
+  -1             --> No restriction related to the minimum execution time
+
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_* tables)
+  'HISTORY'       --> Data from persisted history information (HOST_* tables)
+  'RESET'         --> Data from reset memory information (M_*_RESET tables)
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HASH'          --> Aggregation by statement hash
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'TIME'          --> Sorting by time
+  'DURATION'      --> Sorting by runtime
+
+
+[OUTPUT PARAMETERS]
+
+- SNAPSHOT_TIME:    Snapshot time
+- STATEMENT_CLASS:  Statement class (TREXVIADBSL for TREXviaDBSLWithParameter calls)
+- VARIANT:          Statement variant (ROUTE_BY_TABLES value for TREXVIADBSL class)
+- EXEC_TIME_S:      Total execution time (s)
+- EXECUTIONS:       Number of executions
+- TIME_PER_EXEC_MS: Time per execution (ms)
+- REC_PER_EXEC:     Records per execution
+- PLAN_SIZE_MB:     Plan cache size (MB), plan sizes count several times in context of DATA_SOURCE = HISTORY
+- CNT:              Number of plans, same statement counts several times in context of DATA_SOURCE = HISTORY
+- HOST:             Host
+- PORT:             Port
+- SCHEMA_NAME:      Schema name
+- STATEMENT_HASH:   Statement hash
+
+[EXAMPLE OUTPUT]
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+|STATEMENT_CLASS|VARIANT                                            |EXEC_TIME_S|EXECUTIONS|TIME_PER_EXEC_MS|REC_PER_EXEC   |STATEMENT_HASH                  |
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+|TREXVIADBSL    |"_SYS_BIC"."BI.XC.OMNI/XCOCMV_OC02_DAILY_CV"       |  115090.25|       108|      1065650.53|           0.00|ca8c3d751793952ca23ea4c12d8f4505|
+|TREXVIADBSL    |"_SYS_BIC"."BI.RT.WP/RTWPMV_WPC02_DAILY_CV"        |   83486.92|       297|       281100.74|           0.00|f5a497f8150f5456ed36cf753a52c791|
+|TREXVIADBSL    |"_SYS_BIC"."BI.SL.IBP/SLIBP_BOH_V2_CV"             |   35618.56|       820|        43437.27|           0.00|d5d25adda66d13559b0c76a1f5cda460|
+|TREXVIADBSL    |"_SYS_BIC"."BI.RT.WP/RTWPMV_WPC02_WEEKLY_CV"       |   11204.86|      5454|         2054.43|           0.00|f440b1d1d870824df49557ee08847e4e|
+|TREXVIADBSL    |"SAPSR3"."0BW:BIA:DKND0204"                        |    6672.75|       102|        65419.17|           0.00|9b271440161cce4198c363b0ee3aef7a|
+|TREXVIADBSL    |"_SYS_BIC"."BI.RT.WP/RTWPMV_WPC02_INTERIM_CV"      |    6497.90|        44|       147679.62|           0.00|e0ad44597405bf6c8b3adf5ea55b018d|
+|TREXVIADBSL    |"SAPSR3"."0BW:BIA:DKND0203"                        |    5092.52|       109|        46720.40|           0.00|4527387dc3c80c6e22cdde54fea5e3b8|
+|TREXVIADBSL    |"_SYS_BIC"."BI.SL.TT/SLTTMV_TTCG01_KPI_CURRCONV_CV"|    3823.32|        21|       182063.29|           0.00|a5881d5b559381bd23e1765a77209268|
+|TREXVIADBSL    |"_SYS_BIC"."BI.XC.ST/XCST_ST_AGGR_SLS_CV"          |    3768.61|        15|       251240.95|           0.00|7cf3671f98057258721142a9a7c454c1|
+|TREXVIADBSL    |"_SYS_BIC"."BI.RT.WP/RTWPMV_WPC02_WEEKLY_CV"       |    3697.54|       150|        24650.32|           0.00|008d1732761a4d6e82c3770cc10cf578|
+|TREXVIADBSL    |"_SYS_BIC"."BI.XC.ST/XCST_ST_AGGR_SALES_CV"        |    3150.36|        15|       210024.15|           0.00|d2431fdee83954720f5953112871a581|
+|TREXVIADBSL    |"_SYS_BIC"."BI.OP.PL.CR/OPCR_ART_MOD_SEA_CV"       |    3058.63|       819|         3734.59|           0.00|6258fd37bb9ef2df2bf83881057ce8f3|
+|TREXVIADBSL    |"_SYS_BIC"."BI.RT.IBP/RTMV_IBP_STORE_PLANNING_CV"  |    2531.96|        39|        64922.07|           0.00|d4aa08267ff0dfea06d7f0b53aac22f2|
+|TREXVIADBSL    |"SAPSR3"."0BW:BIA:PTDESGL11"                       |    2368.05|      5829|          406.25|           0.00|fe5ee0b8eb16b49db4a5491356180b19|
+|TREXVIADBSL    |"SAPSR3"."0BW:BIA:XCSTD305"                        |    2233.73|      6821|          327.47|           0.00|51ce0ac4d22a85aef8cd3809cde05c7c|
+|TREXVIADBSL    |"SAPSR3"."0BW:BIA:DKND0201"                        |    2054.04|       102|        20137.70|           0.00|d6601bd580095d8b661ce77aff1012aa|
+|TREXVIADBSL    |"_SYS_BIC"."BI.XC.ST/XCST_AGGR_STK_CV"             |    1892.88|        26|        72803.25|           0.00|367eb9f605c3585b76918ba10d3dc607|
+|TREXVIADBSL    |"_SYS_BIC"."BI.RT.WP/RTWPMV_WPC02_DAILY_CV"        |    1790.37|      1839|          973.56|           0.00|4ae4c7dd3e259e67073236735f5ceae7|
+|TREXVIADBSL    |"SAPSR3"."0BW:BIA:DORID103"                        |    1321.33|      2284|          578.51|           0.00|bcd59ff4c40aa4227cd8abe9f5fa3faa|
+|TREXVIADBSL    |"SAPSR3"."0BW:BIA:PTDXSCR10"                       |    1206.39|      5388|          223.90|           0.00|7642d64f7363fc458e387fa25e608927|
+|TREXVIADBSL    |"SAPSR3"."0BW:BIA:DKND0201"                        |    1163.67|       965|         1205.87|           0.00|3772d7f2c40918fec29229ed71abe096|
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+TRIGGER_MAPPING AS
+( SELECT DISTINCT
+    SUBJECT_TABLE_NAME MAIN_TABLE,
+    SUBSTR(DEFINITION, LOCATE(DEFINITION, '/1CADMC/'), 16) LOGGING_TABLE
+  FROM
+    TRIGGERS
+  WHERE
+    DEFINITION LIKE '%/1CADMC/%'
+)
+SELECT
+  SNAPSHOT_TIME,
+  STATEMENT_CLASS,
+  VARIANT,
+  LPAD(TO_DECIMAL(EXECUTION_TIME_MS / 1000, 10, 2), 11) EXEC_TIME_S,
+  LPAD(EXECUTIONS, 10) EXECUTIONS,
+  LPAD(TO_DECIMAL(MAP(EXECUTIONS, 0, 0, EXECUTION_TIME_MS / EXECUTIONS), 12, 2), 16) TIME_PER_EXEC_MS,
+  LPAD(TO_DECIMAL(MAP(EXECUTIONS, 0, 0, RECORDS / EXECUTIONS), 12, 2), 15) REC_PER_EXEC,
+  LPAD(TO_DECIMAL(PLAN_SIZE_MB, 10, 2), 12) PLAN_SIZE_MB,
+  LPAD(CNT, 5) CNT,
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SCHEMA_NAME,
+  STATEMENT_HASH
+FROM
+( SELECT
+    CASE 
+      WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), SNAPSHOT_TIME) / SUBSTR(TIME_AGGREGATE_BY, 3)) * SUBSTR(TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(SNAPSHOT_TIME, TIME_AGGREGATE_BY)
+        END
+      ELSE 'any'
+    END SNAPSHOT_TIME,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')    != 0 THEN HOST             ELSE MAP(BI_HOST,            '%', 'any', BI_HOST)            END HOST,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(PORT) ELSE MAP(BI_PORT,            '%', 'any', BI_PORT)            END PORT,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SCHEMA')  != 0 THEN SCHEMA_NAME      ELSE MAP(BI_SCHEMA_NAME,     '%', 'any', BI_SCHEMA_NAME)     END SCHEMA_NAME,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HASH')    != 0 THEN STATEMENT_HASH   ELSE MAP(BI_STATEMENT_HASH,  '%', 'any', BI_STATEMENT_HASH)  END STATEMENT_HASH,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'CLASS')   != 0 THEN STATEMENT_CLASS  ELSE MAP(BI_STATEMENT_CLASS, '%', 'any', BI_STATEMENT_CLASS) END STATEMENT_CLASS,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'VARIANT') != 0 THEN VARIANT          ELSE 'any'                                                   END VARIANT,
+    COUNT(*) CNT,
+    SUM(EXECUTIONS) EXECUTIONS,
+    SUM(RECORDS) RECORDS,
+    SUM(EXECUTION_TIME_MS) EXECUTION_TIME_MS,
+    SUM(PLAN_SIZE_MB) PLAN_SIZE_MB,
+    ORDER_BY
+  FROM
+  ( SELECT
+      *,
+      CASE
+        WHEN BI_STATEMENT_CLASS = 'PROC_NOT_UNFOLDED' THEN
+          SUBSTR(STATEMENT_STRING, LOCATE(STATEMENT_STRING, '.') + 1, LEAST(
+            MAP(LOCATE(STATEMENT_STRING, ' variable'), 0, 99999, LOCATE(STATEMENT_STRING, ' variable')), 
+            MAP(LOCATE(STATEMENT_STRING, ' line:'), 0, 99999, LOCATE(STATEMENT_STRING, ' line:')), 
+            MAP(LOCATE(STATEMENT_STRING, '#stb2#'), 0, 99999, LOCATE(STATEMENT_STRING, '#stb2#'))
+          ) - LOCATE(STATEMENT_STRING, '.') - 1)
+        WHEN BI_STATEMENT_CLASS = 'CDS_VIEW' THEN
+          SUBSTR(SUBSTR(STATEMENT_STRING, LOCATE(STATEMENT_STRING, '/* Entity name:') + 16), 1, LOCATE(SUBSTR(STATEMENT_STRING, LOCATE(STATEMENT_STRING, '/* Entity name:') + 16), CHAR(32)))
+        WHEN BI_STATEMENT_CLASS = 'COMPAT_VIEW' THEN
+          REPLACE(REPLACE(SUBSTR(SUBSTR(STATEMENT_STRING, LOCATE(STATEMENT_STRING, '/* Redirected table:') + 21), 1, LOCATE(SUBSTR(STATEMENT_STRING, 
+            LOCATE(STATEMENT_STRING, '/* Redirected table:') + 21), CHAR(32), 1, 3)), '"', ''), '*/', '/')
+        WHEN BI_STATEMENT_CLASS = 'LIVECACHE' THEN SUBSTR(STATEMENT_STRING, 1, LOCATE(STATEMENT_STRING, '(') - 2)
+        WHEN BI_STATEMENT_CLASS = 'PROC_CALL' THEN SUBSTR(STATEMENT_STRING, 1, 
+          LEAST(MAP(LOCATE(STATEMENT_STRING, 'WITH RANGE'), 0, 999, LOCATE(STATEMENT_STRING, 'WITH RANGE')),
+                MAP(LOCATE(STATEMENT_STRING, '('), 0, 999, LOCATE(STATEMENT_STRING, '('))) - 1)
+        WHEN BI_STATEMENT_CLASS = 'STATSERV_MAN' THEN 'User:' || CHAR(32) || IFNULL(USER_NAME, 'n/a') || ', arguments:' || CHAR(32) || 
+          SUBSTR(STATEMENT_STRING, LOCATE(STATEMENT_STRING, '('), LOCATE(STATEMENT_STRING, ')') - LOCATE(STATEMENT_STRING, '(') + 1)
+        WHEN BI_STATEMENT_CLASS = 'TREXVIADBSL' AND ( STATEMENT_STRING LIKE 'CALL  SYS.TREXviaDBSL  (%' OR STATEMENT_STRING LIKE 'CALL SYS.TREXviaDBSL (%' ) THEN 'generic TREXviaDBSL call'
+        WHEN BI_STATEMENT_CLASS = 'TREXVIADBSL' THEN LTRIM(RTRIM(SUBSTR(STATEMENT_STRING, LOCATE(STATEMENT_STRING, '(', 1, 2) + 1, LOCATE(STATEMENT_STRING, ')', 1, 1) - LOCATE(STATEMENT_STRING, '(', 1, 2) - 1)))
+        WHEN BI_STATEMENT_CLASS LIKE 'AGING%' THEN SUBSTR(STATEMENT_STRING, LOCATE(STATEMENT_STRING, 'RANGE_RESTRICTION', -1) + 19, LENGTH(STATEMENT_STRING) - LOCATE(STATEMENT_STRING, 'RANGE_RESTRICTION', -1) - 20)
+        WHEN BI_STATEMENT_CLASS = 'SLT' THEN ( SELECT LOGGING_TABLE || ' (' || MAIN_TABLE || ')' FROM TRIGGER_MAPPING T WHERE LOCATE(ACCESSED_TABLE_NAMES, T.LOGGING_TABLE) > 0 ) 
+        ELSE ACCESSED_TABLE_NAMES
+      END VARIANT
+    FROM
+    ( SELECT
+        S.DATA_SOURCE,
+        S.SNAPSHOT_TIME,
+        S.HOST,
+        S.PORT,
+        S.SCHEMA_NAME,
+        S.USER_NAME,
+        S.STATEMENT_HASH,
+        S.ACCESSED_TABLE_NAMES,
+        CASE WHEN UPPER(S.STATEMENT_STRING) LIKE '%TREXVIADBSL%WITH HINT%' THEN SUBSTR(S.STATEMENT_STRING, 1, LOCATE(S.STATEMENT_STRING, 'WITH HINT') - 4) ELSE S.STATEMENT_STRING END STATEMENT_STRING,
+        S.EXECUTIONS,
+        S.RECORDS,
+        S.EXECUTION_TIME_MS,
+        S.PLAN_SIZE_MB,
+        CASE
+          WHEN 'ABAP_BUFFER'       LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%/* Buffer Loading */%'                                                                          THEN 'ABAP_BUFFER'
+          WHEN 'CDS_VIEW'          LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%/* Entity name:%'                                                                               THEN 'CDS_VIEW'
+          WHEN 'COMPAT_VIEW'       LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%/* Redirected table:%'                                                                          THEN 'COMPAT_VIEW'
+          WHEN 'PROC_CALL'         LIKE BI.STATEMENT_CLASS AND LTRIM(UPPER(S.STATEMENT_STRING)) LIKE 'CALL%'                                                                             THEN 'PROC_CALL'
+          WHEN 'PROC_NOT_UNFOLDED' LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '/* procedure:%'                                                                                  THEN 'PROC_NOT_UNFOLDED'
+          WHEN 'SLT'               LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%"/1CADMC/%'                                                                                     THEN 'SLT'
+          WHEN 'SRC_REFRESH'       LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%/*generated by result cache manager*/%'                                                         THEN 'SRC_REFRESH'
+          WHEN 'STATSERV_MAN'      LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE 'CALL _SYS_STATISTICS.STATISTICS_SCHEDULABLEWRAPPER (_Manual_,%'                                  THEN 'STATSERV_MAN'
+          WHEN 'TREXVIADBSL'       LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%TREXviaDBSL%'                                                                                   THEN 'TREXVIADBSL'
+          WHEN 'TREXVIADBSL_TRACE' LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE 'TrexViaDbsl%'                                                                                    THEN 'TREXVIADBSL_TRACE'
+          WHEN 'FDA_READ'          LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%/* FDA READ */%'                                                                                THEN 'FDA_READ'
+          WHEN 'FDA_WRITE'         LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%/* FDA WRITE */%'                                                                               THEN 'FDA_WRITE'
+          WHEN 'CONTAINS'          LIKE BI.STATEMENT_CLASS AND UPPER(S.STATEMENT_STRING) LIKE '% CONTAINS(%' OR UPPER(S.STATEMENT_STRING) LIKE '%CONTAINS (%'                            THEN 'CONTAINS'
+          WHEN 'AGING_COLD'        LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%WITH RANGE_RESTRICTION(%)%' AND STATEMENT_STRING NOT LIKE '%WITH RANGE_RESTRICTION(_CURRENT_)%' THEN 'AGING_COLD'
+          WHEN 'AGING_CURR'        LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%WITH RANGE_RESTRICTION(_CURRENT_)%'                                                             THEN 'AGING_CURR'
+          WHEN 'AGING_OTHER'       LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%WITH RANGE_RESTRICTION(%)%'                                                                     THEN 'AGING_OTHER'
+          WHEN 'LIVECACHE'         LIKE BI.STATEMENT_CLASS AND S.STATEMENT_HASH IN ( '11b1c4b452b55b7fea973c5c3e7547df', '2fe987d90027ee74e82001499bae57bf', 
+                                     '31140725b1f4a46369aab247c0b7e097', '3371f7da0b57dbf46f4c056921376b2b', '4e100847ee8a76ccfd8630d23dad66ba', '57dec217b2c81ec47bd0577131c8196b', 
+                                     '5d110ba33c2e0314ff186019c37be2c7', '683b80896e3550eea06ade4a3a855917', '75698fbb304e406dca77e4b87fe3946c', '7b54142eca356166c71929d03c462dc6', 
+                                     '81788f9c7ecf4c6253e8099f7ca9eea0', '8637ffebfcc65ab0d613d10c42a86f3f', '8fa09e6dfa200434333e3728dfac986e', '9dac2f34cd80ff538bbb4773f8aed514', 
+                                     'ae3891f8898465b9c844d36f806d1c78', 'b52d2cc6afb4f07f8f9c2064e87abd93','b59c3c5005309a050d5e035155133b85', 'c3a6938605f1d3c5a10f58b30be2014d',
+                                     '5fbd592536c53068deb5b4a67272d7a0', 'f12b30f24a33fde01082983778ef35dd', 'a34890b38a9b16fb44327f36a618efc9', '099952519dab17d505c8e3cb3d245196' )    THEN 'LIVECACHE'
+          WHEN 'NATIVE'            LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%/* Contains Native SQL */%'                                                                     THEN 'NATIVE'
+          WHEN 'INLIST'            LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%' || RPAD('', BI.MIN_INLIST_LEN, CHAR(63) || CHAR(32) || ',' || CHAR(32)) || '%'                THEN 'INLIST' || CHAR(32) || '(>=' || CHAR(32) || BI.MIN_INLIST_LEN || ')'
+          WHEN 'CONCAT'            LIKE BI.STATEMENT_CLASS AND LOCATE(S.STATEMENT_STRING, CHAR(32) || ') OR (' || CHAR(32), 1, BI.MIN_CONCAT_LEN - 1) != 0                               THEN 'CONCAT' || CHAR(32) || '(>=' || CHAR(32) || BI.MIN_CONCAT_LEN || ')'
+        END STATEMENT_CLASS,
+        BI.HOST BI_HOST,
+        BI.PORT BI_PORT,
+        BI.SCHEMA_NAME BI_SCHEMA_NAME,
+        BI.STATEMENT_HASH BI_STATEMENT_HASH,
+        BI.STATEMENT_CLASS BI_STATEMENT_CLASS,
+        BI.MIN_EXEC_TIME_S,
+        BI.AGGREGATE_BY,
+        BI.TIME_AGGREGATE_BY,
+        BI.ORDER_BY
+      FROM
+      ( SELECT
+          CASE
+            WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+            WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+            WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+            WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+            WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+            WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+            WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+            WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+            WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+            WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+            WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+            WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+            WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+          END BEGIN_TIME,
+          CASE
+            WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+            WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+            WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+            WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+            WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+            WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+            WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+            WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+            WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+            WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+            WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+            WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+            WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+          END END_TIME,
+          TIMEZONE,
+          HOST,
+          PORT,
+          SCHEMA_NAME,
+          STATEMENT_HASH,
+          MAP(STATEMENT_CLASS, 'INLIST', 'INLIST' || CHAR(32) || '(>=' || CHAR(32) || MIN_INLIST_LEN || ')', 
+            'CONCAT', 'CONCAT' || CHAR(32) || '(>=' || CHAR(32) || MIN_CONCAT_LEN || ')', STATEMENT_CLASS) STATEMENT_CLASS,
+          MIN_INLIST_LEN,
+          MIN_CONCAT_LEN,
+          MIN_EXEC_TIME_S,
+          DATA_SOURCE,
+          AGGREGATE_BY,
+          MAP(TIME_AGGREGATE_BY,
+            'NONE',        'YYYY/MM/DD HH24:MI:SS',
+            'HOUR',        'YYYY/MM/DD HH24',
+            'DAY',         'YYYY/MM/DD (DY)',
+            'HOUR_OF_DAY', 'HH24',
+            TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+            ORDER_BY
+        FROM
+        ( SELECT                                                      /* Modification section */
+            'C-D31' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+            '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+            'SERVER' TIMEZONE,                              /* SERVER, UTC */
+            '%' HOST,
+            '%' PORT,
+            '%' SCHEMA_NAME,
+            '%' STATEMENT_HASH,
+            'PROC_NOT_UNFOLDED' STATEMENT_CLASS,            /* ABAP_BUFFER, AGING_COLD, AGING_CURR, AGING_OTHER, CDS_VIEW, COMPAT_VIEW, CONCAT, FDA_READ, FDA_WRITE, INLIST, LIVECACHE, PROC_CALL, PROC_NOT_UNFOLDED, 
+                                                       SLT, SRC_REFRESH, STATSERV_MAN, TREXVIADBSL, TREXVIADBSL_TRACE or pattern */
+            50 MIN_INLIST_LEN,
+            30 MIN_CONCAT_LEN,
+            -1 MIN_EXEC_TIME_S,
+            'HISTORY' DATA_SOURCE,     /* CURRENT, HISTORY, RESET */
+            'VARIANT, HASH' AGGREGATE_BY,       /* TIME, HOST, PORT, SCHEMA, HASH, CLASS or comma separated list, NONE for no aggregation */
+            'NONE' TIME_AGGREGATE_BY,   /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+            'DURATION' ORDER_BY                 /* TIME, DURATION, PLAN_SIZE, COUNT */
+          FROM
+            DUMMY
+        ) 
+      ) BI,
+      ( SELECT
+          'CURRENT' DATA_SOURCE,
+          CURRENT_TIMESTAMP SNAPSHOT_TIME,
+          HOST,
+          PORT,
+          SCHEMA_NAME,
+          USER_NAME,
+          STATEMENT_HASH,
+          TO_VARCHAR(ACCESSED_TABLE_NAMES) ACCESSED_TABLE_NAMES,
+          TO_VARCHAR(STATEMENT_STRING) STATEMENT_STRING,
+          EXECUTION_COUNT EXECUTIONS,
+          TOTAL_RESULT_RECORD_COUNT RECORDS,
+          TOTAL_EXECUTION_TIME / 1000 EXECUTION_TIME_MS,
+          PLAN_MEMORY_SIZE / 1024 / 1024 PLAN_SIZE_MB
+        FROM
+          M_SQL_PLAN_CACHE
+        UNION ALL
+        SELECT
+          'RESET' DATA_SOURCE,
+          CURRENT_TIMESTAMP SNAPSHOT_TIME,
+          HOST,
+          PORT,
+          SCHEMA_NAME,
+          USER_NAME,
+          STATEMENT_HASH,
+          TO_VARCHAR(ACCESSED_TABLE_NAMES) ACCESSED_TABLE_NAMES,
+          TO_VARCHAR(STATEMENT_STRING) STATEMENT_STRING,
+          EXECUTION_COUNT EXECUTIONS,
+          TOTAL_RESULT_RECORD_COUNT RECORDS,
+          TOTAL_EXECUTION_TIME / 1000 EXECUTION_TIME_MS,
+          PLAN_MEMORY_SIZE / 1024 / 1024 PLAN_SIZE_MB
+        FROM
+          M_SQL_PLAN_CACHE_RESET
+        UNION ALL
+        SELECT
+          'HISTORY' DATA_SOURCE,
+          SERVER_TIMESTAMP SNAPSHOT_TIME,
+          HOST,
+          PORT,
+          SCHEMA_NAME,
+          USER_NAME,
+          STATEMENT_HASH,
+          TO_VARCHAR(ACCESSED_TABLE_NAMES) ACCESSED_TABLE_NAMES,
+          TO_VARCHAR(STATEMENT_STRING) STATEMENT_STRING,
+          EXECUTION_COUNT EXECUTIONS,
+          TOTAL_RESULT_RECORD_COUNT RECORDS,
+          TOTAL_EXECUTION_TIME / 1000 EXECUTION_TIME_MS,
+          PLAN_MEMORY_SIZE / 1024 / 1024 PLAN_SIZE_MB
+        FROM
+          _SYS_STATISTICS.HOST_SQL_PLAN_CACHE
+      ) S
+      WHERE
+        CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(S.SNAPSHOT_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE S.SNAPSHOT_TIME END BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+        S.DATA_SOURCE = BI.DATA_SOURCE AND
+        S.HOST LIKE BI.HOST AND
+        S.PORT LIKE TO_VARCHAR(BI.PORT) AND
+        S.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+        S.STATEMENT_HASH LIKE BI.STATEMENT_HASH AND
+        CASE
+          WHEN 'ABAP_BUFFER'       LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%/* Buffer Loading */%'                                                                          THEN 'ABAP_BUFFER'
+          WHEN 'CDS_VIEW'          LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%/* Entity name:%'                                                                               THEN 'CDS_VIEW'
+          WHEN 'COMPAT_VIEW'       LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%/* Redirected table:%'                                                                          THEN 'COMPAT_VIEW'
+          WHEN 'PROC_CALL'         LIKE BI.STATEMENT_CLASS AND LTRIM(UPPER(S.STATEMENT_STRING)) LIKE 'CALL%'                                                                             THEN 'PROC_CALL'
+          WHEN 'PROC_NOT_UNFOLDED' LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '/* procedure:%'                                                                                  THEN 'PROC_NOT_UNFOLDED'
+          WHEN 'SLT'               LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%"/1CADMC/%'                                                                                     THEN 'SLT'
+          WHEN 'SRC_REFRESH'       LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%/*generated by result cache manager*/%'                                                         THEN 'SRC_REFRESH'
+          WHEN 'STATSERV_MAN'      LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE 'CALL _SYS_STATISTICS.STATISTICS_SCHEDULABLEWRAPPER (_Manual_,%'                                  THEN 'STATSERV_MAN'
+          WHEN 'TREXVIADBSL'       LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%TREXviaDBSL%'                                                                                   THEN 'TREXVIADBSL'
+          WHEN 'TREXVIADBSL_TRACE' LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE 'TrexViaDbsl%'                                                                                    THEN 'TREXVIADBSL_TRACE'
+          WHEN 'FDA_READ'          LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%/* FDA READ */%'                                                                                THEN 'FDA_READ'
+          WHEN 'FDA_WRITE'         LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%/* FDA WRITE */%'                                                                               THEN 'FDA_WRITE'
+          WHEN 'CONTAINS'          LIKE BI.STATEMENT_CLASS AND UPPER(S.STATEMENT_STRING) LIKE '% CONTAINS(%' OR UPPER(S.STATEMENT_STRING) LIKE '%CONTAINS (%'                            THEN 'CONTAINS'
+          WHEN 'AGING_COLD'        LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%WITH RANGE_RESTRICTION(%)%' AND STATEMENT_STRING NOT LIKE '%WITH RANGE_RESTRICTION(_CURRENT_)%' THEN 'AGING_COLD'
+          WHEN 'AGING_CURR'        LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%WITH RANGE_RESTRICTION(_CURRENT_)%'                                                             THEN 'AGING_CURR'
+          WHEN 'AGING_OTHER'       LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%WITH RANGE_RESTRICTION(%)%'                                                                     THEN 'AGING_OTHER'
+          WHEN 'LIVECACHE'         LIKE BI.STATEMENT_CLASS AND S.STATEMENT_HASH IN ( '11b1c4b452b55b7fea973c5c3e7547df', '2fe987d90027ee74e82001499bae57bf', 
+                                     '31140725b1f4a46369aab247c0b7e097', '3371f7da0b57dbf46f4c056921376b2b', '4e100847ee8a76ccfd8630d23dad66ba', '57dec217b2c81ec47bd0577131c8196b', 
+                                     '5d110ba33c2e0314ff186019c37be2c7', '683b80896e3550eea06ade4a3a855917', '75698fbb304e406dca77e4b87fe3946c', '7b54142eca356166c71929d03c462dc6', 
+                                     '81788f9c7ecf4c6253e8099f7ca9eea0', '8637ffebfcc65ab0d613d10c42a86f3f', '8fa09e6dfa200434333e3728dfac986e', '9dac2f34cd80ff538bbb4773f8aed514', 
+                                     'ae3891f8898465b9c844d36f806d1c78', 'b52d2cc6afb4f07f8f9c2064e87abd93','b59c3c5005309a050d5e035155133b85', 'c3a6938605f1d3c5a10f58b30be2014d' )     THEN 'LIVECACHE'
+          WHEN 'NATIVE'            LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%/* Contains Native SQL */%'                                                                     THEN 'NATIVE'
+          WHEN 'INLIST' || CHAR(32) || '(>=' || CHAR(32) || BI.MIN_INLIST_LEN || ')' LIKE BI.STATEMENT_CLASS AND S.STATEMENT_STRING LIKE '%' || RPAD('', BI.MIN_INLIST_LEN, CHAR(63) || CHAR(32) || ',' || CHAR(32)) || '%'                THEN 'INLIST' || CHAR(32) || '(>=' || CHAR(32) || BI.MIN_INLIST_LEN || ')'
+          WHEN 'CONCAT' || CHAR(32) || '(>=' || CHAR(32) || BI.MIN_CONCAT_LEN || ')' LIKE BI.STATEMENT_CLASS AND LOCATE(S.STATEMENT_STRING, CHAR(32) || ') OR (' || CHAR(32), 1, BI.MIN_CONCAT_LEN - 1) != 0                               THEN 'CONCAT' || CHAR(32) || '(>=' || CHAR(32) || BI.MIN_CONCAT_LEN || ')'
+        END LIKE BI.STATEMENT_CLASS
+    )
+  )
+  GROUP BY
+    CASE 
+      WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), SNAPSHOT_TIME) / SUBSTR(TIME_AGGREGATE_BY, 3)) * SUBSTR(TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(SNAPSHOT_TIME, TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')    != 0 THEN HOST             ELSE MAP(BI_HOST,            '%', 'any', BI_HOST)            END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(PORT) ELSE MAP(BI_PORT,            '%', 'any', BI_PORT)            END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SCHEMA')  != 0 THEN SCHEMA_NAME      ELSE MAP(BI_SCHEMA_NAME,     '%', 'any', BI_SCHEMA_NAME)     END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HASH')    != 0 THEN STATEMENT_HASH   ELSE MAP(BI_STATEMENT_HASH,  '%', 'any', BI_STATEMENT_HASH)  END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'CLASS')   != 0 THEN STATEMENT_CLASS  ELSE MAP(BI_STATEMENT_CLASS, '%', 'any', BI_STATEMENT_CLASS) END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'VARIANT') != 0 THEN VARIANT          ELSE 'any'                                                   END,
+    BI_STATEMENT_CLASS,
+    MIN_EXEC_TIME_S,
+    ORDER_BY
+  HAVING
+    ( MIN_EXEC_TIME_S = -1 OR SUM(EXECUTION_TIME_MS) / 1000 >= MIN_EXEC_TIME_S )
+)
+ORDER BY
+  MAP(ORDER_BY, 'DURATION', EXECUTION_TIME_MS, 'PLAN_SIZE', PLAN_SIZE_MB, 'COUNT', CNT) DESC,
+  SNAPSHOT_TIME DESC
+WITH HINT (IGNORE_PLAN_CACHE)
+ 

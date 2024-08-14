@@ -1,0 +1,189 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Locks_Transactional_ColumnStoreRecordLocks_2.00.040+
+
+[DESCRIPTION]
+
+- Overview of record locks in columns store including memory requirements
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- M_CS_RECORD_LOCK_STATISTICS available with SAP HANA >= 2.00.040
+- Allocated memory is part of heap allocator Pool/CSRowLocking
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.040
+
+[SQL COMMAND VERSION]
+
+- 2020/01/01:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_CS_RECORD_LOCK_STATISTICS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- PART_ID
+
+  Partition number
+
+  2               --> Only show information for partition number 2
+  -1              --> No restriction related to partition number
+
+- MIN_ALLOC_MB
+
+  Lower limit for allocated memory (MB)
+
+  5               --> Only consider sizes of at least 5 GB
+  -1              --> No restriction related to size
+
+- OBJECT_LEVEL
+
+  Controls display of partitions
+
+  'PARTITION'     --> Result is shown on partition level
+  'TABLE'         --> Result is shown on table level
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'SCHEMA'        --> Aggregation by schema
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'ALLOC'         --> Sorting by allocated size 
+  'LOCKS'         --> Sorting by number of record locks
+
+[OUTPUT PARAMETERS]
+
+- HOST:          Host name
+- PORT:          Port
+- SCHEMA_NAME:   Schema name
+- TABLE_NAME:    Table name
+- COUNT:         Number of tables / partitions
+- LOCKS:         Number of record locks
+- ALLOC_MB:      Allocated memory (MB)
+- USED_MB:       Used memory (MB)
+- BYTE_PER_LOCK: Memory size per lock (byte)   
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------------------------------
+|HOST    |PORT |SCHEMA_NAME|TABLE_NAME      |COUNT |LOCKS   |ALLOC_MB|USED_MB |BYTE_PER_LOCK|
+---------------------------------------------------------------------------------------------
+|saphana1|30003|SAPERP     |EDID4           |    24|   16621|   13.61|    0.76|           48|
+|saphana1|30003|SAPERP     |KONV            |    14|   21757|    7.85|    0.99|           48|
+|saphana1|30003|SAPERP     |/1CADMC/00005981|     8|     122|    1.03|    0.00|           74|
+|saphana1|30003|SAPERP     |/1CADMC/00005901|     8|      39|    0.86|    0.00|          126|
+|saphana1|30003|SAPERP     |VBPA            |     6|     798|    0.59|    0.04|           53|
+---------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  LPAD(COUNT, 6) COUNT,
+  LPAD(LOCKS, 8) LOCKS,
+  LPAD(TO_DECIMAL(ALLOC_MB, 10, 2), 8) ALLOC_MB,
+  LPAD(TO_DECIMAL(USED_MB, 10, 2), 8) USED_MB,
+  LPAD(TO_DECIMAL(ROUND(MAP(LOCKS, 0, 0, USED_MB * 1024 * 1024 / LOCKS)), 10, 0), 13) BYTE_PER_LOCK
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')      != 0 THEN L.HOST                                ELSE MAP(BI.HOST, '%', 'any', BI.HOST)               END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(L.PORT)                    ELSE MAP(BI.PORT, '%', 'any', BI.PORT)               END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')    != 0 THEN L.SCHEMA_NAME                         ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME) END SCHEMA_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')     != 0 THEN L.TABLE_NAME || CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND L.PART_ID != 0 THEN ' (' || L.PART_ID || ')' ELSE '' END
+                     ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME || CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND L.PART_ID != 0 THEN ' (' || L.PART_ID || ')' ELSE '' END )   END TABLE_NAME,
+    COUNT(*) COUNT,
+    SUM(ALLOCATED_MEMORY_SIZE / 1024 / 1024) ALLOC_MB,
+    SUM(USED_MEMORY_SIZE / 1024 / 1024) USED_MB,
+    SUM(ACQUIRED_LOCK_COUNT) LOCKS,
+    BI.MIN_ALLOC_MB,
+    BI.ORDER_BY
+  FROM
+  ( SELECT                    /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      '%' SCHEMA_NAME,
+      '%' TABLE_NAME,
+      -1 PART_ID,
+      1 MIN_ALLOC_MB,
+      'PARTITION' OBJECT_LEVEL,      /* TABLE, PARTITION */
+      'NONE' AGGREGATE_BY,     /* HOST, PORT, SCHEMA, TABLE or comma separated combinations, NONE for no aggregation */
+      'ALLOC' ORDER_BY         /* ALLOC, USED, COUNT, LOCKS, NAME */
+    FROM
+      DUMMY
+  ) BI,
+    M_CS_RECORD_LOCK_STATISTICS L
+  WHERE
+    L.HOST LIKE BI.HOST AND
+    TO_VARCHAR(L.PORT) LIKE BI.PORT AND
+    L.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    L.TABLE_NAME LIKE BI.TABLE_NAME AND
+    ( BI.PART_ID = -1 OR L.PART_ID = BI.PART_ID )
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')      != 0 THEN L.HOST                                ELSE MAP(BI.HOST, '%', 'any', BI.HOST)               END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(L.PORT)                    ELSE MAP(BI.PORT, '%', 'any', BI.PORT)               END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')    != 0 THEN L.SCHEMA_NAME                         ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')     != 0 THEN L.TABLE_NAME || CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND L.PART_ID != 0 THEN ' (' || L.PART_ID || ')' ELSE '' END
+                     ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME || CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND L.PART_ID != 0 THEN ' (' || L.PART_ID || ')' ELSE '' END )   END,
+    BI.MIN_ALLOC_MB,
+    BI.ORDER_BY
+)
+WHERE
+  ( MIN_ALLOC_MB = -1 OR ALLOC_MB >= MIN_ALLOC_MB )
+ORDER BY
+  MAP(ORDER_BY, 'ALLOC', ALLOC_MB, 'USED', USED_MB, 'COUNT', COUNT, 'LOCKS', LOCKS) DESC,
+  HOST,
+  PORT,
+  SCHEMA_NAME,
+  TABLE_NAME

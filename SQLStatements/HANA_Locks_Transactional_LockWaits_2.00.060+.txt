@@ -1,0 +1,502 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Locks_Transactional_LockWaits_2.00.060+
+
+[DESCRIPTION]
+
+- Current and historic transactional lock wait situations (record locks, object locks)
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- M_SERVICE_THREADS.STATEMENT_HASH not available before Rev. 1.00.100
+- SITE_ID in history tables available with SAP HANA >= 2.0 SPS 06
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.060
+
+[SQL COMMAND VERSION]
+
+- 2014/04/10:  1.0 (initial version)
+- 2016/12/01:  1.1 (CLIENT_HOST, CLIENT_IP, final blocking session and APPLICATION_SOURCE included)
+- 2016/12/29:  1.2 (consolidation of current and historic lock wait analysis in a single SQL statement)
+- 2017/01/23:  1.3 (WAIT_STATEMENT_HASH included)
+- 2017/03/30:  1.4 (AGGREGATE_BY, TIME_AGGREGATE_BY, ORDER_BY and various filter conditions included)
+- 2017/10/25:  1.5 (TIMEZONE included)
+- 2018/10/05:  1.6 (fallback to blocking statement string if statement hash is empty)
+- 2018/12/04:  1.7 (shortcuts for BEGIN_TIME and END_TIME like 'C', 'E-S900' or 'MAX')
+- 2022/05/26:  1.8 (dedicated 2.00.060+ version including SITE_ID for data source HISTORY)
+
+[INVOLVED TABLES]
+
+- HOST_BLOCKED_TRANSACTIONS
+- M_BLOCKED_TRANSACTIONS
+- M_CONNECTIONS
+- M_SERVICE_THREADS
+- M_SESSION_CONTEXT
+- M_TRANSACTIONS
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- SITE_ID
+
+  System replication site ID (may only work for DATA_SOURCE = 'HISTORY')
+
+  -1             --> No restriction related to site ID
+  1              --> Site id 1
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- LOCK_TYPE
+
+  Transactional lock type
+
+  'RECORD_LOCK'   --> Display locks with type RECORD_LOCK
+  '%'             --> No restriction related to lock type
+
+- LOCK_MODE
+
+  Transactional lock mode
+
+  'EXCLUSIVE'   --> Display locks with mode EXCLUSIVE
+  '%'             --> No restriction related to lock mode
+
+- BLOCKED_STATEMENT_HASH      
+ 
+  Hash of blocked SQL statement
+
+  '2e960d7535bf4134e2bd26b9d80bd4fa' --> SQL statement with hash '2e960d7535bf4134e2bd26b9d80bd4fa'
+  '%'                                --> No statement hash restriction
+
+- BLOCKING_CONN_ID
+
+  Blocking connection ID
+
+  330655          --> Connection ID 330655
+  -1              --> No connection ID restriction
+
+- BLOCKING_STATEMENT_HASH      
+ 
+  Hash executed by lock holder
+
+  '2e960d7535bf4134e2bd26b9d80bd4fa' --> SQL statement with hash '2e960d7535bf4134e2bd26b9d80bd4fa'
+  '%'                                --> No statement hash restriction
+
+- RECORD_ID
+
+  Internal identifier of locked record
+
+  'SID=0x0000176E, OFFSET=0x1658100' --> Record with identifier SID=0x0000176E, OFFSET=0x1658100
+  '%'                                --> No restriction related to record identifier
+
+- MIN_WAIT_TIME_S
+
+  Minimum wait time of displayed lock waits
+
+  30              --> Display lock waits lasting for at least 30 seconds
+  -1              --> Display all current lock waits
+
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_ tables)
+  'HISTORY'       --> Data from persisted history information (HOST_ tables)
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'COUNT'         --> Sorting by number of lock situations
+  'TABLE'         --> Sorting by table name
+
+[OUTPUT PARAMETERS]
+
+- SNAPSHOT_TIME:       Snapshot timestamp
+- WAIT_S:              Seconds since lock wait started
+- SCHEMA:              Schema name of object related to lock wait
+- OBJECT_NAME:         Object name related to lock wait
+- LT:                  Lock type ('R' -> RECORD, 'T' -> TABLE, 'M' -> METADATA)
+- LM:                  Lock mode ('E' -> EXCLUSIVE, 'IE' -> INTENTIONAL EXCLUSIVE, 'S' -> SHARED)
+- F:                   'X' if lock holder is final blocking session, ' ' if lock holder is blocked by somebody else
+- A:                   'X' if lock holder is active on SAP HANA side, ' ' if lock holder is active outside of SAP HANA (e.g. client, communication)
+- WAIT_CONN:           Connection ID of lock waiter
+- WAIT_UTID:           Update transaction ID of lock waiter
+- WAIT_STATEMENT_HASH: Waiting statement hash
+- BLK_CONN:            Connection ID of lock holder
+- BLK_UTID:            Update transaction ID of lock holder
+- BLK_CLIENT_HOST_PID: Client host and PID of lock holder
+- BLK_APP_SOURCE:      Application source of lock holder
+- BLK_STATEMENT_HASH:  Statement hash currently executed by lock holder or prefix of statement string in case statement hash is missing (e.g. in case of DDL)
+- ST:                  System replication site ID
+- HOST:                Host name
+- PORT:                Port number
+- RECORD_ID:           ID of record related to lock wait
+- COUNT:               Number of lock waits (can be greater than 1 in case of AGGREGATE_BY != 'NONE')
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|WAIT_TIMESTAMP     |WAIT_S |SCHEMA|OBJECT_NAME|LT|LM|F|A|WAIT_CONN|WAIT_UTID  |BLK_CONN |BLK_UTID   |BLK_CLIENT_HOST_PID|BLK_APP_SOURCE|BLK_STATEMENT_HASH|HOST    |PORT |RECORD_ID                                    |
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|2016/12/29 14:44:44|     15|SAPERP|S060       |R |E |X| |         | 2240287263|   416874| 2240286646|sapabap1 / 11500   |RSM13000:11436|                  |saphana0|30003|OID=0x000002AF, PARTID=0x0, OFFSET=0xA579D752|
+|2016/12/29 14:44:44|     14|SAPERP|S060       |R |E |X| |         | 2240288893|   416874| 2240286646|sapabap1 / 11500   |RSM13000:11436|                  |saphana0|30003|OID=0x000002AF, PARTID=0x0, OFFSET=0xA579D752|
+|2016/12/29 14:44:44|     14|SAPERP|S060       |R |E |X| |         | 2240287831|   416874| 2240286646|sapabap1 / 11500   |RSM13000:11436|                  |saphana0|30003|OID=0x000002AF, PARTID=0x0, OFFSET=0xA579D752|
+|2016/12/29 14:44:44|     10|SAPERP|S060       |R |E |X| |         | 2240285886|   416874| 2240286646|sapabap1 / 11500   |RSM13000:11436|                  |saphana0|30003|OID=0x000002AF, PARTID=0x0, OFFSET=0xA579D752|
+|2016/12/29 14:44:44|      6|SAPERP|S060       |R |E |X| |         | 2240291176|   416874| 2240286646|sapabap1 / 11500   |RSM13000:11436|                  |saphana0|30003|OID=0x000002AF, PARTID=0x0, OFFSET=0xA579D752|
+|2016/12/28 19:36:44|     19|SAPERP|S060       |R |E |X| |         | 2205344856|   462594| 2205344466|sapabap6 / 9897    |SAPLARFC:1731 |                  |saphana0|30003|OID=0x000002AF, PARTID=0x0, OFFSET=0xA579D752|
+|2016/12/28 19:36:44|     18|SAPERP|S060       |R |E |X| |         | 2205343742|   462594| 2205344466|sapabap6 / 9897    |SAPLARFC:1731 |                  |saphana0|30003|OID=0x000002AF, PARTID=0x0, OFFSET=0xA579D752|
+|2016/12/28 19:36:44|     18|SAPERP|S060       |R |E |X| |         | 2205342647|   462594| 2205344466|sapabap6 / 9897    |SAPLARFC:1731 |                  |saphana0|30003|OID=0x000002AF, PARTID=0x0, OFFSET=0xA579D752|
+|2016/12/28 19:36:44|     17|SAPERP|S060       |R |E |X| |         | 2205345667|   462594| 2205344466|sapabap6 / 9897    |SAPLARFC:1731 |                  |saphana0|30003|OID=0x000002AF, PARTID=0x0, OFFSET=0xA579D752|
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  SNAPSHOT_TIME,
+  LPAD(TO_DECIMAL(ROUND(WAIT_S), 10, 0), 7) WAIT_S,
+  SCHEMA_NAME SCHEMA,
+  TABLE_NAME,
+  MAP(LOCK_TYPE, 'RECORD_LOCK', 'R', 'TABLE_LOCK', 'T', 'OBJECT_LOCK', 'T', 'METADATA_LOCK', 'M', LOCK_TYPE) LT,
+  MAP(LOCK_MODE, 'EXCLUSIVE', 'E', 'INTENTIONAL EXCLUSIVE', 'IE', 'SHARED', 'S', LOCK_MODE) LM,
+  FINAL_BLOCKING_SESSION F,
+  ACTIVE A,
+  LPAD(IFNULL(WAIT_CONN, ''), 9) WAIT_CONN,
+  LPAD(WAIT_UTID, 11) WAIT_UTID,
+  IFNULL(WAIT_STATEMENT_HASH, '') WAIT_STATEMENT_HASH,
+  LPAD(BLK_CONN, 9) BLK_CONN,
+  LPAD(BLK_UTID, 11) BLK_UTID,
+  CLIENT_HOST || CHAR(32) || '/' || CHAR(32) || CLIENT_PID BLK_CLIENT_HOST_PID,
+  IFNULL(BLK_APP_SOURCE, '') BLK_APP_SOURCE,
+  IFNULL(BLK_STATEMENT_HASH, '') BLK_STATEMENT_HASH,
+  IFNULL(LPAD(SITE_ID, 2), '') ST,
+  HOST,
+  LPAD(PORT, 5) PORT,
+  RECORD_ID RECORD_ID,
+  LPAD(COUNT, 5) COUNT
+FROM
+( SELECT
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(BT.END_TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE BT.END_TIMESTAMP END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(BT.END_TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE BT.END_TIMESTAMP END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END SNAPSHOT_TIME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SITE_ID')    != 0 THEN TO_VARCHAR(BT.SITE_ID)                          ELSE MAP(BI.SITE_ID,      -1, 'any', TO_VARCHAR(BI.SITE_ID))                 END SITE_ID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')       != 0 THEN BT.HOST                                         ELSE MAP(BI.HOST,        '%', 'any', BI.HOST)                                END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')       != 0 THEN TO_VARCHAR(BT.PORT)                             ELSE MAP(BI.PORT,        '%', 'any', BI.PORT)                                END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')     != 0 THEN BT.SCHEMA_NAME                                  ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)                         END SCHEMA_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')      != 0 THEN BT.TABLE_NAME                                   ELSE MAP(BI.TABLE_NAME,  '%', 'any', BI.TABLE_NAME)                          END TABLE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')       != 0 THEN BT.LOCK_TYPE                                    ELSE MAP(BI.LOCK_TYPE,   '%', 'any', BI.LOCK_TYPE)                           END LOCK_TYPE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MODE')       != 0 THEN BT.LOCK_MODE                                    ELSE MAP(BI.LOCK_MODE,   '%', 'any', BI.LOCK_MODE)                           END LOCK_MODE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'WAIT_CONN')  != 0 THEN TO_VARCHAR(BT.BLOCKED_CONNECTION_ID)            ELSE 'any'                                                                   END WAIT_CONN,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'WAIT_UTID')  != 0 THEN TO_VARCHAR(BT.BLOCKED_UPDATE_TRANSACTION_ID)    ELSE 'any'                                                                   END WAIT_UTID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'WAIT_HASH')  != 0 THEN BT.BLOCKED_STATEMENT_HASH                       ELSE MAP(BI.BLOCKED_STATEMENT_HASH, '%', 'any', BI.BLOCKED_STATEMENT_HASH)   END WAIT_STATEMENT_HASH,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BLK_CONN')   != 0 THEN TO_VARCHAR(BT.LOCK_OWNER_CONNECTION_ID)         ELSE 'any'                                                                   END BLK_CONN,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BLK_UTID')   != 0 THEN TO_VARCHAR(BT.LOCK_OWNER_UPDATE_TRANSACTION_ID) ELSE 'any'                                                                   END BLK_UTID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BLK_HASH')   != 0 THEN BT.LOCK_OWNER_STATEMENT_HASH                    ELSE MAP(BI.BLOCKING_STATEMENT_HASH, '%', 'any', BI.BLOCKING_STATEMENT_HASH) END BLK_STATEMENT_HASH,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BLK_PID')    != 0 THEN TO_VARCHAR(BT.LOCK_OWNER_CLIENT_PID)            ELSE 'any'                                                                   END CLIENT_PID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BLK_HOST')   != 0 THEN TO_VARCHAR(BT.LOCK_OWNER_CLIENT_HOST)           ELSE 'any'                                                                   END CLIENT_HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'RECORD_ID')  != 0 THEN BT.WAITING_RECORD_ID                            ELSE MAP(BI.RECORD_ID, '%', 'any', BI.RECORD_ID)                             END RECORD_ID,
+    MAP(MIN(BT.LOCK_OWNER_APPLICATION_SOURCE), MAX(BT.LOCK_OWNER_APPLICATION_SOURCE), MIN(BT.LOCK_OWNER_APPLICATION_SOURCE), 'any') BLK_APP_SOURCE,
+    MAP(MIN(BT.FINAL_BLOCKING_SESSION), MAX(BT.FINAL_BLOCKING_SESSION), MIN(BT.FINAL_BLOCKING_SESSION), 'any') FINAL_BLOCKING_SESSION,
+    MAP(MIN(BT.ACTIVE), MAX(BT.ACTIVE), MIN(BT.ACTIVE), 'any') ACTIVE,
+    COUNT(*) COUNT,
+    AVG(NANO100_BETWEEN(BT.START_TIMESTAMP, BT.END_TIMESTAMP) / 10000000) WAIT_S,
+    BI.ORDER_BY
+  FROM
+  ( SELECT
+      CASE
+        WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+        WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+        WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+        WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+        WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+        WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+        WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END BEGIN_TIME,
+      CASE
+        WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+        WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+        WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+        WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+        WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+        WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+        WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+        WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+        WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+        WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+        WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END END_TIME,
+      TIMEZONE,
+      SITE_ID,
+      HOST,
+      PORT,
+      SCHEMA_NAME,
+      TABLE_NAME,
+      LOCK_TYPE,
+      LOCK_MODE,
+      BLOCKED_STATEMENT_HASH,
+      BLOCKING_CONN_ID,
+      BLOCKING_STATEMENT_HASH,
+      RECORD_ID,
+      MIN_WAIT_TIME_S,
+      DATA_SOURCE,
+      AGGREGATE_BY,
+      MAP(TIME_AGGREGATE_BY,
+        'NONE',        'YYYY/MM/DD HH24:MI:SS.FF3',
+        'HOUR',        'YYYY/MM/DD HH24',
+        'DAY',         'YYYY/MM/DD (DY)',
+        'HOUR_OF_DAY', 'HH24',
+        TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+      ORDER_BY
+    FROM
+    ( SELECT                            /* Modification section */
+        '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+        '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+        'SERVER' TIMEZONE,                              /* SERVER, UTC */
+        -1 SITE_ID,
+        '%' HOST,
+        '%' PORT,
+        '%' SCHEMA_NAME,
+        '%' TABLE_NAME,
+        '%' LOCK_TYPE,                /* RECORD_LOCK, TABLE_LOCK, OBJECT_LOCK, METADATA_LOCK */
+        '%' LOCK_MODE,                /* SHARED, EXCLUSIVE, INTENTIONAL EXCLUSIVE */
+        '%' BLOCKED_STATEMENT_HASH,
+        -1 BLOCKING_CONN_ID,
+        '%' BLOCKING_STATEMENT_HASH,
+        '%' RECORD_ID,
+        5 MIN_WAIT_TIME_S,
+        'HISTORY' DATA_SOURCE,
+        'NONE' AGGREGATE_BY,          /* TIME, SCHEMA, TABLE, TYPE, MODE, WAIT_CONN, WAIT_UTID, WAIT_HASH, BLK_CONN, BLK_UTID, BLK_PID, BLK_SOURCE, BLK_HASH, SITE_ID, HOST, PORT, RECORD_ID or
+                                         comma separated values, NONE for no aggregation */
+        'NONE' TIME_AGGREGATE_BY,     /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+        'TIME' ORDER_BY               /* TIME, COUNT, TABLE */
+      FROM
+        DUMMY
+    )
+  ) BI,
+  ( SELECT
+      'CURRENT' DATA_SOURCE,
+      CURRENT_TIMESTAMP END_TIMESTAMP,
+      CURRENT_SITE_ID() SITE_ID,
+      BT.HOST,
+      BT.PORT,
+      BT.LOCK_TYPE,
+      BT.LOCK_MODE,
+      BT.WAITING_SCHEMA_NAME SCHEMA_NAME,
+      BT.WAITING_OBJECT_NAME TABLE_NAME,
+      BT.WAITING_RECORD_ID,
+      BT.BLOCKED_TIME START_TIMESTAMP,
+      BT.BLOCKED_CONNECTION_ID,
+      BT.BLOCKED_UPDATE_TRANSACTION_ID,
+      IFNULL(( SELECT MAX(TH.STATEMENT_HASH) FROM M_SERVICE_THREADS TH WHERE TH.UPDATE_TRANSACTION_ID = BT.BLOCKED_UPDATE_TRANSACTION_ID ), '') BLOCKED_STATEMENT_HASH,
+      BT.LOCK_OWNER_CONNECTION_ID,
+      BT.LOCK_OWNER_UPDATE_TRANSACTION_ID,
+      C.CLIENT_HOST LOCK_OWNER_CLIENT_HOST,
+      C.CLIENT_PID LOCK_OWNER_CLIENT_PID,
+      SC.VALUE LOCK_OWNER_APPLICATION_SOURCE,
+      IFNULL(( SELECT MAX(TH.STATEMENT_HASH) FROM M_SERVICE_THREADS TH WHERE TH.UPDATE_TRANSACTION_ID = BT.LOCK_OWNER_UPDATE_TRANSACTION_ID ), '') LOCK_OWNER_STATEMENT_HASH,
+      CASE ( SELECT COUNT(*) WAITERS FROM M_BLOCKED_TRANSACTIONS BT2 WHERE BT2.BLOCKED_UPDATE_TRANSACTION_ID = BT.LOCK_OWNER_UPDATE_TRANSACTION_ID ) WHEN 0 THEN 'X' ELSE ' ' END FINAL_BLOCKING_SESSION,
+      CASE ( SELECT COUNT(*) FROM M_SERVICE_THREADS TH WHERE TH.UPDATE_TRANSACTION_ID = BT.LOCK_OWNER_UPDATE_TRANSACTION_ID ) WHEN 0 THEN ' ' ELSE 'X' END ACTIVE
+    FROM
+      M_BLOCKED_TRANSACTIONS BT,
+      M_CONNECTIONS C,
+      M_TRANSACTIONS T LEFT OUTER JOIN
+      M_SESSION_CONTEXT SC ON
+        SC.HOST = T.HOST AND
+        SC.PORT = T.PORT AND
+        SC.CONNECTION_ID = T.CONNECTION_ID AND
+        SC.KEY = 'APPLICATIONSOURCE'
+    WHERE
+      T.UPDATE_TRANSACTION_ID = BT.LOCK_OWNER_UPDATE_TRANSACTION_ID AND
+      C.HOST = T.HOST AND
+      C.PORT = T.PORT AND
+      C.CONNECTION_ID = T.CONNECTION_ID
+    UNION ALL
+    SELECT
+      'HISTORY' DATA_SOURCE,
+      BT.SERVER_TIMESTAMP END_TIMESTAMP,
+      BT.SITE_ID,
+      BT.HOST,
+      BT.PORT,
+      BT.LOCK_TYPE,
+      BT.LOCK_MODE,
+      BT.WAITING_SCHEMA_NAME SCHEMA_NAME,
+      BT.WAITING_OBJECT_NAME TABLE_NAME,
+      BT.WAITING_RECORD_ID,
+      BT.BLOCKED_TIME START_TIMESTAMP,
+      BT.BLOCKED_CONNECTION_ID,
+      BT.BLOCKED_UPDATE_TRANSACTION_ID,
+      BT.BLOCKED_STATEMENT_HASH,
+      BT.LOCK_OWNER_CONNECTION_ID,
+      BT.LOCK_OWNER_UPDATE_TRANSACTION_ID,
+      BT.LOCK_OWNER_HOST LOCK_OWNER_CLIENT_HOST,
+      BT.LOCK_OWNER_PID LOCK_OWNER_CLIENT_PID,
+      BT.LOCK_OWNER_APPLICATION_SOURCE,
+      IFNULL(BT.LOCK_OWNER_STATEMENT_HASH, TO_VARCHAR(SUBSTR(BT.LOCK_OWNER_STATEMENT_STRING, 1, 50))) LOCK_OWNER_STATEMENT_HASH,
+      CASE ( SELECT COUNT(*) WAITERS FROM _SYS_STATISTICS.HOST_BLOCKED_TRANSACTIONS BT2 WHERE BT2.SNAPSHOT_ID = BT.SNAPSHOT_ID AND BT2.BLOCKED_UPDATE_TRANSACTION_ID = BT.LOCK_OWNER_UPDATE_TRANSACTION_ID ) WHEN 0 THEN 'X' ELSE ' ' END FINAL_BLOCKING_SESSION,
+      '' ACTIVE
+    FROM
+      _SYS_STATISTICS.HOST_BLOCKED_TRANSACTIONS BT
+  ) BT
+  WHERE
+    ( BI.DATA_SOURCE = 'CURRENT' OR 
+      CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(BT.START_TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE BT.START_TIMESTAMP END BETWEEN BI.BEGIN_TIME AND BI.END_TIME OR 
+      CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(BT.END_TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE BT.END_TIMESTAMP END BETWEEN BI.BEGIN_TIME AND BI.END_TIME ) AND
+    ( BI.SITE_ID = -1 OR ( BI.SITE_ID = 0 AND BT.SITE_ID IN (-1, 0) ) OR BT.SITE_ID = BI.SITE_ID ) AND
+    BT.HOST LIKE BI.HOST AND
+    TO_VARCHAR(BT.PORT) LIKE BI.PORT AND
+    IFNULL(BT.SCHEMA_NAME, '') LIKE BI.SCHEMA_NAME AND
+    IFNULL(BT.TABLE_NAME, '') LIKE BI.TABLE_NAME AND
+    IFNULL(BT.LOCK_TYPE, '') LIKE BI.LOCK_TYPE AND
+    IFNULL(BT.LOCK_MODE, '') LIKE BI.LOCK_MODE AND
+    IFNULL(BT.BLOCKED_STATEMENT_HASH, '') LIKE BI.BLOCKED_STATEMENT_HASH AND
+    ( BI.BLOCKING_CONN_ID = -1 OR BT.LOCK_OWNER_CONNECTION_ID = BI.BLOCKING_CONN_ID ) AND
+    IFNULL(BT.LOCK_OWNER_STATEMENT_HASH, '') LIKE BI.BLOCKING_STATEMENT_HASH AND
+    IFNULL(BT.WAITING_RECORD_ID, '') LIKE BI.RECORD_ID AND
+    ( BI.MIN_WAIT_TIME_S = -1 OR SECONDS_BETWEEN(BT.START_TIMESTAMP, BT.END_TIMESTAMP) >= BI.MIN_WAIT_TIME_S ) AND
+    BI.DATA_SOURCE = BT.DATA_SOURCE
+  GROUP BY
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(BT.END_TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE BT.END_TIMESTAMP END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(BT.END_TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE BT.END_TIMESTAMP END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SITE_ID')    != 0 THEN TO_VARCHAR(BT.SITE_ID)                          ELSE MAP(BI.SITE_ID,      -1, 'any', TO_VARCHAR(BI.SITE_ID))                 END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')       != 0 THEN BT.HOST                                         ELSE MAP(BI.HOST,        '%', 'any', BI.HOST)                                END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')       != 0 THEN TO_VARCHAR(BT.PORT)                             ELSE MAP(BI.PORT,        '%', 'any', BI.PORT)                                END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')     != 0 THEN BT.SCHEMA_NAME                                  ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)                         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')      != 0 THEN BT.TABLE_NAME                                   ELSE MAP(BI.TABLE_NAME,  '%', 'any', BI.TABLE_NAME)                          END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')       != 0 THEN BT.LOCK_TYPE                                    ELSE MAP(BI.LOCK_TYPE,   '%', 'any', BI.LOCK_TYPE)                           END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MODE')       != 0 THEN BT.LOCK_MODE                                    ELSE MAP(BI.LOCK_MODE,   '%', 'any', BI.LOCK_MODE)                           END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'WAIT_CONN')  != 0 THEN TO_VARCHAR(BT.BLOCKED_CONNECTION_ID)            ELSE 'any'                                                                   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'WAIT_UTID')  != 0 THEN TO_VARCHAR(BT.BLOCKED_UPDATE_TRANSACTION_ID)    ELSE 'any'                                                                   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'WAIT_HASH')  != 0 THEN BT.BLOCKED_STATEMENT_HASH                       ELSE MAP(BI.BLOCKED_STATEMENT_HASH, '%', 'any', BI.BLOCKED_STATEMENT_HASH)   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BLK_CONN')   != 0 THEN TO_VARCHAR(BT.LOCK_OWNER_CONNECTION_ID)         ELSE 'any'                                                                   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BLK_UTID')   != 0 THEN TO_VARCHAR(BT.LOCK_OWNER_UPDATE_TRANSACTION_ID) ELSE 'any'                                                                   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BLK_HASH')   != 0 THEN BT.LOCK_OWNER_STATEMENT_HASH                    ELSE MAP(BI.BLOCKING_STATEMENT_HASH, '%', 'any', BI.BLOCKING_STATEMENT_HASH) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BLK_PID')    != 0 THEN TO_VARCHAR(BT.LOCK_OWNER_CLIENT_PID)            ELSE 'any'                                                                   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BLK_HOST')   != 0 THEN TO_VARCHAR(BT.LOCK_OWNER_CLIENT_HOST)           ELSE 'any'                                                                   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'RECORD_ID')  != 0 THEN BT.WAITING_RECORD_ID                            ELSE MAP(BI.RECORD_ID, '%', 'any', BI.RECORD_ID)                             END,
+    BI.ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'TIME', SNAPSHOT_TIME) DESC,
+  MAP(ORDER_BY, 'COUNT', COUNT) DESC,
+  SITE_ID,
+  SCHEMA_NAME,
+  TABLE_NAME

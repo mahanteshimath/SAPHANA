@@ -1,0 +1,552 @@
+SELECT
+/*
+
+[NAME]
+
+- HANA_Replication_SystemReplication_KeyFigures_2.00.020+
+
+[DESCRIPTION]
+
+- Current and historic system replication key figures
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- HOST_SERVICE_REPLICATION available starting with SAP HANA 1.00.90 and with embedded statistics server
+- DELTA values available starting with SAP HANA 1.00.110
+- REPLAYED_LOG_POSITION available as of Rev. 1.00.120
+- *_COUNT_DELTA columns available with SAP HANA >= 2.00.020
+- LOG_MB_PER_S and AVG_LOG_MS for asynchronous system replication only consider the time until the send call
+  is acknowledged by local operating system, not the actual network roundtrip
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.020
+
+[SQL COMMAND VERSION]
+
+- 2015/10/21:  1.0 (initial version)
+- 2016/06/25:  1.1 (dedicated version using DELTA values)
+- 2016/10/28:  1.2 (dedicated version using REPLAYED_LOG_POSITION)
+- 2016/12/31:  1.3 (TIME_AGGREGATE_BY = 'TS<seconds>' included)
+- 2017/08/13:  1.4 (ONLY_RECONNECTS, ONLY_BUFFER_FULL included)
+- 2017/09/25:  1.5 (SECONDARY_CONNECT_TIME added)
+- 2017/10/25:  1.6 (TIMEZONE included)
+- 2018/12/04:  1.7 (shortcuts for BEGIN_TIME and END_TIME like 'C', 'E-S900' or 'MAX')
+- 2018/12/10:  1.8 (MIN_REPLAY_DELAY_S added)
+- 2019/11/23:  1.9 (REPLICATION_MODE added)
+- 2020/08/21:  2.0 (SECONDARY_HOST added for multi-HSR environment)
+- 2021/08/16:  2.1 (FULL_SYNC included)
+- 2022/04/27:  2.2 (DELTA columns included)
+
+[INVOLVED TABLES]
+
+- M_SERVICE_REPLICATION
+- HOST_SERVICE_REPLICATION
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- SECONDARY_HOST
+
+  Secondary (or tertiary) host name
+
+  'saphana01'     --> Specic secondary host saphana01
+  'saphana%'      --> All secondary hosts starting with saphana
+  '%'             --> All secondary hosts
+
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- ONLY_CONNECTION_TIMEOUTS
+
+  Possibility to restrict results to times with connection timeouts
+
+  'X'             --> Only show time frames with connection timeouts
+  ' '             --> No restriction related to connection timeouts
+
+- ONLY_RECONNECTS
+
+  Possibility to restrict results to times with reconnects
+
+  'X'             --> Only show time frames with reconnects
+  ' '             --> No restriction related to reconnects
+
+- ONLY_BUFFER_FULL
+
+  Possibility to restrict results to times with asynchronous log buffer full situations
+
+  'X'             --> Only show time frames with buffer full situation
+  ' '             --> No restriction related to buffer full situations
+
+- REPLICATION_STATUS
+
+  Filter for system replication status (REPLICATION_STATUS + REPLICATION_STATUS_DETAILS)
+
+  'ACTIVE'        --> Only show records with replication status ACTIVE
+  '%sav%'         --> Only show records with replication status containing 'sav'
+  '%'             --> No restriction related to replication status
+
+- REPLICATION_MODE
+
+  System replication mode
+
+  'SYNC'          --> Only display entries related to synchronous replication mode
+  '%'             --> No limitation related to system replication mode
+
+- MIN_SHIPPING_DELAY_S
+
+  Minimum log shipping delay (s)
+
+  10              --> Only show time frames with a log shipping delay of at least 10 s
+  -1              --> No restriction related to log shipping delay
+
+- MIN_REPLAY_DELAY_S
+
+  Minimum log replay delay (s)
+
+  10              --> Only show time frames with a log replay delay of at least 10 s
+  -1              --> No restriction related to log replay delay
+
+- MIN_ASYNC_BUFFER_FILL_MB
+
+  Minimum threshold for filling level of asynchronous log shipping buffer (MB)
+
+  100             --> Only display time frames with an asynchronous log shipping buffer utilization of at least 100 MB
+  -1              --> No restriction related to asynchronous log shipping buffer utilization
+
+- MIN_AVG_LOG_SHIPPING_TIME_MS
+
+  Minimum thresholf for average log shipping time (ms)
+
+  2               --> Only show time frames with an average log shipping time of at least 2 ms
+  -1              --> No restriction related to average log shipping time
+
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_ tables)
+  'HISTORY'       --> Data from persisted history information (HOST_ tables)
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+[OUTPUT PARAMETERS]
+
+- SNAPSHOT_TIME: Snapshot time
+- HOST:          Host name (source)
+- SEC_HOST:      Secondary host name (target)
+- PORT:          Port
+- M:             Replication mode ('S' -> SYNC, 'SM' -> SYNCMEM, 'A' -> ASYNC, 'U' -> UNKNOWN, 'ST' -> STANDBY)
+- F:             Full sync ('X' -> active, ' ' -> inactive)
+- T:             'X' if connection timeout happened, otherwise ' '
+- RC:            Number of reconnects
+- TA:            Number of takeovers
+- BF:            Number of asynchronous log shipping buffer full situations
+- LOG_H:         Time required for log shipping (h)
+- LOG_GB:        Size of shipped logs (GB)
+- LOG_MB_PER_S:  Log shipping throughput (MB/s)
+- AVG_LOG_MS:    Average time to ship a log request (ms)
+- SHP_DL_S:      Log shipping delay (s)
+- SHP_BL_MB:     Log shipping backlog (MB), i.e. filling of asynchronous log shipping buffer
+- REP_DL_S:      Log replay delay (s)
+- REP_BL_MB:     Log replay backlog (MB)
+- REP_STATUS:    System replication status
+- SEC_CONN_TIME: Secondary connect time
+- FULL_H:        Duration of last initial data shipping (h)
+- FULL_GB:       Size of data shipped during last initial data shipping (h)
+- DELTA_H:       Time required for delta data shipping (h)
+- DELTA_GB:      Size of shipped delta data (GB)
+
+[EXAMPLE OUTPUT]
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|SNAPSHOT_TIME      |HOST    |SECONDARY_HOST|PORT|M |T|RC|TA|BF |LOG_H|LOG_GB|LOG_MB_PER_S|AVG_LOG_MS|SHP_DL_S|SHP_BL_MB|REP_DL_S |REP_BL_MB|REP_STATUS|SEC_CONN_TIME      |FULL_H|FULL_GB|DELTA_H|DELTA_GB|
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|2020/08/14 10:10:00|nsepdb03|nsepdb01      |%03 |SM| | 0| 0|  0| 0.06|    11|       49.20|      0.52|       0|        0|      632|    29366|ACTIVE    |2020/08/13 19:33:44|  0.00|      0|   0.00|       0|
+|2020/08/14 10:10:00|nsepdb03|nsepdb05      |%03 |SM| | 0| 0|  0| 0.06|    11|       48.18|      0.53|       0|        0|     2476|    98701|ACTIVE    |2020/08/13 19:33:37|  0.00|      0|   0.00|       0|
+|2020/08/14 10:10:00|nsepdb04|nsepdb02      |%03 |SM| | 0| 0|  0| 0.01|     2|       34.68|      0.50|       0|        0|      387|     3774|ACTIVE    |2020/08/13 19:35:14|  0.00|      0|   0.00|       0|
+|2020/08/14 10:10:00|nsepdb04|nsepdb06      |%03 |SM| | 0| 0|  0| 0.01|     2|       34.54|      0.50|       0|        0|     2426|    29009|ACTIVE    |2020/08/13 19:35:06|  0.00|      0|   0.00|       0|
+|2020/08/14 10:00:00|nsepdb03|nsepdb01      |%03 |SM| | 0| 0|  0| 0.15|    26|       49.74|      0.52|       0|        0|      933|    31383|ACTIVE    |2020/08/13 19:33:44|  0.00|      0|   0.00|       0|
+|2020/08/14 10:00:00|nsepdb03|nsepdb05      |%03 |SM| | 0| 0|  0| 0.15|    26|       48.80|      0.53|       0|        0|     2872|   114336|ACTIVE    |2020/08/13 19:33:37|  0.00|      0|   0.00|       0|
+|2020/08/14 10:00:00|nsepdb04|nsepdb02      |%03 |SM| | 0| 0|  0| 0.04|     6|       34.78|      0.50|       0|        0|      827|     8578|ACTIVE    |2020/08/13 19:35:14|  0.00|      0|   0.00|       0|
+|2020/08/14 10:00:00|nsepdb04|nsepdb06      |%03 |SM| | 0| 0|  0| 0.04|     6|       36.24|      0.48|       0|        0|     2237|    27252|ACTIVE    |2020/08/13 19:35:06|  0.00|      0|   0.00|       0|
+|2020/08/14 09:50:00|nsepdb03|nsepdb01      |%03 |SM| | 0| 0|  0| 0.16|    19|       34.27|      0.50|       0|        0|     1109|    38536|ACTIVE    |2020/08/13 19:33:44|  0.00|      0|   0.00|       0|
+|2020/08/14 09:50:00|nsepdb03|nsepdb05      |%03 |SM| | 0| 0|  0| 0.15|    19|       34.54|      0.50|       0|        0|     2812|   112186|ACTIVE    |2020/08/13 19:33:37|  0.00|      0|   0.00|       0|
+|2020/08/14 09:50:00|nsepdb04|nsepdb02      |%03 |SM| | 0| 0|  0| 0.04|     6|       35.80|      0.49|       0|        0|      772|     8376|ACTIVE    |2020/08/13 19:35:14|  0.00|      0|   0.00|       0|
+|2020/08/14 09:50:00|nsepdb04|nsepdb06      |%03 |SM| | 0| 0|  0| 0.04|     6|       37.06|      0.48|       0|        0|     1637|    21478|ACTIVE    |2020/08/13 19:35:06|  0.00|      0|   0.00|       0|
+|2020/08/14 09:40:00|nsepdb03|nsepdb01      |%03 |SM| | 0| 0|  0| 0.16|    20|       35.12|      0.50|       0|        0|     1051|    51501|ACTIVE    |2020/08/13 19:33:44|  0.00|      0|   0.00|       0|
+|2020/08/14 09:40:00|nsepdb03|nsepdb05      |%03 |SM| | 0| 0|  0| 0.16|    20|       34.71|      0.50|       0|        0|     2216|    92307|ACTIVE    |2020/08/13 19:33:37|  0.00|      0|   0.00|       0|
+|2020/08/14 09:40:00|nsepdb04|nsepdb02      |%03 |SM| | 0| 0|  0| 0.05|     7|       35.51|      0.49|       0|        0|      871|    12373|ACTIVE    |2020/08/13 19:35:14|  0.00|      0|   0.00|       0|
+|2020/08/14 09:40:00|nsepdb04|nsepdb06      |%03 |SM| | 0| 0|  0| 0.05|     7|       36.32|      0.48|       0|        0|     2034|    35493|ACTIVE    |2020/08/13 19:35:06|  0.00|      0|   0.00|       0|
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+*/
+
+  SNAPSHOT_TIME,
+  HOST,
+  SECONDARY_HOST SEC_HOST,
+  PORT,
+  MAP(REP_MODE, 'SYNC', 'S', 'SYNCMEM', 'SM', 'ASYNC', 'A', 'STANDBY', 'ST', 'UNKNOWN', 'U', REP_MODE) M,
+  MAP(FULL_SYNC, 'ENABLED', 'X', ' ') F,
+  TIMEOUT T,
+  LPAD(RECONNECTS, 2) RC,
+  LPAD(FAILOVERS, 2) TA,
+  LPAD(ASYNC_BUFF_FULL, GREATEST(CEIL(LOG(10, GREATEST(ASYNC_BUFF_FULL, 1))), 2)) BF,
+  LPAD(TO_DECIMAL(LOG_SHIP_H, 10, 2), 5) LOG_H,
+  LPAD(TO_DECIMAL(ROUND(LOG_SHIP_GB), 10, 0), 6) LOG_GB,
+  LPAD(TO_DECIMAL(MAP(LOG_SHIP_H, 0, 0, LOG_SHIP_GB * 1024 / LOG_SHIP_H / 3600), 10, 2), 12) LOG_MB_PER_S,
+  LPAD(TO_DECIMAL(MAP(LOG_SHIP_CNT, 0, 0, LOG_SHIP_H * 3600 / LOG_SHIP_CNT * 1000), 10, 2), 10) AVG_LOG_MS,
+  LPAD(TO_DECIMAL(ROUND(SHIPPING_DELAY_S), 10, 0), 8) SHP_DL_S,
+  LPAD(TO_DECIMAL(GREATEST(ROUND(ASYNC_BUFF_FILL_MB), 0), 10, 0), 9) SHP_BL_MB,
+  LPAD(TO_DECIMAL(ROUND(REPLAY_DELAY_S), 10, 0), 9) REP_DL_S,
+  LPAD(TO_DECIMAL(ROUND(REPLAY_BACKLOG_MB), 10, 0), 9) REP_BL_MB,
+  REP_STATUS,
+  TO_VARCHAR(SECONDARY_CONNECT_TIME, 'YYYY/MM/DD HH24:MI:SS') SEC_CONN_TIME,
+  LPAD(TO_DECIMAL(FULL_H, 10, 2), 6) FULL_H,
+  LPAD(TO_DECIMAL(ROUND(FULL_GB), 10, 0), 7) FULL_GB,
+  LPAD(TO_DECIMAL(DELTA_H, 10, 2), 7) DELTA_H,
+  LPAD(TO_DECIMAL(ROUND(DELTA_GB), 10, 0), 8) DELTA_GB
+FROM
+( SELECT
+    CASE
+      WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TIME') != 0 THEN
+        CASE
+          WHEN TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00',
+            'YYYY/MM/DD HH24:MI:SS'), SNAPSHOT_TIME) / SUBSTR(TIME_AGGREGATE_BY, 3)) * SUBSTR(TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(SNAPSHOT_TIME, TIME_AGGREGATE_BY)
+        END
+      ELSE 'any'
+    END SNAPSHOT_TIME,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')   != 0 THEN HOST                       ELSE MAP(BI_HOST, '%', 'any', BI_HOST)                             END HOST,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SECONDARY_HOST')   != 0 THEN SECONDARY_HOST   ELSE MAP(BI_SECONDARY_HOST, '%', 'any', BI_SECONDARY_HOST)         END SECONDARY_HOST,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')   != 0 THEN TO_VARCHAR(PORT)           ELSE MAP(BI_PORT, '%', 'any', BI_PORT)                             END PORT,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'STATUS') != 0 THEN REPLICATION_STATUS_DETAILS ELSE MAP(BI_REPLICATION_STATUS, '%', 'any', BI_REPLICATION_STATUS) END REP_STATUS,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'MODE')   != 0 THEN REPLICATION_MODE           ELSE MAP(BI_REPLICATION_MODE, '%', 'any', BI_REPLICATION_MODE)     END REP_MODE,
+    MAX(SECONDARY_CONNECT_TIME) SECONDARY_CONNECT_TIME,
+    MAP(SUM(CASE WHEN SECONDARY_ACTIVE_STATUS LIKE 'CONNECTION TIMEO%' THEN 1 ELSE 0 END), 0, ' ', 'X') TIMEOUT,
+    SUM(RECONNECTS) RECONNECTS,
+    SUM(FAILOVERS) FAILOVERS,
+    SUM(LOG_SHIP_CNT) LOG_SHIP_CNT,
+    SUM(LOG_SHIP_S / 3600) LOG_SHIP_H,
+    SUM(LOG_SHIP_MB / 1024) LOG_SHIP_GB,
+    MAX(SHIPPED_LAST_FULL_REPLICA_SIZE / 1024 / 1024 / 1024) FULL_GB,
+    MAX(SHIPPED_LAST_FULL_REPLICA_DURATION / 3600) FULL_H,
+    SUM(DELTA_S / 3600) DELTA_H,
+    SUM(DELTA_MB / 1024) DELTA_GB,
+    IFNULL(MAX(NANO100_BETWEEN(SHIPPED_LOG_POSITION_TIME, LAST_LOG_POSITION_TIME) / 10000000), 0) SHIPPING_DELAY_S,
+    IFNULL(MAX(NANO100_BETWEEN(REPLAYED_LOG_POSITION_TIME, SHIPPED_LOG_POSITION_TIME) / 10000000), 0) REPLAY_DELAY_S,
+    IFNULL(MAX(LAST_LOG_POSITION - SHIPPED_LOG_POSITION), 0) / 1024 / 16 ASYNC_BUFF_FILL_MB,   /* log position = 64 byte */
+    IFNULL(MAX(MAP(REPLAYED_LOG_POSITION, 0, 0, SHIPPED_LOG_POSITION - REPLAYED_LOG_POSITION)), 0) / 1024 / 16 REPLAY_BACKLOG_MB,   /* log position = 64 byte */
+    SUM(ASYNC_BUFF_FULL) ASYNC_BUFF_FULL,
+    MAX(FULL_SYNC) FULL_SYNC,
+    ONLY_CONNECTION_TIMEOUTS,
+    ONLY_RECONNECTS,
+    ONLY_BUFFER_FULL,
+    MIN_SHIPPING_DELAY_S,
+    MIN_REPLAY_DELAY_S,
+    MIN_ASYNC_BUFFER_FILL_MB,
+    MIN_AVG_LOG_SHIPPING_TIME_MS
+  FROM
+  ( SELECT
+      CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(R.SNAPSHOT_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE R.SNAPSHOT_TIME END SNAPSHOT_TIME,
+      CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(R.SECONDARY_CONNECT_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE R.SECONDARY_CONNECT_TIME END SECONDARY_CONNECT_TIME,
+      R.HOST,
+      R.SECONDARY_HOST,
+      R.PORT,
+      R.SECONDARY_RECONNECT_COUNT RECONNECTS,
+      R.SECONDARY_FAILOVER_COUNT FAILOVERS,
+      R.ASYNC_BUFFER_FULL_COUNT ASYNC_BUFF_FULL,
+      R.SHIPPED_LOG_BUFFERS_COUNT                    LOG_SHIP_CNT,
+      R.SHIPPED_LOG_BUFFERS_DURATION   / 1000000     LOG_SHIP_S,
+      R.SHIPPED_LOG_BUFFERS_SIZE       / 1024 / 1024 LOG_SHIP_MB,
+      R.SHIPPED_DELTA_REPLICA_DURATION / 1000000     DELTA_S,
+      R.SHIPPED_DELTA_REPLICA_SIZE     / 1024 / 1024 DELTA_MB,
+      CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(R.SHIPPED_LOG_POSITION_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE R.SHIPPED_LOG_POSITION_TIME END SHIPPED_LOG_POSITION_TIME,
+      CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(R.LAST_LOG_POSITION_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE R.LAST_LOG_POSITION_TIME END LAST_LOG_POSITION_TIME,
+      R.SHIPPED_LOG_POSITION,
+      R.LAST_LOG_POSITION,
+      R.SHIPPED_LAST_FULL_REPLICA_SIZE,
+      R.SHIPPED_LAST_FULL_REPLICA_DURATION,
+      R.SECONDARY_ACTIVE_STATUS,
+      R.REPLICATION_STATUS_DETAILS,
+      R.REPLICATION_MODE,
+      R.REPLAYED_LOG_POSITION,
+      R.REPLAYED_LOG_POSITION_TIME,
+      R.FULL_SYNC,
+      BI.ONLY_CONNECTION_TIMEOUTS,
+      BI.ONLY_RECONNECTS,
+      BI.ONLY_BUFFER_FULL,
+      BI.MIN_SHIPPING_DELAY_S,
+      BI.MIN_REPLAY_DELAY_S,
+      BI.MIN_ASYNC_BUFFER_FILL_MB,
+      BI.MIN_AVG_LOG_SHIPPING_TIME_MS,
+      BI.HOST BI_HOST,
+      BI.SECONDARY_HOST BI_SECONDARY_HOST,
+      BI.PORT BI_PORT,
+      BI.REPLICATION_STATUS BI_REPLICATION_STATUS,
+      BI.REPLICATION_MODE BI_REPLICATION_MODE,
+      BI.AGGREGATE_BY,
+      BI.TIME_AGGREGATE_BY
+    FROM
+    ( SELECT
+        CASE
+          WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+          WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+          WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+          WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+          WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+          WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+          WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+          WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+          WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+          WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+          WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+          WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+          WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+        END BEGIN_TIME,
+        CASE
+          WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+          WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+          WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+          WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+          WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+          WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+          WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+          WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+          WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+          WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+          WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+          WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+          WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+        END END_TIME,
+        TIMEZONE,
+        HOST,
+    SECONDARY_HOST,
+        PORT,
+        ONLY_CONNECTION_TIMEOUTS,
+        ONLY_RECONNECTS,
+        ONLY_BUFFER_FULL,
+        REPLICATION_STATUS,
+        REPLICATION_MODE,
+        MIN_SHIPPING_DELAY_S,
+        MIN_REPLAY_DELAY_S,
+        MIN_ASYNC_BUFFER_FILL_MB,
+        MIN_AVG_LOG_SHIPPING_TIME_MS,
+        DATA_SOURCE,
+        AGGREGATE_BY,
+        MAP(TIME_AGGREGATE_BY,
+          'NONE',        'YYYY/MM/DD HH24:MI:SS',
+          'HOUR',        'YYYY/MM/DD HH24',
+          'DAY',         'YYYY/MM/DD (DY)',
+          'HOUR_OF_DAY', 'HH24',
+          TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY
+      FROM
+      ( SELECT                                                     /* Modification section */
+          'C-D1' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+          'C' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+          'SERVER' TIMEZONE,                              /* SERVER, UTC */
+          '%' HOST,
+          '%' SECONDARY_HOST,
+          '%' PORT,
+          ' ' ONLY_CONNECTION_TIMEOUTS,
+          ' ' ONLY_RECONNECTS,
+          ' ' ONLY_BUFFER_FULL,
+          '%' REPLICATION_STATUS,
+          '%' REPLICATION_MODE,
+          -1 MIN_SHIPPING_DELAY_S,
+          -1 MIN_REPLAY_DELAY_S,
+          -1 MIN_ASYNC_BUFFER_FILL_MB,
+          -1 MIN_AVG_LOG_SHIPPING_TIME_MS,
+          'HISTORY' DATA_SOURCE,                        /* CURRENT, HISTORY */
+          'NONE' AGGREGATE_BY,         /* HOST, SECONDARY_HOST, PORT, TIME, STATUS, MODE or comma separated combinations, NONE for no aggregation */
+          'NONE' TIME_AGGREGATE_BY     /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+        FROM
+          DUMMY
+      )
+    ) BI,
+    ( SELECT
+        'CURRENT' DATA_SOURCE,
+        CURRENT_TIMESTAMP SNAPSHOT_TIME,
+        HOST,
+        PORT,
+        SECONDARY_HOST,
+        SECONDARY_CONNECT_TIME,
+        SECONDARY_ACTIVE_STATUS,
+        SECONDARY_RECONNECT_COUNT,
+        SECONDARY_FAILOVER_COUNT,
+        SHIPPED_LOG_BUFFERS_COUNT,
+        SHIPPED_LOG_BUFFERS_DURATION,
+        SHIPPED_LOG_BUFFERS_SIZE,
+        SHIPPED_LOG_POSITION_TIME,
+        LAST_LOG_POSITION_TIME,
+        SHIPPED_LOG_POSITION,
+        LAST_LOG_POSITION,
+        SHIPPED_LAST_FULL_REPLICA_SIZE,
+        IFNULL(SECONDS_BETWEEN(SHIPPED_LAST_FULL_REPLICA_START_TIME, SHIPPED_LAST_FULL_REPLICA_END_TIME), 0) SHIPPED_LAST_FULL_REPLICA_DURATION,
+        SHIPPED_DELTA_REPLICA_SIZE,
+        SHIPPED_DELTA_REPLICA_DURATION,
+        REPLICATION_STATUS || MAP (REPLICATION_STATUS_DETAILS, NULL, '', '', '', CHAR(32) || '-' || CHAR(32) || REPLICATION_STATUS_DETAILS) REPLICATION_STATUS_DETAILS,
+        REPLICATION_MODE,
+        ASYNC_BUFFER_FULL_COUNT,
+        REPLAYED_LOG_POSITION,
+        REPLAYED_LOG_POSITION_TIME,
+        FULL_SYNC
+      FROM
+        M_SERVICE_REPLICATION
+      UNION ALL
+      SELECT
+        'HISTORY' DATA_SOURCE,
+        SERVER_TIMESTAMP SNAPSHOT_TIME,
+        HOST,
+        PORT,
+        SECONDARY_HOST,
+        SECONDARY_CONNECT_TIME,
+        SECONDARY_ACTIVE_STATUS,
+        SECONDARY_RECONNECT_COUNT_DELTA,
+        SECONDARY_FAILOVER_COUNT_DELTA,
+        SHIPPED_LOG_BUFFERS_COUNT_DELTA,
+        SHIPPED_LOG_BUFFERS_DURATION_DELTA,
+        SHIPPED_LOG_BUFFERS_SIZE_DELTA,
+        SHIPPED_LOG_POSITION_TIME,
+        LAST_LOG_POSITION_TIME,
+        SHIPPED_LOG_POSITION,
+        LAST_LOG_POSITION,
+        SHIPPED_LAST_FULL_REPLICA_SIZE,
+        IFNULL(SECONDS_BETWEEN(SHIPPED_LAST_FULL_REPLICA_START_TIME, SHIPPED_LAST_FULL_REPLICA_END_TIME), 0) SHIPPED_LAST_FULL_REPLICA_DURATION,
+        SHIPPED_DELTA_REPLICA_SIZE_DELTA,
+        SHIPPED_DELTA_REPLICA_DURATION_DELTA,
+        REPLICATION_STATUS || MAP (REPLICATION_STATUS_DETAILS, NULL, '', '', '', CHAR(32) || '-' || CHAR(32) || REPLICATION_STATUS_DETAILS) REPLICATION_STATUS_DETAILS,
+        REPLICATION_MODE,
+        ASYNC_BUFFER_FULL_COUNT_DELTA,
+        REPLAYED_LOG_POSITION,
+        REPLAYED_LOG_POSITION_TIME,
+        FULL_SYNC
+      FROM
+        _SYS_STATISTICS.HOST_SERVICE_REPLICATION
+    ) R
+    WHERE
+      R.DATA_SOURCE = BI.DATA_SOURCE AND
+      CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(R.SNAPSHOT_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE R.SNAPSHOT_TIME END BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+      R.HOST LIKE BI.HOST AND
+      R.SECONDARY_HOST LIKE BI.SECONDARY_HOST AND
+      TO_VARCHAR(R.PORT) LIKE BI.PORT AND
+      R.REPLICATION_STATUS_DETAILS LIKE BI.REPLICATION_STATUS AND
+      R.REPLICATION_MODE LIKE BI.REPLICATION_MODE
+  )
+  WHERE
+    LOG_SHIP_CNT >= 0
+  GROUP BY
+    CASE
+      WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TIME') != 0 THEN
+        CASE
+          WHEN TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00',
+            'YYYY/MM/DD HH24:MI:SS'), SNAPSHOT_TIME) / SUBSTR(TIME_AGGREGATE_BY, 3)) * SUBSTR(TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(SNAPSHOT_TIME, TIME_AGGREGATE_BY)
+        END
+      ELSE 'any'
+    END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')   != 0 THEN HOST                       ELSE MAP(BI_HOST, '%', 'any', BI_HOST)                             END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SECONDARY_HOST')   != 0 THEN SECONDARY_HOST   ELSE MAP(BI_SECONDARY_HOST, '%', 'any', BI_SECONDARY_HOST)         END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')   != 0 THEN TO_VARCHAR(PORT)           ELSE MAP(BI_PORT, '%', 'any', BI_PORT)                             END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'STATUS') != 0 THEN REPLICATION_STATUS_DETAILS ELSE MAP(BI_REPLICATION_STATUS, '%', 'any', BI_REPLICATION_STATUS) END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'MODE')   != 0 THEN REPLICATION_MODE           ELSE MAP(BI_REPLICATION_MODE, '%', 'any', BI_REPLICATION_MODE)     END,
+    ONLY_CONNECTION_TIMEOUTS,
+    ONLY_RECONNECTS,
+    ONLY_BUFFER_FULL,
+    MIN_SHIPPING_DELAY_S,
+    MIN_REPLAY_DELAY_S,
+    MIN_ASYNC_BUFFER_FILL_MB,
+    MIN_AVG_LOG_SHIPPING_TIME_MS
+)
+WHERE
+  ( ONLY_CONNECTION_TIMEOUTS = ' ' OR TIMEOUT = 'X' ) AND
+  ( ONLY_RECONNECTS = ' ' OR RECONNECTS > 0 ) AND
+  ( ONLY_BUFFER_FULL = ' ' OR ASYNC_BUFF_FULL > 0 ) AND
+  ( MIN_SHIPPING_DELAY_S = -1 OR SHIPPING_DELAY_S >= MIN_SHIPPING_DELAY_S ) AND
+  ( MIN_REPLAY_DELAY_S = -1 OR REPLAY_DELAY_S >= MIN_REPLAY_DELAY_S) AND
+  ( MIN_ASYNC_BUFFER_FILL_MB = -1 OR ASYNC_BUFF_FILL_MB >= MIN_ASYNC_BUFFER_FILL_MB ) AND
+  ( MIN_AVG_LOG_SHIPPING_TIME_MS = -1 OR MAP(LOG_SHIP_CNT, 0, 0, LOG_SHIP_H * 3600 / LOG_SHIP_CNT * 1000) >= MIN_AVG_LOG_SHIPPING_TIME_MS )
+ORDER BY
+  SNAPSHOT_TIME DESC,
+  HOST,
+  SECONDARY_HOST,
+  PORT,
+  REP_MODE

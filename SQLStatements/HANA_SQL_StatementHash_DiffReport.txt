@@ -1,0 +1,566 @@
+WITH 
+
+/* 
+
+[NAME]
+
+- HANA_SQL_StatementHash_DiffReport
+
+[DESCRIPTION]
+
+- Compare key figures for a SQL statement for different times
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- RESET can be performed via:
+
+  ALTER SYSTEM RESET MONITORING VIEW M_SQL_PLAN_CACHE_RESET
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2016/06/07:  1.0 (initial version)
+- 2017/10/26:  1.1 (TIMEZONE included)
+- 2018/01/08:  1.2 (proper display of historic time frames based on history availability)
+- 2018/12/04:  1.3 (shortcuts for BEGIN_TIME and END_TIME like 'C', 'E-S900' or 'MAX')
+- 2023/04/28:  1.4 ("Used memory (MB)" added)
+
+[INVOLVED TABLES]
+
+- M_SQL_PLAN_CACHE
+- M_SQL_PLAN_CACHE_RESET
+- HOST_SQL_PLAN_CACHE
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME_1 / BEGIN_TIME_2
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME_1 / END_TIME_2
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- STATEMENT_HASH_1
+ 
+  Hash of SQL statement to be analyzed (mandatory)
+
+  'd43e2f3a47f1745415cb8a4822397cc2' -> Analyze SQL statement with hash d43e2f3a47f1745415cb8a4822397cc2 in time interval 1
+
+- STATEMENT_HASH_2
+
+  ''                                 -> Use STATEMENT_HASH_1 also for time interval 2
+  'd3bfb78741c66b734795f68beb119902' -> Analyze SQL statement with hash d3bfb78741c66b734795f68beb119902 in time interval 2
+
+- DATA_SOURCE_1
+
+  Source of analysis data for time frame 1
+
+  'CURRENT'       --> Data from memory information (M_ tables)
+  'RESET'         --> Data from reset information (*_RESET tables)
+  'HISTORY'       --> Data from persisted history information (HOST_ tables)
+
+- DATA_SOURCE_2
+
+  Source of analysis data for time frame 2
+
+  'CURRENT'       --> Data from memory information (M_ tables)
+  'RESET'         --> Data from reset information (*_RESET tables)
+  'HISTORY'       --> Data from persisted history information (HOST_ tables)
+
+[OUTPUT PARAMETERS]
+
+- KEY_FIGURE: Key figure
+- VALUE_1:    Value for time interval 1
+- VALUE_2:    Value for time interval 2
+- CHANGE_PCT: Change between time interval 1 and time interval 2 (%)
+
+[EXAMPLE OUTPUT]
+
+--------------------------------------------------------------------------------------------------------------------
+|KEY_FIGURE                         |VALUE_1                         |VALUE_2                         |CHANGE_PCT  |
+--------------------------------------------------------------------------------------------------------------------
+|Begin time                         |2016/05/16 00:00:00             |2016/06/02 00:00:00             |            |
+|End time                           |2016/05/17 00:00:00             |2016/06/03 00:00:00             |            |
+|                                   |                                |                                |            |
+|Statement hash                     |d43e2f3a47f1745415cb8a4822397cc2|d43e2f3a47f1745415cb8a4822397cc2|            |
+|                                   |                                |                                |            |
+|Table types                        |COLUMN                          |COLUMN                          |            |
+|                                   |                                |                                |            |
+|Sharing type                       |GLOBAL                          |GLOBAL                          |            |
+|                                   |                                |                                |            |
+|Distributed                        |FALSE                           |FALSE                           |            |
+|                                   |                                |                                |            |
+|Executions                         |                    330000625.00|                    874886883.00|      165.11|
+|                                   |                                |                                |            |
+|Records                            |                  15510029469.00|                  16935186802.00|        9.18|
+|Records per execution              |                           47.00|                           19.35|      -58.81|
+|                                   |                                |                                |            |
+|Cursor time (ms)                   |                    356416303.02|                   1137889516.92|      219.25|
+|Cursor time (ms) per execution     |                            1.08|                            1.30|       20.42|
+|Cursor time (ms) per record        |                            0.02|                            0.06|      192.39|
+|                                   |                                |                                |            |
+|Execution time (ms)                |                    333397466.67|                   1066452675.30|      219.87|
+|Execution time (ms) per execution  |                            1.01|                            1.21|       20.65|
+|Execution time (ms) per record     |                            0.02|                            0.06|      192.95|
+|                                   |                                |                                |            |
+|Preparation time (ms)              |                            0.00|                            0.00|        0.00|
+|Preparation time (ms) per execution|                            0.00|                            0.00|        0.00|
+|Preparation time (ms) per record   |                            0.00|                            0.00|        0.00|
+|                                   |                                |                                |            |
+|Trans. lock time (ms)              |                            0.00|                            0.00|        0.00|
+|Trans. lock time (ms) per execution|                            0.00|                            0.00|        0.00|
+|Trans. lock time (ms) per record   |                            0.00|                            0.00|        0.00|
+|                                   |                                |                                |            |
+--------------------------------------------------------------------------------------------------------------------
+
+*/
+
+BASIS_INFO AS
+( SELECT
+    GREATEST(BI.BEGIN_TIME_1, CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(C.MIN_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE C.MIN_TIME END) BEGIN_TIME_1,
+    LEAST(BI.END_TIME_1, CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(C.MAX_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE C.MAX_TIME END) END_TIME_1,
+    GREATEST(BI.BEGIN_TIME_2, CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(C.MIN_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE C.MIN_TIME END) BEGIN_TIME_2,
+    LEAST(BI.END_TIME_2, CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(C.MAX_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE C.MAX_TIME END) END_TIME_2,
+    BI.TIMEZONE,
+    BI.STATEMENT_HASH_1,
+    MAP(BI.STATEMENT_HASH_2, '', BI.STATEMENT_HASH_1, BI.STATEMENT_HASH_2) STATEMENT_HASH_2,
+    BI.DATA_SOURCE_1,
+    BI.DATA_SOURCE_2
+  FROM
+  ( SELECT
+      CASE
+        WHEN BEGIN_TIME_1 =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN BEGIN_TIME_1 LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME_1, 'C-S'))
+        WHEN BEGIN_TIME_1 LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME_1, 'C-M') * 60)
+        WHEN BEGIN_TIME_1 LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME_1, 'C-H') * 3600)
+        WHEN BEGIN_TIME_1 LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME_1, 'C-D') * 86400)
+        WHEN BEGIN_TIME_1 LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME_1, 'C-W') * 86400 * 7)
+        WHEN BEGIN_TIME_1 LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME_1, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME_1, 'E-S'))
+        WHEN BEGIN_TIME_1 LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME_1, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME_1, 'E-M') * 60)
+        WHEN BEGIN_TIME_1 LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME_1, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME_1, 'E-H') * 3600)
+        WHEN BEGIN_TIME_1 LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME_1, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME_1, 'E-D') * 86400)
+        WHEN BEGIN_TIME_1 LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME_1, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME_1, 'E-W') * 86400 * 7)
+        WHEN BEGIN_TIME_1 =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(BEGIN_TIME_1, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME_1, 'YYYY/MM/DD HH24:MI:SS')
+      END BEGIN_TIME_1,
+      CASE
+        WHEN END_TIME_1 =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN END_TIME_1 LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME_1, 'C-S'))
+        WHEN END_TIME_1 LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME_1, 'C-M') * 60)
+        WHEN END_TIME_1 LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME_1, 'C-H') * 3600)
+        WHEN END_TIME_1 LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME_1, 'C-D') * 86400)
+        WHEN END_TIME_1 LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME_1, 'C-W') * 86400 * 7)
+        WHEN END_TIME_1 LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME_1, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME_1, 'B+S'))
+        WHEN END_TIME_1 LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME_1, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME_1, 'B+M') * 60)
+        WHEN END_TIME_1 LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME_1, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME_1, 'B+H') * 3600)
+        WHEN END_TIME_1 LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME_1, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME_1, 'B+D') * 86400)
+        WHEN END_TIME_1 LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME_1, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME_1, 'B+W') * 86400 * 7)
+        WHEN END_TIME_1 =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(END_TIME_1, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME_1, 'YYYY/MM/DD HH24:MI:SS')
+      END END_TIME_1,
+      CASE
+        WHEN BEGIN_TIME_2 =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN BEGIN_TIME_2 LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME_2, 'C-S'))
+        WHEN BEGIN_TIME_2 LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME_2, 'C-M') * 60)
+        WHEN BEGIN_TIME_2 LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME_2, 'C-H') * 3600)
+        WHEN BEGIN_TIME_2 LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME_2, 'C-D') * 86400)
+        WHEN BEGIN_TIME_2 LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME_2, 'C-W') * 86400 * 7)
+        WHEN BEGIN_TIME_2 LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME_2, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME_2, 'E-S'))
+        WHEN BEGIN_TIME_2 LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME_2, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME_2, 'E-M') * 60)
+        WHEN BEGIN_TIME_2 LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME_2, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME_2, 'E-H') * 3600)
+        WHEN BEGIN_TIME_2 LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME_2, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME_2, 'E-D') * 86400)
+        WHEN BEGIN_TIME_2 LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME_2, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME_2, 'E-W') * 86400 * 7)
+        WHEN BEGIN_TIME_2 =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(BEGIN_TIME_2, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME_2, 'YYYY/MM/DD HH24:MI:SS')
+      END BEGIN_TIME_2,
+      CASE
+        WHEN END_TIME_2 =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN END_TIME_2 LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME_2, 'C-S'))
+        WHEN END_TIME_2 LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME_2, 'C-M') * 60)
+        WHEN END_TIME_2 LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME_2, 'C-H') * 3600)
+        WHEN END_TIME_2 LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME_2, 'C-D') * 86400)
+        WHEN END_TIME_2 LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME_2, 'C-W') * 86400 * 7)
+        WHEN END_TIME_2 LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME_2, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME_2, 'B+S'))
+        WHEN END_TIME_2 LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME_2, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME_2, 'B+M') * 60)
+        WHEN END_TIME_2 LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME_2, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME_2, 'B+H') * 3600)
+        WHEN END_TIME_2 LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME_2, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME_2, 'B+D') * 86400)
+        WHEN END_TIME_2 LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME_2, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME_2, 'B+W') * 86400 * 7)
+        WHEN END_TIME_2 =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(END_TIME_2, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME_2, 'YYYY/MM/DD HH24:MI:SS')
+      END END_TIME_2,
+      TIMEZONE,
+      STATEMENT_HASH_1,
+      STATEMENT_HASH_2,
+      DATA_SOURCE_1,
+      DATA_SOURCE_2
+    FROM
+    ( SELECT                        /* Modification section */
+        '1000/11/27 00:00:00' BEGIN_TIME_1,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+        '9999/11/28 00:00:00' END_TIME_1,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+        'C-H2' BEGIN_TIME_2,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+        '9999/12/04 00:00:00' END_TIME_2,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+        'SERVER' TIMEZONE,                              /* SERVER, UTC */
+        'c94fc486be0b78a9b6e7d1f84882631d' STATEMENT_HASH_1,
+        '' STATEMENT_HASH_2,          /* '' if identical to STATEMENT_HASH_1 */
+        'HISTORY' DATA_SOURCE_1,
+        'RESET' DATA_SOURCE_2
+      FROM
+        DUMMY
+    )
+  ) BI,
+  ( SELECT
+      MIN(SERVER_TIMESTAMP) MIN_TIME,
+      MAX(SERVER_TIMESTAMP) MAX_TIME
+    FROM
+      _SYS_STATISTICS.HOST_SQL_PLAN_CACHE
+  ) C
+),
+KEY_FIGURES AS
+( SELECT  10 LINE_NO, 'Statement hash' KEY_FIGURE, ' ' CALCULATIONS FROM DUMMY UNION ALL
+  SELECT  20, 'Table types',           ' ' FROM DUMMY UNION ALL
+  SELECT  30, 'Sharing type',          ' ' FROM DUMMY UNION ALL
+  SELECT  40, 'Distributed',           ' ' FROM DUMMY UNION ALL
+  SELECT  50, 'Executions',            'X' FROM DUMMY UNION ALL
+  SELECT  60, 'Records',               'X' FROM DUMMY UNION ALL
+  SELECT  70, 'Cursor time (ms)',      'X' FROM DUMMY UNION ALL
+  SELECT  80, 'Execution time (ms)',   'X' FROM DUMMY UNION ALL
+  SELECT  90, 'Preparation time (ms)', 'X' FROM DUMMY UNION ALL
+  SELECT 100, 'Trans. lock time (ms)', 'X' FROM DUMMY UNION ALL
+  SELECT 110, 'Called threads',        'X' FROM DUMMY UNION ALL
+  SELECT 120, 'Used memory (MB)',      'X' FROM DUMMY 
+),
+KEY_FIGURE_DETAILS AS
+( SELECT   1 SUBLINE_NO, '' ADD_TEXT FROM DUMMY UNION ALL
+  SELECT   2, ' per execution' FROM DUMMY UNION ALL
+  SELECT   3, ' per record'    FROM DUMMY UNION ALL
+  SELECT   4, ''               FROM DUMMY
+),
+SQL_1 AS
+( SELECT
+    S.STATEMENT_HASH,
+    MAP(MIN(S.TABLE_TYPES), MAX(S.TABLE_TYPES), MIN(S.TABLE_TYPES), 'various') STORE,
+    MAP(MIN(S.PLAN_SHARING_TYPE), MAX(S.PLAN_SHARING_TYPE), MIN(S.PLAN_SHARING_TYPE), 'various') SHARING_TYPE,
+    MAP(MIN(S.IS_DISTRIBUTED_EXECUTION), MAX(S.IS_DISTRIBUTED_EXECUTION), MIN(S.IS_DISTRIBUTED_EXECUTION), 'various') IS_DISTRIBUTED_EXECUTION,
+    AVG(S.REFERENCE_COUNT) REFERENCE_COUNT,
+    SUM(S.EXECUTION_COUNT) EXECUTION_COUNT,
+    SUM(S.TOTAL_RESULT_RECORD_COUNT) TOTAL_RESULT_RECORD_COUNT,
+    SUM(S.TOTAL_CURSOR_DURATION) TOTAL_CURSOR_DURATION,
+    SUM(S.TOTAL_EXECUTION_TIME) + SUM(S.TOTAL_PREPARATION_TIME) TOTAL_ELAPSED_TIME,
+    SUM(S.TOTAL_EXECUTION_TIME) TOTAL_EXECUTION_TIME,
+    SUM(S.TOTAL_EXECUTION_OPEN_TIME) TOTAL_EXECUTION_OPEN_TIME,
+    SUM(S.TOTAL_EXECUTION_FETCH_TIME) TOTAL_EXECUTION_FETCH_TIME,
+    SUM(S.TOTAL_PREPARATION_TIME) TOTAL_PREPARATION_TIME,
+    SUM(S.PREPARATION_COUNT) PREPARATION_COUNT,
+    SUM(S.TOTAL_LOCK_WAIT_DURATION) TOTAL_LOCK_WAIT_DURATION,
+    SUM(S.TOTAL_CALLED_THREAD_COUNT) TOTAL_CALLED_THREAD_COUNT,
+    SUM(S.TOTAL_EXECUTION_MEMORY_SIZE) TOTAL_EXECUTION_MEMORY_SIZE
+  FROM
+    BASIS_INFO BI,
+    M_SQL_PLAN_CACHE S
+  WHERE
+    BI.DATA_SOURCE_1 = 'CURRENT' AND
+    S.STATEMENT_HASH = BI.STATEMENT_HASH_1
+  GROUP BY
+    S.STATEMENT_HASH
+  UNION ALL
+  SELECT
+    S.STATEMENT_HASH,
+    MAP(MIN(S.TABLE_TYPES), MAX(S.TABLE_TYPES), MIN(S.TABLE_TYPES), 'various') STORE,
+    MAP(MIN(S.PLAN_SHARING_TYPE), MAX(S.PLAN_SHARING_TYPE), MIN(S.PLAN_SHARING_TYPE), 'various') SHARING_TYPE,
+    MAP(MIN(S.IS_DISTRIBUTED_EXECUTION), MAX(S.IS_DISTRIBUTED_EXECUTION), MIN(S.IS_DISTRIBUTED_EXECUTION), 'various') IS_DISTRIBUTED_EXECUTION,
+    AVG(S.REFERENCE_COUNT) REFERENCE_COUNT,
+    SUM(S.EXECUTION_COUNT) EXECUTION_COUNT,
+    SUM(S.TOTAL_RESULT_RECORD_COUNT) TOTAL_RESULT_RECORD_COUNT,
+    SUM(S.TOTAL_CURSOR_DURATION) TOTAL_CURSOR_DURATION,
+    SUM(S.TOTAL_EXECUTION_TIME) + SUM(S.TOTAL_PREPARATION_TIME) TOTAL_ELAPSED_TIME,
+    SUM(S.TOTAL_EXECUTION_TIME) TOTAL_EXECUTION_TIME,
+    SUM(S.TOTAL_EXECUTION_OPEN_TIME) TOTAL_EXECUTION_OPEN_TIME,
+    SUM(S.TOTAL_EXECUTION_FETCH_TIME) TOTAL_EXECUTION_FETCH_TIME,
+    SUM(S.TOTAL_PREPARATION_TIME) TOTAL_PREPARATION_TIME,
+    SUM(S.PREPARATION_COUNT) PREPARATION_COUNT,
+    SUM(S.TOTAL_LOCK_WAIT_DURATION) TOTAL_LOCK_WAIT_DURATION,
+    SUM(S.TOTAL_CALLED_THREAD_COUNT) TOTAL_CALLED_THREAD_COUNT,
+    SUM(S.TOTAL_EXECUTION_MEMORY_SIZE) TOTAL_EXECUTION_MEMORY_SIZE
+  FROM
+    BASIS_INFO BI,
+    M_SQL_PLAN_CACHE_RESET S
+  WHERE
+    BI.DATA_SOURCE_1 = 'RESET' AND
+    S.STATEMENT_HASH = BI.STATEMENT_HASH_1
+  GROUP BY
+    S.STATEMENT_HASH
+  UNION ALL
+  SELECT
+    S.STATEMENT_HASH,
+    MAP(MIN(S.TABLE_TYPES), MAX(S.TABLE_TYPES), MIN(S.TABLE_TYPES), 'various') STORE,
+    MAP(MIN(S.PLAN_SHARING_TYPE), MAX(S.PLAN_SHARING_TYPE), MIN(S.PLAN_SHARING_TYPE), 'various') SHARING_TYPE,
+    MAP(MIN(S.IS_DISTRIBUTED_EXECUTION), MAX(S.IS_DISTRIBUTED_EXECUTION), MIN(S.IS_DISTRIBUTED_EXECUTION), 'various') IS_DISTRIBUTED_EXECUTION,
+    AVG(S.REFERENCE_COUNT) REFERENCE_COUNT,
+    SUM(S.EXECUTION_COUNT) EXECUTION_COUNT,
+    SUM(S.TOTAL_RESULT_RECORD_COUNT) TOTAL_RESULT_RECORD_COUNT,
+    SUM(S.TOTAL_CURSOR_DURATION) TOTAL_CURSOR_DURATION,
+    SUM(S.TOTAL_EXECUTION_TIME) + SUM(S.TOTAL_PREPARATION_TIME) TOTAL_ELAPSED_TIME,
+    SUM(S.TOTAL_EXECUTION_TIME) TOTAL_EXECUTION_TIME,
+    SUM(S.TOTAL_EXECUTION_OPEN_TIME) TOTAL_EXECUTION_OPEN_TIME,
+    SUM(S.TOTAL_EXECUTION_FETCH_TIME) TOTAL_EXECUTION_FETCH_TIME,
+    SUM(S.TOTAL_PREPARATION_TIME) TOTAL_PREPARATION_TIME,
+    SUM(S.PREPARATION_COUNT) PREPARATION_COUNT,
+    SUM(S.TOTAL_LOCK_WAIT_DURATION) TOTAL_LOCK_WAIT_DURATION,
+    SUM(S.TOTAL_CALLED_THREAD_COUNT) TOTAL_CALLED_THREAD_COUNT,
+    SUM(S.TOTAL_EXECUTION_MEMORY_SIZE) TOTAL_EXECUTION_MEMORY_SIZE
+  FROM
+    BASIS_INFO BI,
+    _SYS_STATISTICS.HOST_SQL_PLAN_CACHE S
+  WHERE
+    BI.DATA_SOURCE_1 = 'HISTORY' AND
+    S.STATEMENT_HASH = BI.STATEMENT_HASH_1 AND
+    CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(S.SERVER_TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE S.SERVER_TIMESTAMP END BETWEEN BI.BEGIN_TIME_1 AND BI.END_TIME_1
+  GROUP BY
+    S.STATEMENT_HASH
+),
+SQL_2 AS
+( SELECT
+    S.STATEMENT_HASH,
+    MAP(MIN(S.TABLE_TYPES), MAX(S.TABLE_TYPES), MIN(S.TABLE_TYPES), 'various') STORE,
+    MAP(MIN(S.PLAN_SHARING_TYPE), MAX(S.PLAN_SHARING_TYPE), MIN(S.PLAN_SHARING_TYPE), 'various') SHARING_TYPE,
+    MAP(MIN(S.IS_DISTRIBUTED_EXECUTION), MAX(S.IS_DISTRIBUTED_EXECUTION), MIN(S.IS_DISTRIBUTED_EXECUTION), 'various') IS_DISTRIBUTED_EXECUTION,
+    AVG(S.REFERENCE_COUNT) REFERENCE_COUNT,
+    SUM(S.EXECUTION_COUNT) EXECUTION_COUNT,
+    SUM(S.TOTAL_RESULT_RECORD_COUNT) TOTAL_RESULT_RECORD_COUNT,
+    SUM(S.TOTAL_CURSOR_DURATION) TOTAL_CURSOR_DURATION,
+    SUM(S.TOTAL_EXECUTION_TIME) + SUM(S.TOTAL_PREPARATION_TIME) TOTAL_ELAPSED_TIME,
+    SUM(S.TOTAL_EXECUTION_TIME) TOTAL_EXECUTION_TIME,
+    SUM(S.TOTAL_EXECUTION_OPEN_TIME) TOTAL_EXECUTION_OPEN_TIME,
+    SUM(S.TOTAL_EXECUTION_FETCH_TIME) TOTAL_EXECUTION_FETCH_TIME,
+    SUM(S.TOTAL_PREPARATION_TIME) TOTAL_PREPARATION_TIME,
+    SUM(S.PREPARATION_COUNT) PREPARATION_COUNT,
+    SUM(S.TOTAL_LOCK_WAIT_DURATION) TOTAL_LOCK_WAIT_DURATION,
+    SUM(S.TOTAL_CALLED_THREAD_COUNT) TOTAL_CALLED_THREAD_COUNT,
+    SUM(S.TOTAL_EXECUTION_MEMORY_SIZE) TOTAL_EXECUTION_MEMORY_SIZE
+  FROM
+    BASIS_INFO BI,
+    M_SQL_PLAN_CACHE S
+  WHERE
+    BI.DATA_SOURCE_2 = 'CURRENT' AND
+    S.STATEMENT_HASH = BI.STATEMENT_HASH_2 
+  GROUP BY
+    S.STATEMENT_HASH
+  UNION ALL
+  SELECT
+    S.STATEMENT_HASH,
+    MAP(MIN(S.TABLE_TYPES), MAX(S.TABLE_TYPES), MIN(S.TABLE_TYPES), 'various') STORE,
+    MAP(MIN(S.PLAN_SHARING_TYPE), MAX(S.PLAN_SHARING_TYPE), MIN(S.PLAN_SHARING_TYPE), 'various') SHARING_TYPE,
+    MAP(MIN(S.IS_DISTRIBUTED_EXECUTION), MAX(S.IS_DISTRIBUTED_EXECUTION), MIN(S.IS_DISTRIBUTED_EXECUTION), 'various') IS_DISTRIBUTED_EXECUTION,
+    AVG(S.REFERENCE_COUNT) REFERENCE_COUNT,
+    SUM(S.EXECUTION_COUNT) EXECUTION_COUNT,
+    SUM(S.TOTAL_RESULT_RECORD_COUNT) TOTAL_RESULT_RECORD_COUNT,
+    SUM(S.TOTAL_CURSOR_DURATION) TOTAL_CURSOR_DURATION,
+    SUM(S.TOTAL_EXECUTION_TIME) + SUM(S.TOTAL_PREPARATION_TIME) TOTAL_ELAPSED_TIME,
+    SUM(S.TOTAL_EXECUTION_TIME) TOTAL_EXECUTION_TIME,
+    SUM(S.TOTAL_EXECUTION_OPEN_TIME) TOTAL_EXECUTION_OPEN_TIME,
+    SUM(S.TOTAL_EXECUTION_FETCH_TIME) TOTAL_EXECUTION_FETCH_TIME,
+    SUM(S.TOTAL_PREPARATION_TIME) TOTAL_PREPARATION_TIME,
+    SUM(S.PREPARATION_COUNT) PREPARATION_COUNT,
+    SUM(S.TOTAL_LOCK_WAIT_DURATION) TOTAL_LOCK_WAIT_DURATION,
+    SUM(S.TOTAL_CALLED_THREAD_COUNT) TOTAL_CALLED_THREAD_COUNT,
+    SUM(S.TOTAL_EXECUTION_MEMORY_SIZE) TOTAL_EXECUTION_MEMORY_SIZE
+  FROM
+    BASIS_INFO BI,
+    M_SQL_PLAN_CACHE_RESET S
+  WHERE
+    BI.DATA_SOURCE_2 = 'RESET' AND
+    S.STATEMENT_HASH = BI.STATEMENT_HASH_2
+  GROUP BY
+    S.STATEMENT_HASH
+  UNION ALL
+  SELECT
+    S.STATEMENT_HASH,
+    MAP(MIN(S.TABLE_TYPES), MAX(S.TABLE_TYPES), MIN(S.TABLE_TYPES), 'various') STORE,
+    MAP(MIN(S.PLAN_SHARING_TYPE), MAX(S.PLAN_SHARING_TYPE), MIN(S.PLAN_SHARING_TYPE), 'various') SHARING_TYPE,
+    MAP(MIN(S.IS_DISTRIBUTED_EXECUTION), MAX(S.IS_DISTRIBUTED_EXECUTION), MIN(S.IS_DISTRIBUTED_EXECUTION), 'various') IS_DISTRIBUTED_EXECUTION,
+    AVG(S.REFERENCE_COUNT) REFERENCE_COUNT,
+    SUM(S.EXECUTION_COUNT) EXECUTION_COUNT,
+    SUM(S.TOTAL_RESULT_RECORD_COUNT) TOTAL_RESULT_RECORD_COUNT,
+    SUM(S.TOTAL_CURSOR_DURATION) TOTAL_CURSOR_DURATION,
+    SUM(S.TOTAL_EXECUTION_TIME) + SUM(S.TOTAL_PREPARATION_TIME) TOTAL_ELAPSED_TIME,
+    SUM(S.TOTAL_EXECUTION_TIME) TOTAL_EXECUTION_TIME,
+    SUM(S.TOTAL_EXECUTION_OPEN_TIME) TOTAL_EXECUTION_OPEN_TIME,
+    SUM(S.TOTAL_EXECUTION_FETCH_TIME) TOTAL_EXECUTION_FETCH_TIME,
+    SUM(S.TOTAL_PREPARATION_TIME) TOTAL_PREPARATION_TIME,
+    SUM(S.PREPARATION_COUNT) PREPARATION_COUNT,
+    SUM(S.TOTAL_LOCK_WAIT_DURATION) TOTAL_LOCK_WAIT_DURATION,
+    SUM(S.TOTAL_CALLED_THREAD_COUNT) TOTAL_CALLED_THREAD_COUNT,
+    SUM(S.TOTAL_EXECUTION_MEMORY_SIZE) TOTAL_EXECUTION_MEMORY_SIZE
+  FROM
+    BASIS_INFO BI,
+    _SYS_STATISTICS.HOST_SQL_PLAN_CACHE S
+  WHERE
+    BI.DATA_SOURCE_2 = 'HISTORY' AND
+    S.STATEMENT_HASH = BI.STATEMENT_HASH_2 AND
+    CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(S.SERVER_TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE S.SERVER_TIMESTAMP END BETWEEN BI.BEGIN_TIME_2 AND BI.END_TIME_2
+  GROUP BY
+    S.STATEMENT_HASH
+)
+SELECT
+  KEY_FIGURE,
+  VALUE_1,
+  VALUE_2,
+  CHANGE_PCT
+FROM
+( SELECT
+    1 LINE_NO,
+    0 SUBLINE_NO,
+    'Begin time' KEY_FIGURE,
+    MAP(DATA_SOURCE_1, 'HISTORY', TO_VARCHAR(BEGIN_TIME_1, 'YYYY/MM/DD HH24:MI:SS'), DATA_SOURCE_1 || CHAR(32) || '(' || TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYY/MM/DD HH24:MI:SS') || ')') VALUE_1,
+    MAP(DATA_SOURCE_2, 'HISTORY', TO_VARCHAR(BEGIN_TIME_2, 'YYYY/MM/DD HH24:MI:SS'), DATA_SOURCE_2 || CHAR(32) || '(' || TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYY/MM/DD HH24:MI:SS') || ')') VALUE_2,
+    '' CHANGE_PCT
+  FROM
+    BASIS_INFO
+  UNION ALL
+  SELECT
+    2 LINE_NO,
+    0 SUBLINE_NO,
+    'End time' KEY_FIGURE,
+    MAP(DATA_SOURCE_1, 'HISTORY', TO_VARCHAR(END_TIME_1, 'YYYY/MM/DD HH24:MI:SS'), DATA_SOURCE_1 || CHAR(32) || '(' || TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYY/MM/DD HH24:MI:SS') || ')') VALUE_1,
+    MAP(DATA_SOURCE_2, 'HISTORY', TO_VARCHAR(END_TIME_2, 'YYYY/MM/DD HH24:MI:SS'), DATA_SOURCE_2 || CHAR(32) || '(' || TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYY/MM/DD HH24:MI:SS') || ')') VALUE_2,
+    '' CHANGE_PCT
+  FROM
+    BASIS_INFO
+  UNION ALL
+  SELECT 3, 0, '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT
+    LINE_NO, SUBLINE_NO,
+    KEY_FIGURE,
+    CASE WHEN CALCULATIONS = ' ' OR SUBLINE_NO = 4 THEN VALUE_1 ELSE LPAD(TO_DECIMAL(VALUE_1, 10, 2), 32) END VALUE_1,
+    CASE WHEN CALCULATIONS = ' ' OR SUBLINE_NO = 4 THEN VALUE_2 ELSE LPAD(TO_DECIMAL(VALUE_2, 10, 2), 32) END VALUE_2,
+    CASE WHEN CALCULATIONS = ' ' OR SUBLINE_NO = 4 THEN ''      ELSE LPAD(TO_DECIMAL(MAP(VALUE_1_NUMBER, 0, 0, LEAST(9999.99, VALUE_2_NUMBER / VALUE_1_NUMBER * 100 - 100)), 10, 2), 12) END CHANGE_PCT
+  FROM
+  ( SELECT
+      F.CALCULATIONS,
+      F.LINE_NO,
+      D.SUBLINE_NO,
+      CASE D.SUBLINE_NO
+        WHEN 4 THEN ''
+        ELSE F.KEY_FIGURE || D.ADD_TEXT
+      END KEY_FIGURE,
+      CASE D.SUBLINE_NO
+        WHEN 1 THEN VALUE_1
+        WHEN 2 THEN LPAD(TO_DECIMAL(MAP(EXECUTIONS_1, 0, 0, TO_NUMBER(VALUE_1) / EXECUTIONS_1), 10, 2), 12)
+        WHEN 3 THEN LPAD(TO_DECIMAL(LEAST(9999999.99, MAP(RECORDS_1, 0, 0, TO_NUMBER(VALUE_1) / RECORDS_1)), 10, 2), 12)
+        WHEN 4 THEN ''
+      END VALUE_1,
+      CASE D.SUBLINE_NO
+        WHEN 1 THEN VALUE_2
+        WHEN 2 THEN LPAD(TO_DECIMAL(MAP(EXECUTIONS_2, 0, 0, TO_NUMBER(VALUE_2 ) / EXECUTIONS_2), 10, 2), 12)
+        WHEN 3 THEN LPAD(TO_DECIMAL(LEAST(9999999.99, MAP(RECORDS_2, 0, 0, TO_NUMBER(VALUE_2 ) / RECORDS_2)), 10, 2), 12)
+        WHEN 4 THEN ''
+      END VALUE_2,
+      CASE D.SUBLINE_NO
+        WHEN 1 THEN TO_NUMBER(VALUE_1)
+        WHEN 2 THEN MAP(EXECUTIONS_1, 0, 0, TO_NUMBER(VALUE_1 ) / EXECUTIONS_1)
+        WHEN 3 THEN MAP(RECORDS_1, 0, 0, TO_NUMBER(VALUE_1 ) / RECORDS_1)
+        WHEN 4 THEN 0
+      END VALUE_1_NUMBER,
+      CASE D.SUBLINE_NO
+        WHEN 1 THEN TO_NUMBER(VALUE_2)
+        WHEN 2 THEN MAP(EXECUTIONS_2, 0, 0, TO_NUMBER(VALUE_2 ) / EXECUTIONS_2)
+        WHEN 3 THEN MAP(RECORDS_2, 0, 0, TO_NUMBER(VALUE_2 ) / RECORDS_2)
+        WHEN 4 THEN 0
+      END VALUE_2_NUMBER
+    FROM
+    ( SELECT
+        F.LINE_NO,
+        F.CALCULATIONS,
+        F.KEY_FIGURE,
+        S1.EXECUTION_COUNT EXECUTIONS_1,
+        S1.TOTAL_RESULT_RECORD_COUNT RECORDS_1,
+        S2.EXECUTION_COUNT EXECUTIONS_2,
+        S2.TOTAL_RESULT_RECORD_COUNT RECORDS_2,
+        CASE F.KEY_FIGURE
+          WHEN 'Statement hash'        THEN S1.STATEMENT_HASH
+          WHEN 'Table types'           THEN S1.STORE
+          WHEN 'Sharing type'          THEN S1.SHARING_TYPE
+          WHEN 'Distributed'           THEN S1.IS_DISTRIBUTED_EXECUTION
+          WHEN 'Executions'            THEN TO_VARCHAR(S1.EXECUTION_COUNT)
+          WHEN 'Records'               THEN TO_VARCHAR(S1.TOTAL_RESULT_RECORD_COUNT)
+          WHEN 'Cursor time (ms)'      THEN TO_VARCHAR(S1.TOTAL_CURSOR_DURATION / 1000)
+          WHEN 'Execution time (ms)'   THEN TO_VARCHAR(S1.TOTAL_EXECUTION_TIME / 1000)
+          WHEN 'Preparation time (ms)' THEN TO_VARCHAR(S1.TOTAL_PREPARATION_TIME / 1000)
+          WHEN 'Trans. lock time (ms)' THEN TO_VARCHAR(S1.TOTAL_LOCK_WAIT_DURATION / 1000)
+          WHEN 'Called threads'        THEN TO_VARCHAR(S1.TOTAL_CALLED_THREAD_COUNT)
+          WHEN 'Used memory (MB)'      THEN TO_VARCHAR(TO_DECIMAL(S1.TOTAL_EXECUTION_MEMORY_SIZE / 1024 / 1024, 10, 2))
+        END VALUE_1,
+        CASE F.KEY_FIGURE
+          WHEN 'Statement hash'        THEN S2.STATEMENT_HASH
+          WHEN 'Table types'           THEN S2.STORE
+          WHEN 'Sharing type'          THEN S2.SHARING_TYPE
+          WHEN 'Distributed'           THEN S2.IS_DISTRIBUTED_EXECUTION
+          WHEN 'Executions'            THEN TO_VARCHAR(S2.EXECUTION_COUNT)
+          WHEN 'Records'               THEN TO_VARCHAR(S2.TOTAL_RESULT_RECORD_COUNT)
+          WHEN 'Cursor time (ms)'      THEN TO_VARCHAR(S2.TOTAL_CURSOR_DURATION / 1000)
+          WHEN 'Execution time (ms)'   THEN TO_VARCHAR(S2.TOTAL_EXECUTION_TIME / 1000)
+          WHEN 'Preparation time (ms)' THEN TO_VARCHAR(S2.TOTAL_PREPARATION_TIME / 1000)
+          WHEN 'Trans. lock time (ms)' THEN TO_VARCHAR(S2.TOTAL_LOCK_WAIT_DURATION / 1000)
+          WHEN 'Called threads'        THEN TO_VARCHAR(S2.TOTAL_CALLED_THREAD_COUNT)
+          WHEN 'Used memory (MB)'      THEN TO_VARCHAR(TO_DECIMAL(S2.TOTAL_EXECUTION_MEMORY_SIZE / 1024 / 1024, 10, 2))
+        END VALUE_2
+      FROM
+        KEY_FIGURES F,
+        SQL_1 S1,
+        SQL_2 S2
+    ) F, 
+      KEY_FIGURE_DETAILS D
+    WHERE
+      ( F.CALCULATIONS = 'X' OR D.SUBLINE_NO IN (1, 4) ) AND
+      F.KEY_FIGURE || D.ADD_TEXT NOT IN ( 'Records per record', 'Executions per record', 'Executions per execution' )
+  )
+)
+ORDER BY
+  LINE_NO,
+  SUBLINE_NO
+    
+    

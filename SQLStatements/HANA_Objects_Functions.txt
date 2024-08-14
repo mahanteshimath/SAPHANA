@@ -1,0 +1,129 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Objects_Functions
+
+[DESCRIPTION]
+
+- Overview of SAP HANA functions
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2020/12/21:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- FUNCTIONS
+
+[INPUT PARAMETERS]
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- FUNCTION_NAME           
+
+  Function name or pattern
+
+  'MYPROC'        --> Specific function MYPROC
+  'T%'            --> All functions starting with 'T'
+  '%'             --> All functions
+
+- FUNCTION_TYPE
+
+  Type of function (e.g. SQLSCRIPT2 or BUILTIN)
+
+  'BUILTIN'       --> BUILTIN functions
+  'SQLSCRIPT%'    --> Function types starting with 'SQLSCRIPT'
+  '%'             --> No restriction related to function types
+
+- USAGE_TYPE
+
+  Function usage type
+
+  'TABLE'         --> Functions with usage type TABLE
+  '%'             --> No restriction related to function usage type
+
+- ONLY_INVALID_FUNCTIONS
+
+  Possibility to restrict the result to invalid functions
+
+  'X'             --> Only show invalid functions
+  ' '             --> No restriction related to function validity
+  
+[OUTPUT PARAMETERS]
+
+- SCHEMA_NAME:   Schema name
+- FUNCTION_NAME: Function name
+- FUNCTION_TYPE: Function type
+- USAGE_TYPE:    Function usage type
+- PARAMETERS:    <input parameter count> -> <return value count>
+- VALID:         Validity status
+- CREATE_TIME:   Function creation time
+- DEFINITION:    Function definition
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+|SCHEMA_NAME |FUNCTION_NAME                                                           |FUNCTION_TYPE|USAGE_TYPE|PARAMETERS|VALID|CREATE_TIME        |
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+|HANA_XS_BASE|sap.hana.xs.admin.db::databaseDetails                                   |SQLSCRIPT2   |TABLE     | 0 -> 1   |TRUE |2020/08/14 14:52:54|
+|HANA_XS_BASE|sap.hana.xs.admin.db::fetchAllRoles                                     |SQLSCRIPT2   |TABLE     | 0 -> 1   |TRUE |2020/08/14 14:52:54|
+|HANA_XS_BASE|sap.hana.xs.admin.db::samlIdpList                                       |SQLSCRIPT2   |TABLE     | 0 -> 1   |TRUE |2020/08/14 14:52:54|
+|HANA_XS_BASE|sap.hana.xs.admin.db::systemDetails                                     |SQLSCRIPT2   |TABLE     | 0 -> 1   |TRUE |2020/08/14 14:52:54|
+|HANA_XS_BASE|sap.hana.xs.admin.jobs.server.db::LOGSONLY                              |SQLSCRIPT2   |TABLE     | 0 -> 1   |TRUE |2020/08/14 14:52:53|
+|HANA_XS_BASE|sap.hana.xs.admin.jobs.server.db::SCHEDULESONLY                         |SQLSCRIPT2   |TABLE     | 0 -> 1   |TRUE |2020/08/14 14:52:53|
+|HANA_XS_BASE|sap.hana.xs.admin.webdispatcher.server.db::APPLICATIONS                 |SQLSCRIPT2   |TABLE     | 0 -> 1   |TRUE |2020/08/14 14:52:53|
+|HANA_XS_BASE|sap.hana.xs.formLogin.profile.db::USER_PROFILE                          |SQLSCRIPT2   |TABLE     | 0 -> 1   |TRUE |2020/08/14 14:52:53|
+|HANA_XS_BASE|sap.hana.xs.selfService.admin.db::USS_REQUESTS                          |SQLSCRIPT2   |TABLE     | 0 -> 1   |TRUE |2020/08/14 14:52:53|
+|HANA_XS_BASE|sap.hana.xs.selfService.user.db::INI_PARAMS                             |SQLSCRIPT2   |TABLE     | 0 -> 1   |TRUE |2020/08/14 14:52:52|
+|SAP_REST_API|sap.hana.ide.editor.plugin.functionflow.server.findAppRoot::getparentdir|SQLSCRIPT2   |TABLE     | 1 -> 1   |TRUE |2020/11/18 14:33:16|
+|SAP_REST_API|sap.hana.ide.editor.plugin.functionflow.server.findAppRoot::lastindexof |SQLSCRIPT2   |TABLE     | 2 -> 1   |TRUE |2020/11/18 14:33:16|
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  F.SCHEMA_NAME,
+  F.FUNCTION_NAME,
+  F.FUNCTION_TYPE,
+  F.FUNCTION_USAGE_TYPE USAGE_TYPE,
+  LPAD(F.INPUT_PARAMETER_COUNT, 2) || CHAR(32) ||  '->' || CHAR(32) || F.RETURN_VALUE_COUNT PARAMETERS,
+  F.IS_VALID VALID,
+  TO_VARCHAR(F.CREATE_TIME, 'YYYY/MM/DD HH24:MI:SS') CREATE_TIME,
+  F.DEFINITION
+FROM
+( SELECT              /* Modification section */
+    '%' SCHEMA_NAME,
+    '%' FUNCTION_NAME,
+    '%' FUNCTION_TYPE,
+    '%' USAGE_TYPE,
+    ' ' ONLY_INVALID_FUNCTIONS
+  FROM
+    DUMMY
+) BI,
+  FUNCTIONS F
+WHERE
+  F.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+  F.FUNCTION_NAME LIKE BI.FUNCTION_NAME AND
+  F.FUNCTION_TYPE LIKE BI.FUNCTION_TYPE AND
+  F.FUNCTION_USAGE_TYPE LIKE BI.USAGE_TYPE AND
+  ( BI.ONLY_INVALID_FUNCTIONS = ' ' OR F.IS_VALID = 'FALSE' )
+ORDER BY
+  F.SCHEMA_NAME,
+  F.FUNCTION_NAME

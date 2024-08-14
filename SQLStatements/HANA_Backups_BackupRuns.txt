@@ -1,0 +1,405 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Backups_BackupRuns
+
+[DESCRIPTION]
+
+- Backup run information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- SERVICE_NAME instead of PORT needs to be used as M_BACKUP_CATALOG_FILES does not contain PORT and a resolution via
+  M_SERVICES is not generally possible, because historic host names can deviate.
+- NO_JOIN_REMOVAL hint required as workaround for bug 110097 (Rev. 112.02, "Execution flow must not reach here", "scalar subquery is not allowed")
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2014/03/31:  1.0 (initial version)
+- 2014/05/28:  1.1 (MESSAGE and aggregation included)
+- 2014/09/29:  1.2 (HOST, PORT and additional aggregation included)
+- 2014/11/27:  1.3 (backup write throughput MB_PER_S included)
+- 2015/04/18:  1.4 (DATA_BACKUP and BACKUP_ID included)
+- 2015/07/08:  1.5 (FULL_LOG_PCT included)
+- 2016/12/31:  1.6 (TIME_AGGREGATE_BY = 'TS<seconds>' included)
+- 2017/02/21:  1.7 (truncation of message in case of "Not all data could be written")
+- 2017/10/23:  1.8 (TIMEZONE included)
+- 2018/12/04:  1.9 (shortcuts for BEGIN_TIME and END_TIME like 'C', 'E-S900' or 'MAX')
+- 2019/10/01:  2.0 (switched from INNER JOIN to LEFT OUTER JOIN for M_BACKUP_CATALOG_FILES)
+
+[INVOLVED TABLES]
+
+- M_BACKUP_CATALOG
+- M_BACKUP_CATALOG_FILES
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Show information for indexserver
+  '%'             --> No restriction to service names
+
+- BACKUP_TYPE
+
+  Type of backup
+
+  'log backup'           --> Log backup   
+  'complete data backup' --> Normal data backup
+  'DATA_BACKUP'          --> All types of data backup ( 'complete data backup', 'data snapshot' )
+  '%'                    --> No backup type restriction  
+
+- BACKUP_DATA_TYPE
+
+  Type of data backed up
+
+  'VOLUME'               --> Normal data (data or log)
+  'CATALOG'              --> Catalog data (provided by nameserver as part of any backup)
+  'TOPOLOGY'             --> Topology information (provided by nameserver as part of data backups)
+  
+- BACKUP_STATUS
+
+  Status of backup
+
+  'successful'    --> Successful backups
+  'failed'        --> Unsuccessful backups
+  '%'             --> No restriction by backup status
+
+- MESSAGE
+
+  Backup message
+
+  '<ok>'          --> Only return backups with message <ok>
+  '%'             --> No restriction related to backup message
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'SAMPLE_TIME'   --> Aggregation by sample time
+  'HOST, SERVICE' --> Aggregation by host and service (if multiple choices are possible)
+  '%'             --> No aggregation, pure filtering (if supported)
+
+- AGGREGATION_TYPE
+
+  Type of aggregation (e.g. average, sum, maximum)
+
+  'AVG'           --> Average value
+  'SUM'           --> Total value
+  'MAX'           --> Maximum value
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+   'NONE'          --> No aggregation
+ 
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'TIME'          --> Sorting by time
+  'COUNT'         --> Sorting by number of backups
+
+[OUTPUT PARAMETERS]
+
+- START_TIME:       Backup start time
+- HOST:             Host name
+- SERVICE_NAME:     Service name
+- BACKUP_ID:        Backup Id
+- BACKUP_TYPE:      Backup type
+- DATA_TYPE:        Type of backup data (VOLUME for normal data, CATALOG for catalog data, TOPOLOGY for topology data)
+- STATUS:           Backup status
+- BACKUPS:          Number of backup runs
+- FULL_LOG_PCT:     Percentage of log backups of full logs (i.e. size of log >= 95 % of configured log_segment_size)
+- AGG:              Aggregation type for RUNTIME_H
+- RUNTIME_MIN:      Runtime of backups (in minutes)
+- BACKUP_SIZE_MB:   Backup size (MB)
+- MB_PER_S:         Backup write throughput (MB / s)
+- DAYS_PASSED:      Time since backup run (days)
+- MESSAGE:          Status message (e.g. error information in case of unsuccessful execution)
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------
+|START_TIME      |HOST       |PORT |BACKUP_TYPE|STATUS|BACKUPS|AGG|RUNTIME_H|BACKUP_SIZE_GB|MESSAGE|
+----------------------------------------------------------------------------------------------------
+|2014/09/29 12:00|saphana0032|30001|log backup |any   |     55|AVG|     0.00|          0.03|any    |
+|2014/09/29 12:00|saphana0032|30003|log backup |any   |      4|AVG|     0.00|          0.43|any    |
+|2014/09/29 12:00|saphana0032|30005|log backup |any   |     14|AVG|     0.00|          0.05|any    |
+|2014/09/29 12:00|saphana0032|30007|log backup |any   |      1|AVG|     0.00|          0.00|any    |
+|2014/09/29 12:00|saphana0033|30003|log backup |any   |      4|AVG|     0.01|          0.60|any    |
+|2014/09/29 12:00|saphana0034|30003|log backup |any   |      4|AVG|     0.00|          0.60|any    |
+|2014/09/29 12:00|saphana0041|30003|log backup |any   |      4|AVG|     0.00|          0.17|any    |
+|2014/09/29 12:00|saphana0042|30003|log backup |any   |      4|AVG|     0.00|          0.12|any    |
+|2014/09/29 12:00|saphana0043|30003|log backup |any   |      8|AVG|     0.00|          0.89|any    |
+|2014/09/29 12:00|saphana0044|30003|log backup |any   |      4|AVG|     0.00|          0.15|any    |
+----------------------------------------------------------------------------------------------------
+
+*/
+
+  START_TIME,
+  HOST,
+  SERVICE_NAME,
+  LPAD(BACKUP_ID, 13) BACKUP_ID,
+  BACKUP_TYPE,
+  DATA_TYPE,
+  STATUS,
+  LPAD(BACKUPS, 7) BACKUPS,
+  LPAD(TO_DECIMAL(MAP(BACKUPS, 0, 0, NUM_LOG_FULL / BACKUPS * 100), 10, 2), 12) FULL_LOG_PCT,
+  AGG,
+  IFNULL(LPAD(TO_DECIMAL(RUNTIME_H * 60, 10, 2), 11), '') RUNTIME_MIN,
+  LPAD(TO_DECIMAL(BACKUP_SIZE_MB, 10, 2), 14) BACKUP_SIZE_MB,
+  IFNULL(LPAD(TO_DECIMAL(MAP(RUNTIME_H, 0, 0, BACKUP_SIZE_MB / RUNTIME_H / 3600), 10, 2), 8), '') MB_PER_S,
+  LPAD(TO_DECIMAL(SECONDS_BETWEEN(MAX_START_TIME, CURRENT_TIMESTAMP) / 86400, 10, 2), 11) DAYS_PASSED,
+  MESSAGE
+FROM
+( SELECT
+    START_TIME,
+    HOST,
+    SERVICE_NAME,
+    BACKUP_ID,
+    BACKUP_TYPE,
+    BACKUP_DATA_TYPE DATA_TYPE,
+    STATUS,
+    NUM_BACKUP_RUNS BACKUPS,
+    NUM_LOG_FULL,
+    AGGREGATION_TYPE AGG,
+    CASE AGGREGATION_TYPE
+      WHEN 'SUM' THEN SUM_RUNTIME_H
+      WHEN 'AVG' THEN MAP(NUM_BACKUP_RUNS, 0, 0, SUM_RUNTIME_H / NUM_BACKUP_RUNS)
+      WHEN 'MAX' THEN MAX_RUNTIME_H
+    END RUNTIME_H,
+    CASE AGGREGATION_TYPE
+      WHEN 'SUM' THEN SUM_BACKUP_SIZE_MB
+      WHEN 'AVG' THEN MAP(NUM_BACKUP_RUNS, 0, 0, SUM_BACKUP_SIZE_MB / NUM_BACKUP_RUNS)
+      WHEN 'MAX' THEN MAX_BACKUP_SIZE_MB
+    END BACKUP_SIZE_MB,
+    MAX_START_TIME,
+    MESSAGE,
+    ORDER_BY
+  FROM
+  ( SELECT
+      CASE 
+        WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+          CASE 
+            WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+              TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), 
+              CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(B.SYS_START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE B.SYS_START_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+            ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(B.SYS_START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE B.SYS_START_TIME END, BI.TIME_AGGREGATE_BY)
+          END
+        ELSE 'any' 
+      END START_TIME,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')             != 0 THEN BF.HOST                                         ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                         END HOST,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')          != 0 THEN BF.SERVICE_TYPE_NAME                            ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME)         END SERVICE_NAME,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BACKUP_ID')        != 0 THEN TO_VARCHAR(B.BACKUP_ID)                         ELSE 'any'                                                     END BACKUP_ID,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BACKUP_TYPE')      != 0 THEN B.ENTRY_TYPE_NAME                               ELSE MAP(BI.BACKUP_TYPE, '%', 'any', BI.BACKUP_TYPE)           END BACKUP_TYPE,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BACKUP_DATA_TYPE') != 0 THEN BF.SOURCE_TYPE_NAME                             ELSE MAP(BI.BACKUP_DATA_TYPE, '%', 'any', BI.BACKUP_DATA_TYPE) END BACKUP_DATA_TYPE,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STATE')            != 0 THEN B.STATE_NAME                                    ELSE MAP(BI.BACKUP_STATUS, '%', 'any', BI.BACKUP_STATUS)       END STATUS,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MESSAGE')          != 0 THEN CASE WHEN B.MESSAGE LIKE 'Not all data could be written%' THEN 'Not all data could be written' 
+        ELSE B.MESSAGE END ELSE MAP(BI.MESSAGE, '%', 'any', BI.MESSAGE) END MESSAGE,
+      COUNT(DISTINCT(B.BACKUP_ID)) NUM_BACKUP_RUNS,
+      SUM(SECONDS_BETWEEN(B.SYS_START_TIME, B.SYS_END_TIME) / 3600) * SUM(BF.BACKUP_SIZE) / SUM(BF.TOTAL_BACKUP_SIZE) SUM_RUNTIME_H,
+      MAX(SECONDS_BETWEEN(B.SYS_START_TIME, B.SYS_END_TIME) / 3600) * MAX(BF.BACKUP_SIZE / BF.TOTAL_BACKUP_SIZE) MAX_RUNTIME_H,
+      IFNULL(SUM(BF.BACKUP_SIZE / 1024 / 1024 ), 0) SUM_BACKUP_SIZE_MB,
+      IFNULL(MAX(BF.BACKUP_SIZE / 1024 / 1024 ), 0) MAX_BACKUP_SIZE_MB,
+      MAX(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(B.SYS_START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE B.SYS_START_TIME END) MAX_START_TIME,
+      SUM(IFNULL(CASE WHEN B.ENTRY_TYPE_NAME = 'log backup' AND BF.SOURCE_TYPE_NAME = 'volume' AND BF.BACKUP_SIZE / 1024 / 1024 >= L.SEGMENT_SIZE * 0.95 THEN 1 ELSE 0 END, 0)) NUM_LOG_FULL,
+      BI.MIN_BACKUP_TIME_S,
+      BI.AGGREGATION_TYPE,
+      BI.AGGREGATE_BY,
+      BI.ORDER_BY
+    FROM
+    ( SELECT
+        CASE
+          WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+          WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+          WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+          WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+          WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+          WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+          WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+          WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+          WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+          WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+          WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+          WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+          WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+        END BEGIN_TIME,
+        CASE
+          WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+          WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+          WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+          WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+          WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+          WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+          WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+          WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+          WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+          WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+          WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+          WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+          WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+        END END_TIME,
+        TIMEZONE,
+        HOST,
+        SERVICE_NAME,
+        BACKUP_TYPE,
+        BACKUP_DATA_TYPE,
+        BACKUP_STATUS,
+        MESSAGE,
+        MIN_BACKUP_TIME_S,
+        AGGREGATION_TYPE,
+        AGGREGATE_BY,
+        ORDER_BY,
+        MAP(TIME_AGGREGATE_BY,
+          'NONE',        'YYYY/MM/DD HH24:MI:SS',
+          'HOUR',        'YYYY/MM/DD HH24',
+          'DAY',         'YYYY/MM/DD (DY)',
+          'HOUR_OF_DAY', 'HH24',
+          TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY
+      FROM
+      ( SELECT                                                                  /* Modification section */
+          '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+          '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+          'SERVER' TIMEZONE,                              /* SERVER, UTC */
+          '%' HOST,
+          '%' SERVICE_NAME,
+          'log backup' BACKUP_TYPE,                             /* e.g. 'log backup', 'complete data backup', 'incremental data backup', 'differential data backup', 'data snapshot',
+                                                                  'DATA_BACKUP' for all data backup and snapshot types */
+          '%' BACKUP_DATA_TYPE,                            /* VOLUME -> log or data, CATALOG -> catalog, TOPOLOGY -> topology */
+          '%' BACKUP_STATUS,                                    /* e.g. 'successful', 'failed' */
+          '%' MESSAGE,
+          -1 MIN_BACKUP_TIME_S,
+          'AVG' AGGREGATION_TYPE,     /* SUM, MAX, AVG */
+          'TIME' AGGREGATE_BY,        /* HOST, SERVICE, TIME, BACKUP_ID, BACKUP_TYPE, BACKUP_DATA_TYPE, STATE, MESSAGE or comma separated list, NONE for no aggregation */
+          'HOUR' TIME_AGGREGATE_BY,     /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+          'TIME' ORDER_BY              /* COUNT, TIME */
+        FROM
+          DUMMY
+      ) 
+    ) BI INNER JOIN
+      M_BACKUP_CATALOG B ON
+        CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(B.SYS_START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE B.SYS_START_TIME END BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+        ( BI.BACKUP_TYPE = 'DATA_BACKUP' AND B.ENTRY_TYPE_NAME IN ( 'complete data backup', 'differential data backup', 'incremental data backup', 'data snapshot' ) OR
+          BI.BACKUP_TYPE != 'DATA_BACKUP' AND UPPER(B.ENTRY_TYPE_NAME) LIKE UPPER(BI.BACKUP_TYPE) 
+        ) AND
+        B.STATE_NAME LIKE BI.BACKUP_STATUS AND
+        B.MESSAGE LIKE BI.MESSAGE LEFT OUTER JOIN
+      ( SELECT
+          BACKUP_ID,
+          SOURCE_ID,
+          HOST,
+          SERVICE_TYPE_NAME,
+          SOURCE_TYPE_NAME,
+          BACKUP_SIZE,
+          SUM(BACKUP_SIZE) OVER (PARTITION BY BACKUP_ID) TOTAL_BACKUP_SIZE
+        FROM
+          M_BACKUP_CATALOG_FILES 
+      ) BF ON
+        B.BACKUP_ID = BF.BACKUP_ID LEFT OUTER JOIN
+      M_LOG_BUFFERS L ON
+        L.HOST = BF.HOST AND
+        L.VOLUME_ID = BF.SOURCE_ID
+      WHERE
+        IFNULL(BF.HOST, '') LIKE BI.HOST AND
+        IFNULL(BF.SERVICE_TYPE_NAME, '') LIKE BI.SERVICE_NAME AND
+        IFNULL(UPPER(BF.SOURCE_TYPE_NAME), '') LIKE UPPER(BI.BACKUP_DATA_TYPE)
+    GROUP BY
+      CASE 
+        WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+          CASE 
+            WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+              TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), 
+              CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(B.SYS_START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE B.SYS_START_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+            ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(B.SYS_START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE B.SYS_START_TIME END, BI.TIME_AGGREGATE_BY)
+          END
+        ELSE 'any' 
+      END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')             != 0 THEN BF.HOST                                         ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                         END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')          != 0 THEN BF.SERVICE_TYPE_NAME                            ELSE MAP(BI.SERVICE_NAmE, '%', 'any', BI.SERVICE_NAME)         END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BACKUP_ID')        != 0 THEN TO_VARCHAR(B.BACKUP_ID)                         ELSE 'any'                                                     END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BACKUP_TYPE')      != 0 THEN B.ENTRY_TYPE_NAME                               ELSE MAP(BI.BACKUP_TYPE, '%', 'any', BI.BACKUP_TYPE)           END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BACKUP_DATA_TYPE') != 0 THEN BF.SOURCE_TYPE_NAME                             ELSE MAP(BI.BACKUP_DATA_TYPE, '%', 'any', BI.BACKUP_DATA_TYPE) END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STATE')            != 0 THEN B.STATE_NAME                                    ELSE MAP(BI.BACKUP_STATUS, '%', 'any', BI.BACKUP_STATUS)       END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MESSAGE')          != 0 THEN CASE WHEN B.MESSAGE LIKE 'Not all data could be written%' THEN 'Not all data could be written' ELSE B.MESSAGE END 
+        ELSE MAP(BI.MESSAGE, '%', 'any', BI.MESSAGE) END,
+      BI.MIN_BACKUP_TIME_S,
+      BI.AGGREGATION_TYPE,
+      BI.AGGREGATE_BY,
+      BI.ORDER_BY
+  )
+  WHERE
+  ( MIN_BACKUP_TIME_S = -1 OR SUM_RUNTIME_H >= MIN_BACKUP_TIME_S / 3600 )
+)
+ORDER BY
+  MAP(ORDER_BY, 'COUNT', BACKUPS) DESC,
+  START_TIME DESC,
+  HOST,
+  SERVICE_NAME
+WITH HINT (NO_JOIN_REMOVAL)

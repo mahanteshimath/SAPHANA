@@ -1,0 +1,168 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Workload_WorkloadClasses_2.00.040+
+
+[DESCRIPTION]
+
+- Overview of configured workload classes and mappings
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- WORKLOAD_CLASSES and WORKLOAD_MAPPINGS not available before SAP HANA 1.0 SPS 10
+- TOTAL_STATEMENT_MEMORY_LIMIT and TOTAL_STATEMENT_THREAD_LIMIT available with SAP HANA >= 2.00.020
+- *_WILDCARD columns available with SAP HANA >= 2.00.030
+- SCHEMA_NAME, OBJECT_NAME and USERGROUP_NAME available with SAP HANA >= 2.00.040
+- STATEMENT_TIMOUT available with SAP HANA >= 2.00.040
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.040
+
+[SQL COMMAND VERSION]
+
+- 2016/01/07:  1.0 (initial version)
+- 2019/01/15:  1.1 (dedicated 2.00.020+ version)
+- 2020/05/12:  1.2 (dedicated 2.00.040+ version with replacement of individual columns with summarized VALIDITY column)
+- 2021/06/08:  1.3 (EXCLUDE_STANDARD_CLASSES included)
+- 2022/10/20:  1.4 (STATEMENT_TIMEOUT included)
+
+[INVOLVED TABLES]
+
+- WORKLOAD_CLASSES
+- WORKLOAD_MAPPINGS
+
+[INPUT PARAMETERS]
+
+- WORKLOAD_CLASS
+
+  Workload class name
+
+  'MY_WORKLOAD'   --> Restrict output to entries related to workload class MY_WORKLOAD
+  '%'             --> No restriction
+
+- WORKLOAD_MAPPING
+
+  Workload mapping name
+
+  'MY_MAPPING '   --> Restrict output to entries related to workload mapping MY_MAPPING
+  '%'             --> No restriction
+
+- DB_USER
+
+  Database user name
+
+  'SAPECC'        --> Only show workload mapping for database user SAPECC
+  'SAP%'          --> Show users with names starting with 'SAP'
+  '%'             --> No user name restriction
+
+- APP_USER
+
+  Application user name
+
+  'ALEREMOTE'     --> Only show workload mapping for application user ALEREMOTE
+  '%'             --> No application user name restriction
+
+- APP_NAME
+
+  Application name
+
+  'ABAP:SR3'      --> Only show workload mappings for application 'ABAP:SR3'
+  '%'             --> No restriction
+
+- EXCLUDE_STANDARD_CLASSES
+
+  Possibility to exclude standard workload classses (as described in SAP Note 2222250 -> "Which default workload classes exist")
+
+  'X'             --> Exclude standard workload classes
+  ' '             --> Also consider standard workload classes
+  
+[OUTPUT PARAMETERS]
+
+- WORKLOAD_CLASS:   Workload class name
+- E:                'X' if workload class is enabled, otherwise ' '
+- P:                Priority (0 -> lowest, 9 -> highest)
+- MEM_GB:           Statement memory limit (GB)
+- TOT_MEM_GB:       Total statement memory limit (GB)
+- THREAD:           Statement thread limit
+- TOT_THREAD:       Total statement thread limit
+- TIMEOUT_S:        Statement timeout (s)
+- WORKLOAD_MAPPING: Workload mapping name
+- VALIDITY:         Workload class validity (e.g. user, application name, client)
+
+[EXAMPLE OUTPUT]
+
+--------------------------------------------------------------------------------------------------------------------------------------------------
+|WORKLOAD_CLASS|PRIO|STMT_MEM_LIMIT_GB|STMT_THREAD_LIMIT|WORKLOAD_MAPPING|USER_NAME|APP_USER_NAME|APP_NAME                                |CLIENT|
+--------------------------------------------------------------------------------------------------------------------------------------------------
+|WLC_TH80      |    |                 |               80|BI_B            |         |             |sap.bi.bundles                          |      |
+|WLC_TH80      |    |                 |               80|BI_D            |         |             |sap.bi.da                               |      |
+|WLC_TH80      |    |                 |               80|BI_L            |         |             |sap.bi.launchpad                        |      |
+|WLC_TH80      |    |                 |               80|SR3_ABAP        |         |             |ABAP:SR3                                |      |
+|WLC_TH80_P3   |   3|                 |               80|BI_VA_VXTAB     |         |             |sap.bi.va.vxtab                         |      |
+|WLC_TH80_P3   |   3|                 |               80|C5217133        |C5217133 |             |                                        |      |
+|WLC_TH80_P3   |   3|                 |               80|D123456         |D123456  |             |                                        |      |
+--------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  WC.WORKLOAD_CLASS_NAME WORKLOAD_CLASS,
+  MAP(WM.IS_ENABLED, 'TRUE', 'X', '') E,
+  IFNULL(TO_VARCHAR(WC.PRIORITY), '') P,
+  IFNULL(LPAD(TO_DECIMAL(WC.STATEMENT_MEMORY_LIMIT, 10, 0), 6), '') MEM_GB,
+  IFNULL(LPAD(TO_DECIMAL(WC.TOTAL_STATEMENT_MEMORY_LIMIT, 10, 0), 10), '') TOT_MEM_GB,
+  IFNULL(LPAD(WC.STATEMENT_THREAD_LIMIT, 6), '') THREAD,
+  IFNULL(LPAD(WC.TOTAL_STATEMENT_THREAD_LIMIT, 10), '') TOT_THREAD,
+  IFNULL(LPAD(WC.STATEMENT_TIMEOUT, 9), '') TIMEOUT_S,
+  IFNULL(WM.WORKLOAD_MAPPING_NAME, '') WORKLOAD_MAPPING,
+  RTRIM(MAP(WM.USER_NAME,                       NULL, '', 'DB_USER:'                     || CHAR(32) || WM.USER_NAME                           || ',' || CHAR(32)) ||
+    MAP(WM.USERGROUP_NAME,                      NULL, '', 'USERGROUP_NAME	:'       || CHAR(32) || WM.USERGROUP_NAME                      || ',' || CHAR(32)) ||
+    MAP(WM.APPLICATION_USER_NAME,               NULL, '', 'APP_USER:'                    || CHAR(32) || WM.APPLICATION_USER_NAME               || ',' || CHAR(32)) ||
+    MAP(WM.APPLICATION_USER_NAME_WILDCARD,      NULL, '', 'APP_USER_WILDCARD:'           || CHAR(32) || WM.APPLICATION_USER_NAME_WILDCARD      || ',' || CHAR(32)) ||
+    MAP(WM.APPLICATION_NAME,                    NULL, '', 'APP_NAME:'                    || CHAR(32) || WM.APPLICATION_NAME                    || ',' || CHAR(32)) ||
+    MAP(WM.APPLICATION_NAME_WILDCARD,           NULL, '', 'APP_NAME_WILDCARD:'           || CHAR(32) || WM.APPLICATION_NAME_WILDCARD           || ',' || CHAR(32)) ||
+    MAP(WM.CLIENT,                              NULL, '', 'CLIENT:'                      || CHAR(32) || WM.CLIENT                              || ',' || CHAR(32)) ||
+    MAP(WM.CLIENT_WILDCARD,                     NULL, '', 'CLIENT_WILDCARD:'             || CHAR(32) || WM.CLIENT_WILDCARD                     || ',' || CHAR(32)) ||
+    MAP(WM.APPLICATION_COMPONENT_NAME,          NULL, '', 'APP_COMPONENT_NAME:'          || CHAR(32) || WM.APPLICATION_COMPONENT_NAME          || ',' || CHAR(32)) ||
+    MAP(WM.APPLICATION_COMPONENT_NAME_WILDCARD, NULL, '', 'APP_COMPONENT_NAME_WILDCARD:' || CHAR(32) || WM.APPLICATION_COMPONENT_NAME_WILDCARD || ',' || CHAR(32)) ||
+    MAP(WM.APPLICATION_COMPONENT_TYPE,          NULL, '', 'APP_COMPONENT_TYPE:'          || CHAR(32) || WM.APPLICATION_COMPONENT_TYPE          || ',' || CHAR(32)) ||
+    MAP(WM.APPLICATION_COMPONENT_TYPE_WILDCARD, NULL, '', 'APP_COMPONENT_TYPE_WILDCARD:' || CHAR(32) || WM.APPLICATION_COMPONENT_TYPE_WILDCARD || ',' || CHAR(32)) ||
+    MAP(WM.XS_APPLICATION_USER_NAME,            NULL, '', 'XS_APP_USER:'                 || CHAR(32) || WM.XS_APPLICATION_USER_NAME            || ',' || CHAR(32)) ||
+    MAP(WM.XS_APPLICATION_USER_NAME_WILDCARD,   NULL, '', 'XS_APP_USER_WILDCARD:'        || CHAR(32) || WM.XS_APPLICATION_USER_NAME_WILDCARD   || ',' || CHAR(32)) ||
+    MAP(WM.SCHEMA_NAME,                         NULL, '', 'SCHEMA_NAME:'                 || CHAR(32) || WM.SCHEMA_NAME                         || ',' || CHAR(32)) ||
+    MAP(WM.OBJECT_NAME,                         NULL, '', 'OBJECT_NAME:'                 || CHAR(32) || WM.OBJECT_NAME                         || ',' || CHAR(32)), ',' || CHAR(32))
+    VALIDITY
+FROM
+( SELECT                /* Modification section */
+    '%' WORKLOAD_CLASS,
+    '%' WORKLOAD_MAPPING,
+    '%' DB_USER,
+    '%' APP_USER,
+    '%' APP_NAME,
+    'X' EXCLUDE_STANDARD_CLASSES
+  FROM
+    DUMMY	
+) BI INNER JOIN
+  WORKLOAD_CLASSES WC ON
+    WC.WORKLOAD_CLASS_NAME LIKE BI.WORKLOAD_CLASS LEFT OUTER JOIN
+  WORKLOAD_MAPPINGS WM ON
+    UPPER(WM.WORKLOAD_CLASS_NAME) = UPPER(WC.WORKLOAD_CLASS_NAME)
+WHERE
+  UPPER(IFNULL(WM.WORKLOAD_MAPPING_NAME, '')) LIKE UPPER(BI.WORKLOAD_MAPPING) AND
+  UPPER(IFNULL(WM.USER_NAME, '')) LIKE UPPER(BI.DB_USER) AND
+  UPPER(IFNULL(WM.APPLICATION_USER_NAME, '')) LIKE UPPER(BI.APP_USER) AND
+  UPPER(IFNULL(WM.APPLICATION_NAME, '')) LIKE UPPER(BI.APP_NAME) AND
+  ( BI.EXCLUDE_STANDARD_CLASSES = ' ' OR IFNULL(UPPER(WC.WORKLOAD_CLASS_NAME), '') NOT IN ( 'PFW_COLLECTOR', '_SAP_SYS_STATISTICS_USER', 'ESSCONCURRENCYCLASS' ) )
+ORDER BY
+  WC.WORKLOAD_CLASS_NAME,
+  WM.WORKLOAD_MAPPING_NAME,
+  WM.USER_NAME,
+  WM.APPLICATION_USER_NAME,
+  WM.APPLICATION_NAME,
+  WM.CLIENT

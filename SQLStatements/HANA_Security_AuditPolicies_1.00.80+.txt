@@ -1,0 +1,247 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Security_AuditPolicies
+
+[DESCRIPTION]
+
+- Overview of defined audit policies
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- AUDIT_POLICIES.TRAIL_TYPE available with SAP HANA >= 1.0 SPS 08
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.80
+
+[SQL COMMAND VERSION]
+
+- 2016/12/22:  1.0 (initial version)
+- 2019/02/18:  1.1 (AGGREGATE_BY and ORDER BY included)
+- 2020/04/20:  1.2 (TRAIL_TYPE included)
+- 2023/03/27:  1.3 (introduction of abbreviations for shortening some column lengths)
+
+[INVOLVED TABLES]
+
+- AUDIT_POLICIES
+
+[INPUT PARAMETERS]
+
+- AUDIT_POLICY_NAME
+
+  Name of audit policy
+
+  'ChangeOfUsers' --> Restrict output to audit policy ChangeOfUsers
+  'C%'            --> Only display audit policies starting with 'C'
+  '%'             --> No restriction related to audit policy name
+
+- EVENT_STATUS
+
+  Event status
+
+  'ALL EVENTS'    --> Restrict output to policies with event status ALL EVENTS
+  '%'             --> No restriction related to event status
+
+- POLICY_ACTIVE
+
+  Flag if policy is active
+
+  'TRUE'          --> Only display active policies
+  'FALSE'         --> Only display inactive policies
+  '%'             --> No restriction related to active / inactive policy
+
+- POLICY_VALID
+
+  Flag if policy is valid
+
+  'TRUE'          --> Only display valid policies
+  'FALSE%'        --> Only display invalid policies
+  '%'             --> No restriction related to active / inactive policy
+
+- EVENT_ACTION
+
+  Event action
+
+  'CONNECT'           --> Show audit policies for CONNECT events
+  'DML'               --> Show audit actions for DML events (DELETE, INSERT, SELECT, UPDATE, UPSERT)
+  '%'                 --> No restriction related to event action
+
+- USER_NAME
+
+  User name
+
+  'ALL USERS'    --> Display policies with user name ALL USERS
+  'SYSTEM'       --> Display policies with user name SYSTEM
+  '%'            --> No restriction related to user name
+
+- EXCEPT_USER_NAME
+
+  Exception user name
+
+  'MONITOR'      --> Display policies with exception user name MONITOR
+  '%'            --> No restriction related to exception user name
+
+- OBJECT_TYPE
+
+  Object type
+
+  'SCHEMA'       --> Display policies for objects with type SCHEMA
+  '%'            --> No restriction related to object type
+
+- OBJECT_SCHEMA
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- OBJECT_NAME
+
+  Object name
+
+  'EDIDC'         --> Specific object name EDIDC
+  'A%'            --> All objects starting with 'A'
+  '%'             --> All objects
+
+- TRAIL_TYPE
+
+  Audit trail type
+
+  'CSV'           --> Restriction to trail type CSV (i.e. CSV text file)
+  '%'             --> No restriction related to audit trail type
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'POLICY'        --> Aggregation by audit policy
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'SIZE'          --> Sorting by size 
+  'TABLE'         --> Sorting by table name
+
+[OUTPUT PARAMETERS]
+
+- AUDIT_POLICY:     Audit policy name
+- ES:               Event status
+                    - AE: All events
+                    - SE: Successful events (auditing in case of success)
+                    - UE: Unsuccessful event (auditing in case of failure)
+- A:                'X' if audit policy is active, otherwise ' '
+- V:                'X' if audit policy is valid, otherwise ' '
+- EVENT_ACTION:     Event action
+- USER_NAME:        User name
+- OBJECT:           Object details (type, schema, name, dependent on availability)
+- TRAIL_TYPE:       Audit trail type
+- COUNT:            Number of policies
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------------------------------------------------------------------
+|AUDIT_POLICY                                      |ES|A|V|EVENT_ACTION                |USER_NAME|OBJECT     |TRAIL_TYPE|COUNT  |
+---------------------------------------------------------------------------------------------------------------------------------
+|HEC Audit - Authorization Administration          |SE|X|X|GRANT ANY                   |ALL USERS|ALL OBJECTS|          |      1|
+|HEC Audit - Authorization Administration          |SE|X|X|REVOKE ANY                  |ALL USERS|ALL OBJECTS|          |      1|
+|HEC Audit - Backup catalog                        |AE|X|X|BACKUP CATALOG DELETE       |ALL USERS|ALL OBJECTS|          |      1|
+|HEC Audit - Config Files                          |AE|X|X|SYSTEM CONFIGURATION CHANGE |ALL USERS|ALL OBJECTS|          |      1|
+|HEC Audit - Encryption                            |AE|X|X|ALTER PERSISTENCE ENCRYPTION|ALL USERS|ALL OBJECTS|          |      1|
+|HEC Audit - Granting and revoking of authorization|SE|X|X|REVOKE STRUCTURED PRIVILEGE |ALL USERS|ALL OBJECTS|          |      1|
+|HEC Audit - Granting and revoking of authorization|SE|X|X|GRANT ROLE                  |ALL USERS|ALL OBJECTS|          |      1|
+|HEC Audit - Granting and revoking of authorization|SE|X|X|REVOKE ROLE                 |ALL USERS|ALL OBJECTS|          |      1|
+|HEC Audit - Granting and revoking of authorization|SE|X|X|GRANT STRUCTURED PRIVILEGE  |ALL USERS|ALL OBJECTS|          |      1|
+|HEC Audit - Privileges                            |AE|X|X|GRANT PRIVILEGE             |ALL USERS|ALL OBJECTS|          |      1|
+---------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  AUDIT_POLICY,
+  MAP(EVENT_STATUS, 'ALL EVENTS', 'AE', 'SUCCESSFUL EVENTS', 'SE', 'UNSUCCESSFUL EVENTS', 'UE', EVENT_STATUS) ES,
+  MAP(ACTIVE, 'TRUE', 'X', ' ') A,
+  MAP(VALID, 'TRUE', 'X', ' ') V,
+  EVENT_ACTION,
+  CASE USER_NAME
+     WHEN 'ALL USERS' THEN 'ALL USERS' || MAP(EXCEPT_USER_NAME, '', '', CHAR(32) || 'but' || CHAR(32) || EXCEPT_USER_NAME) 
+     ELSE USER_NAME || MAP(USER_NAME, '', '', ',' || CHAR(32)) || MAP(EXCEPT_USER_NAME, '', '', 'not' || CHAR(32) || EXCEPT_USER_NAME) 
+  END USER_NAME,
+  MAP(OBJECT_TYPE, '', '', OBJECT_TYPE || CHAR(32)) || MAP(OBJECT_SCHEMA, '', '', OBJECT_SCHEMA || '.') || OBJECT_NAME OBJECT,
+  TRAIL_TYPE,
+  LPAD(COUNT, 7) COUNT
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'POLICY')        != 0 THEN AP.AUDIT_POLICY_NAME            ELSE MAP(BI.AUDIT_POLICY_NAME, '%', 'any', BI.AUDIT_POLICY_NAME) END AUDIT_POLICY,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STATUS')        != 0 THEN AP.EVENT_STATUS                 ELSE MAP(BI.EVENT_STATUS,      '%', 'any', BI.EVENT_STATUS)      END EVENT_STATUS,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'ACTIVE')        != 0 THEN AP.IS_AUDIT_POLICY_ACTIVE       ELSE MAP(BI.POLICY_ACTIVE,     '%', 'any', BI.POLICY_ACTIVE)     END ACTIVE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'VALID')         != 0 THEN AP.IS_VALID                     ELSE MAP(BI.POLICY_VALID,      '%', 'any', BI.POLICY_VALID)      END VALID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'ACTION')        != 0 THEN AP.EVENT_ACTION                 ELSE MAP(BI.EVENT_ACTION,      '%', 'any', BI.EVENT_ACTION)      END EVENT_ACTION,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'USER_NAME')     != 0 THEN IFNULL(AP.USER_NAME, '')        ELSE MAP(BI.USER_NAME,         '%', 'any', BI.USER_NAME)         END USER_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'EXCEPT_USER')   != 0 THEN IFNULL(AP.EXCEPT_USER_NAME, '') ELSE MAP(BI.EXCEPT_USER_NAME,  '%', 'any', BI.EXCEPT_USER_NAME)  END EXCEPT_USER_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OBJECT_TYPE')   != 0 THEN IFNULL(AP.OBJECT_TYPE, '')      ELSE MAP(BI.OBJECT_TYPE,       '%', 'any', BI.OBJECT_TYPE)       END OBJECT_TYPE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OBJECT_SCHEMA') != 0 THEN IFNULL(AP.OBJECT_SCHEMA, '')    ELSE MAP(BI.OBJECT_SCHEMA,     '%', 'any', BI.OBJECT_SCHEMA)     END OBJECT_SCHEMA,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OBJECT_NAME')   != 0 THEN IFNULL(AP.OBJECT_NAME, '')      ELSE MAP(BI.OBJECT_NAME,       '%', 'any', BI.OBJECT_NAME)       END OBJECT_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TRAIL_TYPE')    != 0 THEN IFNULL(AP.TRAIL_TYPE, '')       ELSE MAP(BI.TRAIL_TYPE,        '%', 'any', BI.TRAIL_TYPE)        END TRAIL_TYPE,
+    COUNT(*) COUNT,
+    BI.ORDER_BY
+  FROM
+  ( SELECT                  /* Modification section */
+      '%' AUDIT_POLICY_NAME,
+      '%' EVENT_STATUS,
+      '%' POLICY_ACTIVE,
+      '%' POLICY_VALID,
+      '%' EVENT_ACTION,
+      '%' USER_NAME,
+      '%' EXCEPT_USER_NAME,
+      '%' OBJECT_SCHEMA,
+      '%' OBJECT_NAME,
+      '%' OBJECT_TYPE,
+      '%' TRAIL_TYPE,
+      'NONE' AGGREGATE_BY,                          /* POLICY, STATUS, ACTIVE, VALID, ACTION, USER_NAME, EXCEPT_USER, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, TRAIL_TYPE */
+      'POLICY' ORDER_BY                              /* COUNT, POLICY, OBJECT */
+    FROM
+      DUMMY
+  ) BI,
+    AUDIT_POLICIES AP
+  WHERE
+    UPPER(AP.AUDIT_POLICY_NAME) LIKE UPPER(BI.AUDIT_POLICY_NAME) AND
+    AP.EVENT_STATUS LIKE BI.EVENT_STATUS AND
+    AP.IS_AUDIT_POLICY_ACTIVE LIKE BI.POLICY_ACTIVE AND
+    AP.IS_VALID LIKE BI.POLICY_VALID AND
+    ( BI.EVENT_ACTION  = 'DML' AND AP.EVENT_ACTION IN ('DELETE', 'INSERT', 'SELECT', 'UPDATE', 'UPSERT') OR
+      BI.EVENT_ACTION != 'DML' AND AP.EVENT_ACTION LIKE BI.EVENT_ACTION 
+    ) AND
+    IFNULL(AP.USER_NAME, '') LIKE BI.USER_NAME AND
+    IFNULL(AP.EXCEPT_USER_NAME, '') LIKE BI.EXCEPT_USER_NAME AND
+    IFNULL(AP.OBJECT_SCHEMA, '') LIKE BI.OBJECT_SCHEMA AND
+    IFNULL(AP.OBJECT_NAME, '') LIKE BI.OBJECT_NAME AND
+    IFNULL(AP.OBJECT_TYPE, '') LIKE BI.OBJECT_TYPE
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'POLICY')        != 0 THEN AP.AUDIT_POLICY_NAME            ELSE MAP(BI.AUDIT_POLICY_NAME, '%', 'any', BI.AUDIT_POLICY_NAME) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STATUS')        != 0 THEN AP.EVENT_STATUS                 ELSE MAP(BI.EVENT_STATUS,      '%', 'any', BI.EVENT_STATUS)      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'ACTIVE')        != 0 THEN AP.IS_AUDIT_POLICY_ACTIVE       ELSE MAP(BI.POLICY_ACTIVE,     '%', 'any', BI.POLICY_ACTIVE)     END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'VALID')         != 0 THEN AP.IS_VALID                     ELSE MAP(BI.POLICY_VALID,      '%', 'any', BI.POLICY_VALID)      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'ACTION')        != 0 THEN AP.EVENT_ACTION                 ELSE MAP(BI.EVENT_ACTION,      '%', 'any', BI.EVENT_ACTION)      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'USER_NAME')     != 0 THEN IFNULL(AP.USER_NAME, '')        ELSE MAP(BI.USER_NAME,         '%', 'any', BI.USER_NAME)         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'EXCEPT_USER')   != 0 THEN IFNULL(AP.EXCEPT_USER_NAME, '') ELSE MAP(BI.EXCEPT_USER_NAME,  '%', 'any', BI.EXCEPT_USER_NAME)  END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OBJECT_TYPE')   != 0 THEN IFNULL(AP.OBJECT_TYPE, '')      ELSE MAP(BI.OBJECT_TYPE,       '%', 'any', BI.OBJECT_TYPE)       END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OBJECT_SCHEMA') != 0 THEN IFNULL(AP.OBJECT_SCHEMA, '')    ELSE MAP(BI.OBJECT_SCHEMA,     '%', 'any', BI.OBJECT_SCHEMA)     END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OBJECT_NAME')   != 0 THEN IFNULL(AP.OBJECT_NAME, '')      ELSE MAP(BI.OBJECT_NAME,       '%', 'any', BI.OBJECT_NAME)       END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TRAIL_TYPE')    != 0 THEN IFNULL(AP.TRAIL_TYPE, '')       ELSE MAP(BI.TRAIL_TYPE,        '%', 'any', BI.TRAIL_TYPE)        END,
+    BI.ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'COUNT', COUNT) DESC,
+  MAP(ORDER_BY, 'POLICY', AUDIT_POLICY, 'OBJECT', OBJECT_SCHEMA || OBJECT_NAME )
+WITH HINT (IGNORE_PLAN_CACHE)
+  

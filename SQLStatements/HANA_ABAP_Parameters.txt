@@ -1,0 +1,138 @@
+WITH 
+
+/* 
+
+[NAME]
+
+- HANA_ABAP_Parameters
+
+[DESCRIPTION]
+
+- Important ABAP parameters with focus on database
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Needs to be run as ABAP schema owner as access to ABAP table data is required, otherwise an error like the following is reported:
+
+  [259]: invalid table name:  Could not find table/view <table> in schema <schema>
+
+- If access to ABAP objects is possible but you cannot log on as ABAP user, you can switch the default schema before executing the command:
+
+  SET SCHEMA SAP<sid>
+
+- ABAP parameters are based on table PAHI that is only updated from time to time, so after parameter changes 
+  you may have to wait for a day until the check recognizes the new parameter value.
+
+[VALID FOR]
+
+- Revisions:              all
+- Client application:     ABAP
+
+[SQL COMMAND VERSION]
+
+- 2020/12/23:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- various
+
+[INPUT PARAMETERS]
+
+- PARAMETER_NAME
+
+  ABAP parameter name
+
+  'rsdb/prefer_join' --> Only consider ABAP parameter rsdb/prefer_join
+  'dbs/hdb/%'        --> Only consider ABAP parameters starting with 'dbs/hdb/'
+  '%'                --> No restriction related to parameter name, only 
+
+- VALUE
+
+  ABAP parameter value
+
+  'FALSE'            --> Only return parameters with value FALSE
+  '%'                --> No restriction related to parameter value
+
+- ONLY_DB_RELATED_PARAMETERS
+
+  Possibility to restrict output to database related parameters
+
+  'X'                --> Only display parameters related to database (mainly rsdb/* and dbs/hdb/*)
+  ' '                --> No restriction to database related parameters
+
+[OUTPUT PARAMETERS]
+
+- PARAMETER_NAME: Parameter name
+- VALUE:          Parameter value
+- CHANGE_DATE:    Date of last change of the parameter
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------
+|PARAMETER_NAME                        |VALUE   |CHANGE_DATE|
+-------------------------------------------------------------
+|dbs/hdb/cmd_buffersize                |8388608 |2020/02/16 |
+|dbs/hdb/connect_property              |        |2019/05/19 |
+|dbs/hdb/dbname                        |        |2019/05/19 |
+|dbs/hdb/dbsl_iuuc_end_transaction_hook|0       |2019/06/16 |
+|dbs/hdb/input_parameters              |8192    |2018/02/18 |
+|dbs/hdb/max_array                     |100000  |2019/05/19 |
+|dbs/hdb/quiesce_check_enable          |0       |2019/05/19 |
+|dbs/hdb/quiesce_sleeptime             |5       |2019/05/19 |
+|dbs/hdb/schema                        |SAPABAP1|2019/05/19 |
+|dbs/hdb/sqldbc_trace                  |0,SQL   |2019/05/19 |
+-------------------------------------------------------------
+
+*/
+
+BASIS_INFO AS
+( SELECT                      /* Modification section */
+    '%' PARAMETER_NAME,
+    '%' VALUE,
+    'X' ONLY_DB_RELATED_PARAMETERS,
+    'NAME' ORDER_BY             /* NAME, DATE */
+  FROM
+    DUMMY
+),
+PARAMETERS AS
+( SELECT
+    PARAMETER_NAME,
+    VALUE,
+    CHANGE_DATE
+  FROM
+  ( SELECT
+      PARNAME PARAMETER_NAME,
+      PARVALUE VALUE,
+      TO_VARCHAR(TO_DATE(PARDATE, 'YYYYMMDD'), 'YYYY/MM/DD') CHANGE_DATE,
+      ROW_NUMBER() OVER (PARTITION BY PARNAME ORDER BY PARDATE DESC, PARSTATE, LPAD(PARVALUE, 999, CHAR(32))) ROWNO
+    FROM
+      PAHI
+    WHERE
+      PARSTATE IN ( 'A', 'C' )
+  )
+  WHERE
+    ROWNO = 1
+)
+SELECT
+  P.PARAMETER_NAME,
+  P.VALUE,
+  P.CHANGE_DATE
+FROM
+  BASIS_INFO BI,
+  PARAMETERS P
+WHERE
+  P.PARAMETER_NAME LIKE BI.PARAMETER_NAME AND
+  P.VALUE LIKE BI.VALUE AND
+  ( BI.ONLY_DB_RELATED_PARAMETERS = ' ' OR 
+    ( P.PARAMETER_NAME LIKE 'dbs/hdb%' OR P.PARAMETER_NAME LIKE 'rsdb/%' 
+    ) AND
+      P.PARAMETER_NAME NOT LIKE 'rsdb/oracle%' AND P.PARAMETER_NAME NOT LIKE 'rsdb/as4%' AND
+      P.PARAMETER_NAME NOT LIKE 'rsdb/mssql%'
+  )
+ORDER BY
+  MAP(BI.ORDER_BY, 'NAME', P.PARAMETER_NAME),
+  MAP(BI.ORDER_BY, 'DATE', P.CHANGE_DATE) DESC

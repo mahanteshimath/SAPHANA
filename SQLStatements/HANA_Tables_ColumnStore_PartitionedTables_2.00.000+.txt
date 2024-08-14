@@ -1,0 +1,261 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Tables_ColumnStore_PartitionedTables_2.00.000+
+
+[DESCRIPTION]
+
+- Overview of partitioned tables
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Tables with existing PARTITION_SPEC are listed rather than querying IS_PARTITIONED in M_TABLES
+- In the worst case this can result in non-partitioned tables being listed, but it is better for performance reasons
+- Partitioning is only possible in column store, not in row store
+- Tables with naming convention TR_<id> or TR_<id>_SIMULATION are DTP error stack tables
+- TABLE_PARTITIONS and PARTITIONED_TABLES available starting with SAP HANA 2.0 SPS 00
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.000
+
+[SQL COMMAND VERSION]
+
+- 2014/07/17:  1.0 (initial version)
+- 2016/03/09:  1.1 (ONLY_BW_INFOOBJECTS added)
+- 2016/06/27:  1.2 (ONLY_MULTI_COLUMN_HASH added)
+- 2018/09/25:  1.3 (RSPM* and TR_* tables as BW tables included)
+- 2021/02/09:  1.4 (dedicated 2.00.000+ version including TABLE_PARTITIONS and PARTITIONED_TABLES)
+
+[INVOLVED TABLES]
+
+- M_CS_TABLES
+- PARTITIONED_TABLES
+- TABLE_PARTITIONS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- MIN_NUM_PARTITIONS
+
+  Threshold for the minimum number of partitions
+
+  100             --> Only list tables with at least 100 partitions
+  -1              --> No limitation based on the number of partitions
+
+- EXCLUDE_BW_TABLES
+
+  Possibility to exclude BW tables from analysis (following naming convention /B%/%)
+
+  'X'             --> Only display non BW tables
+  ' '             --> Display all tables
+
+- ONLY_BW_INFOOBJECTS
+
+  Possibility to restrict output to BW info object tables
+
+  'X'             --> Only display BW info object tables
+  ' '             --> No restriction related to BW info objects
+
+- ONLY_MULTI_COLUMN_HASH
+
+  Possibility to restrict output to tables with multi-column hash partitioning on first level
+
+  'X'             --> Only display tables with multi-column hash partitioning on first level
+  ' '             --> No restriction related to multi-column hash partitioning
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOST'          --> Aggregation by host
+  'SCHEMA, TABLE' --> Aggregation by schema and table
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'PARTITIONS'    --> Sorting by number of partitions
+  'TABLE'         --> Sorting by table name
+
+[OUTPUT PARAMETERS]
+
+- HOST:                 Host name
+- PORT:                 Port
+- SCHEMA_NAME:          Schema name
+- TABLE_NAME:           Table name
+- NUM_ROWS:             Number of table records
+- PARTS:                Number of partitions
+- PARTITIONING_DETAILS: Partitioning and subpartitioning criteria
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------------------
+|HOST  |PORT |SCHEMA_NAME|TABLE_NAME      |NUM_PARTITIONS |PARTITIONING_DETAILS                                |
+----------------------------------------------------------------------------------------------------------------
+|hana06|30003|SAPSR3     |/BIC/ETESTIC    |              6|ROUNDROBIN 3  RANGE KEY_TESTICP 0,16,*              |
+|hana03|30003|SAPSR3     |/BI0/F0RSTT_C03 |              4|ROUNDROBIN 1  RANGE KEY_0RSTT_C03P 0,1,2,*          |
+|hana06|30003|SAPSR3     |/BI0/F0RSTT_C02 |              4|ROUNDROBIN 1  RANGE KEY_0RSTT_C02P 0,1,2,*          |
+|hana03|30003|SAPSR3     |/BI0/F0RSTT_C01 |              4|ROUNDROBIN 1  RANGE KEY_0RSTT_C01P 0,1,2,*          |
+|hana03|30003|SAPSR3     |/BI0/F0RSTT_C04 |              4|ROUNDROBIN 1  RANGE KEY_0RSTT_C04P 0,1,2,*          |
+|hana05|30003|SAPSR3     |/BI0/F0RSTT_C05 |              4|ROUNDROBIN 1  RANGE KEY_0RSTT_C05P 0,1,2,*          |
+|hana03|30003|SAPSR3     |/BI0/F0RSTT_C06 |              4|ROUNDROBIN 1  RANGE KEY_0RSTT_C06P 0,1,2,*          |
+|hana04|30003|SAPSR3     |/BI0/F0TCTHP24I |              4|ROUNDROBIN 1  RANGE KEY_0TCTHP24IP 0,1,2,*          |
+|hana02|30003|SAPSR3     |/BI0/F0TCT_C01  |              4|ROUNDROBIN 1  RANGE KEY_0TCT_C01P 0,1,2,*           |
+|hana07|30003|SAPSR3     |/BI0/F0TCT_C02  |              4|ROUNDROBIN 1  RANGE KEY_0TCT_C02P 0,1,2,*           |
+|hana04|30003|SAPSR3     |/BI0/F0TCT_C03  |              4|ROUNDROBIN 1  RANGE KEY_0TCT_C03P 0,1,2,*           |
+|hana05|30003|SAPSR3     |/BI0/F0TCT_C05  |              4|ROUNDROBIN 1  RANGE KEY_0TCT_C05P 0,1,2,*           |
+|hana06|30003|SAPSR3     |/BI0/F0TCT_C15  |              4|ROUNDROBIN 1  RANGE KEY_0TCT_C15P 0,1,2,*           |
+|hana06|30003|SAPSR3     |/BI0/F0TCT_CA1  |              4|ROUNDROBIN 1  RANGE KEY_0TCT_CA1P 0,1,2,*           |
+|hana06|30003|SAPSR3     |/BI0/F0TCT_C32  |              4|ROUNDROBIN 1  RANGE KEY_0TCT_C32P 0,1,2,*           |
+|hana06|30003|SAPSR3     |/BI0/F0TCT_C21  |              4|ROUNDROBIN 1  RANGE KEY_0TCT_C21P 0,1,2,*           |
+|hana02|30003|SAPSR3     |/BI0/F0TCT_C31  |              4|ROUNDROBIN 1  RANGE KEY_0TCT_C31P 0,1,2,*           |
+|hana06|30003|SAPSR3     |/BI0/F0TCT_C25  |              4|ROUNDROBIN 1  RANGE KEY_0TCT_C25P 0,1,2,*           |
+|hana07|30003|SAPSR3     |/BI0/F0TCT_C23  |              4|ROUNDROBIN 1  RANGE KEY_0TCT_C23P 0,1,2,*           |
+|hana03|30003|SAPSR3     |/BI0/F0TCT_C22  |              4|ROUNDROBIN 1  RANGE KEY_0TCT_C22P 0,1,2,*           |
+|hana02|30003|SAPSR3     |/BIC/FTZCAHXS06 |              4|ROUNDROBIN 1  RANGE KEY_TZCAHXS06P 0,1,2,*          |
+|hana03|30003|SAPSR3     |/BIC/B0173977000|              3|HASH 3 REQUEST,DATAPAKID,RECORD                     |
+|hana04|30003|SAPSR3     |/BIC/AR2MPZS2G00|              3|HASH 3 REQUEST,DATAPAKID,RECORD                     |
+|hana06|30003|SAPSR3     |/BIC/B0083332000|              3|HASH 3 REQUEST,DATAPAKID,RECORD                     |
+|hana03|30003|SAPSR3     |/BIC/B0173978000|              3|HASH 3 REQUEST,DATAPAKID,RECORD                     |
+|hana03|30003|SAPSR3     |/BIC/AG102ZS0500|              3|HASH 3 REQUEST,DATAPAKID,RECORD                     |
+|hana02|30003|SAPSR3     |/BIC/B0015741000|              3|HASH 3 REQUEST,DATAPAKID,RECORD                     |
+|hana03|30003|SAPSR3     |/BIC/AA102ZS5700|              3|HASH 3 REQUEST,DATAPAKID,RECORD                     |
+|hana03|30003|SAPSR3     |/BIC/ARECHSB0200|              3|HASH 3 /BIC/G0SHBH,LOGSYS,/BIC/G0GSDM,/BIC/G0SBBJBM |
+|hana06|30003|SAPSR3     |/BIC/AF1SOZS3800|              3|HASH 3 REQUEST,DATAPAKID,RECORD                     |
+|hana06|30003|SAPSR3     |/BIC/AR2MPCB0200|              3|HASH 3 REQUEST,DATAPAKID,RECORD                     |
+----------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  LPAD(NUM_ROWS, 12) NUM_ROWS,
+  LPAD(NUM_PARTITIONS, 5) PARTS,
+  PARTITIONING_DETAILS
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')    != 0 THEN T.HOST             ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                 END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(T.PORT) ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                 END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')  != 0 THEN T.SCHEMA_NAME      ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)   END SCHEMA_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')   != 0 THEN T.TABLE_NAME       ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME)     END TABLE_NAME,
+    COUNT(*) NUM_PARTITIONS,
+    SUM(T.RECORD_COUNT) NUM_ROWS,
+    REPLACE(REPLACE(TO_VARCHAR(PT.PARTITION_DEFINITION), 'PARTITION VALUE =', ''), 'PARTITION BY' || CHAR(32), '') PARTITIONING_DETAILS,
+    BI.MIN_NUM_PARTITIONS,
+    BI.ORDER_BY
+  FROM
+  ( SELECT                        /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      '%' SCHEMA_NAME,
+      '%' TABLE_NAME,
+      -1 MIN_NUM_PARTITIONS,
+      'X' EXCLUDE_BW_TABLES,
+      ' ' ONLY_BW_INFOOBJECTS,
+      ' ' ONLY_MULTI_COLUMN_HASH,
+      'NONE' AGGREGATE_BY,       /* HOST, PORT, SCHEMA, TABLE or comma-separated combinations, NONE for no aggregation */
+      'PARTITIONS' ORDER_BY               /* PARTITIONS, TABLE */
+    FROM
+      DUMMY
+  ) BI,
+    M_CS_TABLES T,
+    TABLE_PARTITIONS TP,
+    PARTITIONED_TABLES PT
+  WHERE
+    T.HOST LIKE BI.HOST AND
+    TO_VARCHAR(T.PORT) LIKE BI.PORT AND
+    T.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    T.TABLE_NAME LIKE BI.TABLE_NAME AND
+    TP.SCHEMA_NAME = T.SCHEMA_NAME AND
+    TP.TABLE_NAME = T.TABLE_NAME AND
+    TP.PART_ID = T.PART_ID AND
+    PT.SCHEMA_NAME = TP.SCHEMA_NAME AND
+    PT.TABLE_NAME = TP.TABLE_NAME AND
+    ( BI.EXCLUDE_BW_TABLES = ' ' OR 
+      T.TABLE_NAME LIKE '/BA1/%' OR 
+      ( T.TABLE_NAME NOT LIKE 'RSPM%' AND 
+        T.TABLE_NAME NOT LIKE 'ZBICZ%' AND
+        T.TABLE_NAME NOT LIKE '0BW:BIA%' AND
+        T.TABLE_NAME NOT LIKE '$BPC$HC$%' AND
+        T.TABLE_NAME NOT LIKE '$BPC$TMP%' AND
+        T.TABLE_NAME NOT LIKE '/B%/%' AND
+        T.TABLE_NAME NOT LIKE '/1B0/%' AND
+        T.TABLE_NAME NOT LIKE '/1DD/%' AND
+        SUBSTR(T.TABLE_NAME, 1, 3) != 'TR_' 
+      ) 
+    ) AND
+    ( BI.ONLY_BW_INFOOBJECTS = ' ' OR 
+      ( T.TABLE_NAME NOT LIKE '/BA1/%' AND
+        ( T.TABLE_NAME LIKE '/B%/H%' OR
+          T.TABLE_NAME LIKE '/B%/I%' OR
+          T.TABLE_NAME LIKE '/B%/J%' OR
+          T.TABLE_NAME LIKE '/B%/K%' OR
+          T.TABLE_NAME LIKE '/B%/P%' OR
+          T.TABLE_NAME LIKE '/B%/Q%' OR
+          T.TABLE_NAME LIKE '/B%/S%' OR
+          T.TABLE_NAME LIKE '/B%/T%' OR
+          T.TABLE_NAME LIKE '/B%/X%' OR
+          T.TABLE_NAME LIKE '/B%/Y%' 
+        )
+      ) 
+    ) AND
+    ( BI.ONLY_MULTI_COLUMN_HASH = ' ' OR
+      ( PT.LEVEL_1_TYPE = 'HASH' AND PT.LEVEL_1_EXPRESSION LIKE '%,%' ) AND
+      SUBSTR(T.TABLE_NAME, 1, 3) != 'TR_'
+    )
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')    != 0 THEN T.HOST             ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                 END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(T.PORT) ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                 END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')  != 0 THEN T.SCHEMA_NAME      ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')   != 0 THEN T.TABLE_NAME       ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME)     END,
+    TO_VARCHAR(PT.PARTITION_DEFINITION),
+    BI.MIN_NUM_PARTITIONS,
+    BI.ORDER_BY
+)
+WHERE
+  ( MIN_NUM_PARTITIONS = -1 OR NUM_PARTITIONS >= MIN_NUM_PARTITIONS )
+ORDER BY
+  MAP(ORDER_BY, 'PARTITIONS', NUM_PARTITIONS) DESC,
+  MAP(ORDER_BY, 'TABLE', TABLE_NAME)
+

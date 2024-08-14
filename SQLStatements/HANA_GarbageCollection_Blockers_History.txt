@@ -1,0 +1,433 @@
+SELECT
+/* 
+
+[NAME]
+
+HANA_GarbageCollection_Blockers_History
+
+[DESCRIPTION]
+
+- Historic information about potential garbage collection blockers like idle cursors or long running update transactions
+
+[DETAILS AND RESTRICTIONS]
+
+- This command summarizes typical reasons for a blocked garbage collection:
+
+  -> Idle cursors
+  -> Long running SQL statements
+  -> Long running update transactions
+  -> Serializable transactions
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2016/01/24:  1.0 (initial version)
+- 2016/12/31:  1.1 (TIME_AGGREGATE_BY = 'TS<seconds>' included)
+- 2017/10/24:  1.2 (TIMEZONE included)
+- 2018/12/04:  1.3 (shortcuts for BEGIN_TIME and END_TIME like 'C', 'E-S900' or 'MAX')
+- 2019/03/04:  1.4 (CONN_ID filter included)
+
+[INVOLVED TABLES]
+
+- HOST_LONG_IDLE_CURSORS
+- HOST_LONG_RUNNING_STATEMENTS
+- HOST_LONG_SERIALIZABLE_TRANSACTION
+- HOST_UNCOMMITTED_WRITE_TRANSACTION
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- HOST
+
+  Host name
+
+  'saphana01'    --> Specific host saphana01
+  'saphana%'     --> All hosts starting with saphana
+  '%'            --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- CONN_ID
+
+  Connection ID
+
+  330655          --> Connection ID 330655
+  -1              --> No connection ID restriction
+
+- ISSUE_TYPE
+
+  Type of issue
+
+  'IDLE_CURSOR'              --> Display idle cursor issues
+  'ACTIVE_STATEMENT'         --> Display long running statement issues
+  'SERIALIZABLE_TRANSACTION' --> Display serializable transaction issues
+  'UPDATE_TRANSACTION'       --> Display update transaction issues
+  '%'                        --> No restriction to issue type
+
+- MIN_TIME_S
+
+  Minimum threshold for runtime (s)
+
+  100             --> Only display issues with a runtime of at least 100 s
+  -1              --> No restriction related to runtime
+
+- SQL_TEXT_LENGTH
+
+  Maximum displayed size of SQL statement text
+
+  50              --> SQL text is truncated to 50 characters
+  -1              --> No SQL text size limitation
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'SAMPLE_TIME'   --> Aggregation by sample time
+  'HOST, SERVICE' --> Aggregation by host and service (if multiple choices are possible)
+  '%'             --> No aggregation, pure filtering (if supported)
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+[OUTPUT PARAMETERS]
+
+- SNAPSHOT_TIME:  Snapshot time
+- ISSUE_TYPE:     Type of potential GC blocking issue
+- START_TIME:     Start time of potentical GC blocking
+- DURATION_S:     Duration of potentical GC blocking  
+- MVCC_TIMESTAMP: MVCC timestamp
+- HOST:           Host name
+- PORT:           Port
+- CONN_ID:        Connection ID
+- TID:            Transaction ID
+- UTID:           Update transaction ID
+- STATUS_DETAILS: Statement / connection /transaction status details
+- CLIENT_HOST:    Client host name
+- CLIENT_PID:     Client process ID
+- APP_NAME:       Application name
+- APP_VERSION:    Application version
+- APP_SOURCE:     Application source
+- APP_USER:       Application user
+- SQL_TEXT:       SQL text
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|SNAPSHOT_TIME   |ISSUE_TYPE        |START_TIME         |DURATION_S|MVCC_TIMESTAMP|HOST       |PORT |CONN_ID|TID  |UTID        |STATUS_DETAILS  |CLIENT_PID|APP_NAME|APP_VERSION|APP_SOURCE|APP_USER|SQL_TEXT                                |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|2016/01/24 (SUN)|ACTIVE_STATEMENT  |2015/11/09 16:35:21|   6522672|              |saphananode|30003| 407347|     |            |                |      2876|        |           |          |        |SELECT   ltrim(Table__1.MATERIAL,0),   r|
+|2016/01/24 (SUN)|ACTIVE_STATEMENT  |2015/11/10 07:11:52|   6470081|              |saphananode|30003| 411184|     |            |                |      6780|        |           |          |        |SELECT   ltrim(Table__1.MATERIAL,0),   r|
+|2016/01/24 (SUN)|ACTIVE_STATEMENT  |2016/01/18 06:40:47|    510346|              |saphananode|30003| 450407|     |            |                |      5232|        |           |          |        |SELECT   ltrim(Table__1.BILL_NUM,0),   t|
+|2016/01/23 (SAT)|ACTIVE_STATEMENT  |2015/11/09 16:34:58|   6506652|              |saphananode|30003| 407347|     |            |                |      2876|        |           |          |        |SELECT   ltrim(Table__1.MATERIAL,0),   r|
+|2016/01/23 (SAT)|ACTIVE_STATEMENT  |2015/11/10 07:11:29|   6454061|              |saphananode|30003| 411184|     |            |                |      6780|        |           |          |        |SELECT   ltrim(Table__1.MATERIAL,0),   r|
+|2016/01/23 (SAT)|ACTIVE_STATEMENT  |2016/01/18 06:40:25|    494326|              |saphananode|30003| 450407|     |            |                |      5232|        |           |          |        |SELECT   ltrim(Table__1.BILL_NUM,0),   t|
+|2016/01/23 (SAT)|ACTIVE_STATEMENT  |2016/01/23 00:12:42|      1848|              |saphananode|30003| 410156|     |            |                |      4180|        |           |          |        |SELECT   to_number(Table__55./BIC/ZDIST |
+|2016/01/22 (FRI)|ACTIVE_STATEMENT  |2015/11/09 16:34:38|   6420240|              |saphananode|30003| 407347|     |            |                |      2876|        |           |          |        |SELECT   ltrim(Table__1.MATERIAL,0),   r|
+|2016/01/22 (FRI)|ACTIVE_STATEMENT  |2015/11/10 07:11:09|   6367649|              |saphananode|30003| 411184|     |            |                |      6780|        |           |          |        |SELECT   ltrim(Table__1.MATERIAL,0),   r|
+|2016/01/22 (FRI)|ACTIVE_STATEMENT  |2016/01/18 06:40:04|    407914|              |saphananode|30003| 450407|     |            |                |      5232|        |           |          |        |SELECT   ltrim(Table__1.BILL_NUM,0),   t|
+|2016/01/22 (FRI)|ACTIVE_STATEMENT  |2016/01/22 00:12:39|      2430|              |saphananode|30003| 404678|     |            |                |      4404|        |           |          |        |SELECT   to_number(Table__55./BIC/ZDIST |
+|2016/01/22 (FRI)|UPDATE_TRANSACTION|2016/01/22 21:34:06|      2030|            -1|saphananode|30003| 409288|  455|   263198433|IDLE            |  14286872|        |           |          |        |                                        |
+|2016/01/22 (FRI)|UPDATE_TRANSACTION|2016/01/22 22:09:32|      1703|            -1|saphananode|30003| 409288|  455|   263231654|IDLE            |  14286872|        |           |          |        |                                        |
+|2016/01/22 (FRI)|UPDATE_TRANSACTION|2016/01/22 22:49:21|      2914|            -1|saphananode|30003| 448597|  301|   263268174|IDLE            |  13500512|        |           |          |        |                                        |
+|2016/01/22 (FRI)|UPDATE_TRANSACTION|2016/01/22 22:56:39|       680|            -1|saphananode|30003| 409632|  205|   263247371|IDLE            |  23855150|        |           |          |        |                                        |
+|2016/01/22 (FRI)|UPDATE_TRANSACTION|2016/01/22 23:09:24|       811|            -1|saphananode|30003| 409632|  205|   263253605|IDLE            |  23855150|        |           |          |        |                                        |
+...
+|2016/01/13 (WED)|IDLE_CURSOR       |2016/01/12 10:26:16|     85940|     969522580|saphananode|30003| 423705|     |            |SUSPENDED / IDLE|     12616|        |           |          |        |SELECT   Table__1.TXTMD,   ltrim(Table__|
+|2016/01/13 (WED)|UPDATE_TRANSACTION|2016/01/13 21:32:31|      1865|            -1|saphananode|30003| 430786|  277|   256392816|IDLE            |  15663324|        |           |          |        |                                        |
+|2016/01/13 (WED)|UPDATE_TRANSACTION|2016/01/13 22:12:51|      1245|            -1|saphananode|30003| 430786|  277|   256430347|IDLE            |  15663324|        |           |          |        |                                        |
+|2016/01/12 (TUE)|IDLE_CURSOR       |2016/01/12 10:26:16|     48141|     969522580|saphananode|30003| 423705|     |            |SUSPENDED / IDLE|     12616|        |           |          |        |SELECT   Table__1.TXTMD,   ltrim(Table__|
+|2016/01/12 (TUE)|UPDATE_TRANSACTION|2016/01/12 21:30:11|      2006|            -1|saphananode|30003| 426053|  449|   255547977|IDLE            |  10617062|        |           |          |        |                                        |
+|2016/01/12 (TUE)|UPDATE_TRANSACTION|2016/01/12 22:07:57|       644|            -1|saphananode|30003| 426053|  449|   255586409|IDLE            |  10617062|        |           |          |        |                                        |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  SERVER_TIMESTAMP SNAPSHOT_TIME,
+  ISSUE_TYPE,
+  IFNULL(TO_VARCHAR(MIN(START_TIME), 'YYYY/MM/DD HH24:MI:SS'), '') START_TIME,
+  IFNULL(LPAD(TO_DECIMAL(ROUND(MAX(TIME_S)), 10, 0), 10), '') DURATION_S, 
+  IFNULL(LPAD(MVCC_TIMESTAMP, 14), '') MVCC_TIMESTAMP,
+  HOST,
+  LPAD(PORT, 5) PORT,
+  LPAD(CONN_ID, 7) CONN_ID,
+  IFNULL(LPAD(TID, 5), '') TID,
+  IFNULL(LPAD(UTID, 12), '') UTID,
+  STATUS_DETAILS,
+  CLIENT_HOST,
+  LPAD(CLIENT_PID, 10) CLIENT_PID,
+  IFNULL(APP_NAME, '') APP_NAME,
+  IFNULL(APP_VERSION, '') APP_VERSION,
+  IFNULL(APP_SOURCE, '') APP_SOURCE,
+  IFNULL(APP_USER, '') APP_USER,
+  REPLACE(REPLACE(IFNULL(TO_VARCHAR(SUBSTR(STATEMENT_STRING, 1, MAP(SQL_TEXT_LENGTH, -1, 4000, SQL_TEXT_LENGTH))), ''), CHAR(13), CHAR(32)), CHAR(10), CHAR(32)) SQL_TEXT
+FROM
+( SELECT
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(G.SERVER_TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE G.SERVER_TIMESTAMP END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(G.SERVER_TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE G.SERVER_TIMESTAMP END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END SERVER_TIMESTAMP,
+    G.ISSUE_TYPE,
+    G.START_TIME,
+    G.TIME_S,
+    G.MVCC_TIMESTAMP,
+    G.HOST,
+    G.PORT,
+    G.CONN_ID,
+    G.TID,
+    G.UTID,
+    G.STATUS_DETAILS,
+    G.CLIENT_HOST,
+    G.CLIENT_PID,
+    G.APP_NAME,
+    G.APP_VERSION,
+    G.APP_SOURCE,
+    G.APP_USER,
+    G.STATEMENT_STRING,
+    BI.SQL_TEXT_LENGTH
+  FROM
+  ( SELECT
+      CASE
+        WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+        WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+        WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+        WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+        WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+        WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+        WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END BEGIN_TIME,
+      CASE
+        WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+        WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+        WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+        WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+        WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+        WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+        WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+        WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+        WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+        WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+        WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END END_TIME,
+      TIMEZONE,
+      HOST,
+      PORT,
+      CONN_ID,
+      ISSUE_TYPE,
+      MIN_TIME_S,
+      SQL_TEXT_LENGTH,
+      AGGREGATE_BY,
+      MAP(TIME_AGGREGATE_BY,
+        'NONE',        'YYYY/MM/DD HH24:MI:SS.FF2',
+        'HOUR',        'YYYY/MM/DD HH24',
+        'DAY',         'YYYY/MM/DD (DY)',
+        'HOUR_OF_DAY', 'HH24',
+        TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY
+    FROM
+    ( SELECT                     /* Modification section */
+        '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+        '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+        'SERVER' TIMEZONE,                              /* SERVER, UTC */
+        '%' HOST,
+        '%' PORT,
+        -1 CONN_ID,
+        '%' ISSUE_TYPE,                 /* IDLE_CURSOR, ACTIVE_STATEMENT, SERIALIZABLE_TRANSACTION, UPDATE_TRANSACTION */
+        600 MIN_TIME_S,
+        40 SQL_TEXT_LENGTH,
+        'NONE' AGGREGATE_BY,          /* TIME or comma separated list, NONE for no aggregation */
+        'TS900' TIME_AGGREGATE_BY     /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+      FROM
+        DUMMY
+    )
+  ) BI,
+  ( SELECT
+      'IDLE_CURSOR' ISSUE_TYPE,
+      SERVER_TIMESTAMP,
+      HOST,
+      PORT,
+      LOGICAL_CONNECTION_ID CONN_ID,
+      NULL TID,
+      NULL UTID,
+      START_MVCC_TIMESTAMP MVCC_TIMESTAMP,
+      IDLE_TIME TIME_S,
+      ADD_SECONDS(SERVER_TIMESTAMP, -IDLE_TIME) START_TIME,
+      STATEMENT_STATUS || CHAR(32) || '/' || CHAR(32) || CONNECTION_STATUS STATUS_DETAILS,
+      STATEMENT_STRING,
+      CLIENT_HOST,
+      CLIENT_PID,
+      APPLICATION APP_NAME,
+      APPLICATIONVERSION APP_VERSION,
+      APPLICATIONSOURCE APP_SOURCE,
+      APPLICATIONUSER APP_USER
+    FROM
+      _SYS_STATISTICS.HOST_LONG_IDLE_CURSOR
+    UNION ALL
+    SELECT
+      'ACTIVE_STATEMENT' ISSUE_TYPE,
+      SERVER_TIMESTAMP,
+      HOST,
+      PORT,
+      CONNECTION_ID CONN_ID,
+      NULL TID,
+      NULL UTID,
+      NULL MVCC_TIMESTAMP,
+      DURATION / 1000 TIME_S,
+      ADD_SECONDS(SERVER_TIMESTAMP, -DURATION / 1000) START_TIME,
+      '' STATUS_DETAILS,
+      THREAD_DETAIL STATEMENT_STRING,
+      CLIENT_HOST,
+      CLIENT_PID,
+      '' APPLICATION,
+      '' APP_VERSION,
+      '' APP_SOURCE,
+      APPLICATION_USER_NAME APP_USER
+    FROM
+      _SYS_STATISTICS.HOST_LONG_RUNNING_STATEMENTS
+    UNION ALL
+    SELECT
+      'SERIALIZABLE_TRANSACTION' ISSUE_TYPE,
+      SERVER_TIMESTAMP,
+      HOST,
+      PORT,
+      LOGICAL_CONNECTION_ID CONN_ID,
+      TRANSACTION_ID TID,
+      UPDATE_TRANSACTION_ID UTID,
+      MIN_MVCC_SNAPSHOT_TIMESTAMP MVCC_TIMESTAMP,
+      NULL TIME_S,
+      NULL START_TIME,
+      CONNECTION_STATUS STATUS_DETAILS,
+      NULL STATEMENT_STRING,
+      CLIENT_HOST,
+      CLIENT_PID,
+      '' APPLICATION,
+      '' APP_VERSION,
+      '' APP_SOURCE,
+      '' APP_USER
+    FROM
+      _SYS_STATISTICS.HOST_LONG_SERIALIZABLE_TRANSACTION
+    UNION ALL
+    SELECT
+      'UPDATE_TRANSACTION' ISSUE_TYPE,
+      SERVER_TIMESTAMP,
+      HOST,
+      PORT,
+      LOGICAL_CONNECTION_ID CONN_ID,
+      TRANSACTION_ID TID,
+      UPDATE_TRANSACTION_ID UTID,
+      MIN_MVCC_SNAPSHOT_TIMESTAMP MVCC_TIMESTAMP,
+      TOTAL_TIME TIME_S,
+      ADD_SECONDS(SERVER_TIMESTAMP, -TOTAL_TIME) START_TIME,
+      CONNECTION_STATUS STATUS_DETAILS,
+      NULL STATEMENT_STRING,
+      CLIENT_HOST,
+      CLIENT_PID,
+      '' APPLICATION,
+      '' APP_VERSION,
+      '' APP_SOURCE,
+      '' APP_USER
+    FROM
+      _SYS_STATISTICS.HOST_UNCOMMITTED_WRITE_TRANSACTION
+  ) G
+  WHERE
+    G.ISSUE_TYPE LIKE BI.ISSUE_TYPE AND
+    CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(G.SERVER_TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE G.SERVER_TIMESTAMP END BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+    G.HOST LIKE BI.HOST AND
+    TO_VARCHAR(G.PORT) LIKE BI.PORT AND
+    ( BI.CONN_ID = -1 OR G.CONN_ID = BI.CONN_ID ) AND
+    ( BI.MIN_TIME_S = -1 OR G.TIME_s >= BI.MIN_TIME_S )
+)
+GROUP BY
+  SERVER_TIMESTAMP,
+  ISSUE_TYPE,
+  MVCC_TIMESTAMP,
+  HOST,
+  PORT,
+  CONN_ID,
+  TID,
+  UTID,
+  STATUS_DETAILS,
+  CLIENT_HOST,
+  CLIENT_PID,
+  APP_NAME,
+  APP_VERSION,
+  APP_SOURCE,
+  APP_USER,
+  IFNULL(TO_VARCHAR(SUBSTR(STATEMENT_STRING, 1, MAP(SQL_TEXT_LENGTH, -1, 4000, SQL_TEXT_LENGTH))), ''),
+  SQL_TEXT_LENGTH
+ORDER BY
+  SERVER_TIMESTAMP DESC,
+  START_TIME

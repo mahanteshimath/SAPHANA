@@ -1,0 +1,463 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_ColumnStore_UnloadsAndLoads_2.00.040+
+
+[DESCRIPTION]
+
+- Overview of table and column loads and unloads in column store
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- M_CS_LOADS.LOAD_DURATION available starting SAP HANA 1.00.120
+- M_CS_LOADS.STATEMENT_HASH available starting SAP HANA 2.00.040
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.040
+
+[SQL COMMAND VERSION]
+
+- 2015/02/24:  1.0 (initial version)
+- 2016/03/16:  1.1 (combined load and unload evaluation)
+- 2016/12/31:  1.2 (TIME_AGGREGATE_BY = 'TS<seconds>' included)
+- 2017/02/10:  1.3 (ORDER_BY, COLUMN00_NAME included)
+- 2017/06/27:  1.4 (LOAD_GB / UNLOAD_GB included)
+- 2017/10/09:  1.5 (PART_ID filter condition included)
+- 2017/10/27:  1.6 (TIMEZONE included)
+- 2018/03/02:  1.7 (dedicated 1.00.120+ version)
+- 2018/12/04:  1.8 (shortcuts for BEGIN_TIME and END_TIME like 'C', 'E-S900' or 'MAX')
+- 2019/04/13:  1.9 (dedicated 2.00.040+ version including M_CS_LOADS.STATEMENT_HASH)
+- 2020/04/06:  2.0 (sorting by LOAD_GB and UNLOAD_GB added)
+
+[INVOLVED TABLES]
+
+- M_CS_ALL_COLUMNS
+- M_CS_LOADS
+- M_CS_TABLES
+- M_CS_UNLOADS
+- TABLES
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- PART_ID
+
+  Partition ID
+
+  12              --> Display information related to partition 12
+  -1              --> No restriction related to partition ID
+
+- COLUMN_NAME
+
+  Column name
+
+  'MATNR'         --> Column MATNR
+  'Z%'            --> Columns starting with "Z"
+  '%'             --> No restriction related to columns
+
+- TYPE
+
+  Load / unload type
+
+  'LOAD'          --> Only display load operations
+  'UNLOAD'        --> Only display unload operations
+  '%'             --> No restriction related to load / unload type
+
+- UNLOAD_REASON
+
+  Reason for table or column unload
+
+  'LOW MEMORY'      --> Automatic unloads due to a lack of memory
+  'EXPLICIT'        --> Explicit unloads using SQL command
+  'MERGE'           --> Unloads related to delta merges
+  'UNUSED RESOURCE' --> Unloads because data is currently not required
+
+- MAX_UNLOAD_PRIORITY
+
+  Maximum unload priority
+
+  5               --> Only show unloads with priorities <= 5 (low priorities)
+  -1              --> No restriction related to unload priority
+
+- MIN_LOAD_DURATION_S
+
+  Minimum load duration (s)
+
+  2               --> Only display loads with a duration of at least 2 seconds
+  -1              --> No restriction related to load duration
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'LOADS'         --> Sorting by number of loads
+  'TABLE'         --> Sorting by table name
+  
+[OUTPUT PARAMETERS]
+
+- BEGIN_TIME:          Load / unload timestamp
+- HOST:                Host name
+- PORT:                Port
+- SERVICE:             Service name
+- SCHEMA_NAME:         Schema name
+- TABLE_NAME:          Table name
+- COLUMN_NAME:         Name of loaded column (empty if whole table was loaded)
+- NUM_LOADS:           Number of loads
+- LOAD_GB:             Total size of loaded columns (GB)
+- LOAD_DURATION_S:     Load duration (s)
+- LOAD_STATEMENT_HASH: Hash of SQL statement being responsible for column load
+- NUM_UNLOADS:         Number of unloads
+- UNLOAD_GB:           Total size of unloaded columns (GB)
+- UNLOAD_PRIORITY:     Unload priority
+- UNLOAD_REASON:       Unload reason
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------
+|BEGIN_TIME   |HOST|PORT |SCHEMA_NAME|TABLE_NAME|COLUMN_NAME|NUM_LOADS  |
+-------------------------------------------------------------------------
+|2015/02/24 15|any |  any|any        |any       |any        |       4305|
+|2015/02/24 14|any |  any|any        |any       |any        |          3|
+|2015/02/24 10|any |  any|any        |any       |any        |          1|
+|2015/02/24 08|any |  any|any        |any       |any        |          1|
+|2015/02/24 03|any |  any|any        |any       |any        |         37|
+|2015/02/23 20|any |  any|any        |any       |any        |         22|
+|2015/02/23 08|any |  any|any        |any       |any        |          2|
+|2015/02/23 07|any |  any|any        |any       |any        |          4|
+|2015/02/23 04|any |  any|any        |any       |any        |          6|
+|2015/02/23 00|any |  any|any        |any       |any        |          5|
+|2015/02/21 17|any |  any|any        |any       |any        |        124|
+|2015/02/21 16|any |  any|any        |any       |any        |        147|
+|2015/02/21 15|any |  any|any        |any       |any        |          1|
+|2015/02/21 14|any |  any|any        |any       |any        |          3|
+|2015/02/21 13|any |  any|any        |any       |any        |         30|
+|2015/02/21 12|any |  any|any        |any       |any        |         17|
+|2015/02/21 11|any |  any|any        |any       |any        |          2|
+|2015/02/21 06|any |  any|any        |any       |any        |          5|
+|2015/02/20 22|any |  any|any        |any       |any        |         35|
+|2015/02/20 09|any |  any|any        |any       |any        |      23405|
+|2015/02/20 06|any |  any|any        |any       |any        |          1|
+|2015/02/19 20|any |  any|any        |any       |any        |         22|
+-------------------------------------------------------------------------
+
+*/
+
+  BEGIN_TIME,
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SERVICE_NAME SERVICE,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  COLUMN_NAME,
+  LPAD(NUM_LOADS, 9) NUM_LOADS,
+  LPAD(TO_DECIMAL(LOAD_GB, 10, 2), 9) LOAD_GB,
+  LPAD(TO_DECIMAL(LOAD_DURATION_S, 10, 2), 15) LOAD_DURATION_S,
+  LOAD_STATEMENT_HASH,
+  LPAD(NUM_UNLOADS, 11) NUM_UNLOADS,
+  LPAD(TO_DECIMAL(UNLOAD_GB, 10, 2), 9) UNLOAD_GB,
+  LPAD(UNLOAD_PRIORITY, 15) UNLOAD_PRIORITY,
+  UNLOAD_REASON
+FROM
+( SELECT 
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(U.BEGIN_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE U.BEGIN_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(U.BEGIN_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE U.BEGIN_TIME END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END BEGIN_TIME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')      != 0 THEN U.HOST                                                                  ELSE MAP(BI.HOST,                '%', 'any', BI.HOST)                END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(U.PORT)                                                      ELSE MAP(BI.PORT,                '%', 'any', BI.PORT)                END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')   != 0 THEN S.SERVICE_NAME                                                          ELSE MAP(BI.SERVICE_NAME,        '%', 'any', BI.SERVICE_NAME)        END SERVICE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')    != 0 THEN U.SCHEMA_NAME                                                           ELSE MAP(BI.SCHEMA_NAME,         '%', 'any', BI.SCHEMA_NAME)         END SCHEMA_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')     != 0 THEN U.TABLE_NAME || MAP(U.PART_ID, 0, '', -1, '', ' (' || U.PART_ID || ')') ELSE MAP(BI.TABLE_NAME,          '%', 'any', BI.TABLE_NAME)          END TABLE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'COLUMN')    != 0 THEN U.COLUMN_NAME                                                           ELSE MAP(BI.COLUMN_NAME,         '%', 'any', BI.COLUMN_NAME)         END COLUMN_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOAD_HASH') != 0 THEN U.LOAD_STATEMENT_HASH                                                   ELSE MAP(BI.LOAD_STATEMENT_HASH, '%', 'any', BI.LOAD_STATEMENT_HASH) END LOAD_STATEMENT_HASH,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PRIORITY')  != 0 THEN TO_VARCHAR(T.UNLOAD_PRIORITY)                                           ELSE 'any'                                                           END UNLOAD_PRIORITY,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'REASON')    != 0 THEN U.UNLOAD_REASON                                                         ELSE MAP(BI.UNLOAD_REASON,        '%', 'any', BI.UNLOAD_REASON)      END UNLOAD_REASON,
+    SUM(MAP(U.TYPE, 'LOAD', 1, 0)) NUM_LOADS,
+    SUM(MAP(U.TYPE, 'LOAD', IFNULL(MAP(U.COLUMN_NAME, '', CT.ESTIMATED_MAX_MEMORY_SIZE_IN_TOTAL, C.MEMORY_SIZE_IN_TOTAL + C.PERSISTENT_MEMORY_SIZE_IN_TOTAL), 0) / 1024 / 1024 / 1024, 0)) LOAD_GB,
+    SUM(MAP(U.TYPE, 'LOAD', U.DURATION / 1000, 0)) LOAD_DURATION_S,
+    SUM(MAP(U.TYPE, 'UNLOAD', 1, 0)) NUM_UNLOADS,
+    SUM(MAP(U.TYPE, 'UNLOAD', IFNULL(MAP(U.COLUMN_NAME, '', CT.ESTIMATED_MAX_MEMORY_SIZE_IN_TOTAL, C.MEMORY_SIZE_IN_TOTAL + C.PERSISTENT_MEMORY_SIZE_IN_TOTAL), 0) / 1024 / 1024 / 1024, 0)) UNLOAD_GB,
+    BI.MIN_LOAD_DURATION_S,
+    BI.ORDER_BY
+  FROM
+  ( SELECT
+      CASE
+        WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+        WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+        WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+        WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+        WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+        WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+        WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END BEGIN_TIME,
+      CASE
+        WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+        WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+        WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+        WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+        WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+        WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+        WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+        WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+        WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+        WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+        WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END END_TIME,
+      TIMEZONE,
+      HOST,
+      PORT,
+      SERVICE_NAME,
+      SCHEMA_NAME,
+      TABLE_NAME,
+      PART_ID,
+      COLUMN_NAME,
+      LOAD_STATEMENT_HASH,
+      TYPE,
+      UNLOAD_REASON,
+      MAX_UNLOAD_PRIORITY,
+      MIN_LOAD_DURATION_S,
+      AGGREGATE_BY,
+      MAP(TIME_AGGREGATE_BY,
+        'NONE',        'YYYY/MM/DD HH24:MI:SS',
+        'HOUR',        'YYYY/MM/DD HH24',
+        'DAY',         'YYYY/MM/DD (DY)',
+        'HOUR_OF_DAY', 'HH24',
+        TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+      ORDER_BY
+    FROM
+    ( SELECT                 /* Modification section */
+        '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+        '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+        'SERVER' TIMEZONE,                              /* SERVER, UTC */
+        '%' HOST,
+        '%' PORT,
+        '%' SERVICE_NAME,
+        '%' SCHEMA_NAME,
+        '%' TABLE_NAME,
+        -1 PART_ID,
+        '%' COLUMN_NAME,
+        '%' LOAD_STATEMENT_HASH,
+        '%' TYPE,                         /* LOAD, UNLOAD, % */
+        '%' UNLOAD_REASON,       /* CHECK, EXPLICIT, LOW MEMORY, MERGE, SHRINK or UNUSED RESOURCE */
+        -1 MAX_UNLOAD_PRIORITY,
+        -1 MIN_LOAD_DURATION_S,
+        'TIME, HOST' AGGREGATE_BY,        /* TIME, HOST, PORT, SERVICE, SCHEMA, TABLE, COLUMN, REASON, PRIORITY, LOAD_HASH or comma-separated combinations, NONE for no aggregation */
+        'HOUR' TIME_AGGREGATE_BY,         /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+        'TIME' ORDER_BY                   /* TIME, LOADS, LOAD_GB, UNLOADS, UNLOAD_GB, TABLE, HOST, LOAD_DURATION */
+      FROM
+        DUMMY
+    )
+  ) BI,
+    M_SERVICES S,
+  ( SELECT
+      'LOAD' TYPE,
+      LOAD_TIME BEGIN_TIME,
+      LOAD_DURATION DURATION,
+      HOST,
+      PORT,
+      SCHEMA_NAME,
+      TABLE_NAME,
+      PART_ID,
+      COLUMN_NAME,
+      '' UNLOAD_REASON,
+      STATEMENT_HASH LOAD_STATEMENT_HASH
+    FROM
+      M_CS_LOADS
+    UNION ALL
+    SELECT
+      'UNLOAD' TYPE,
+      UNLOAD_TIME BEGIN_TIME,
+      0 DURATION,
+      HOST,
+      PORT,
+      SCHEMA_NAME,
+      TABLE_NAME,
+      PART_ID,
+      COLUMN_NAME,
+      REASON UNLOAD_REASON,
+      '' LOAD_STATEMENT_HASH
+    FROM
+      M_CS_UNLOADS
+  ) U LEFT OUTER JOIN
+    TABLES T ON
+      T.SCHEMA_NAME = U.SCHEMA_NAME AND
+      T.TABLE_NAME = U.TABLE_NAME LEFT OUTER JOIN
+    M_CS_ALL_COLUMNS C ON
+      C.SCHEMA_NAME = U.SCHEMA_NAME AND
+      C.TABLE_NAME = U.TABLE_NAME AND
+      C.PART_ID = U.PART_ID AND
+      C.COLUMN_NAME = U.COLUMN_NAME LEFT OUTER JOIN
+    M_CS_TABLES CT ON
+      CT.SCHEMA_NAME = U.SCHEMA_NAME AND
+      CT.TABLE_NAME = U.TABLE_NAME AND
+      CT.PART_ID = U.PART_ID
+  WHERE
+    CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(U.BEGIN_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE U.BEGIN_TIME END BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+    U.TYPE LIKE BI.TYPE AND
+    S.HOST LIKE BI.HOST AND
+    TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+    S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+    U.HOST = S.HOST AND
+    U.PORT = S.PORT AND
+    U.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    U.TABLE_NAME LIKE BI.TABLE_NAME AND
+    ( BI.PART_ID = -1 OR U.PART_ID = BI.PART_ID ) AND
+    U.COLUMN_NAME LIKE BI.COLUMN_NAME AND
+    U.LOAD_STATEMENT_HASH LIKE BI.LOAD_STATEMENT_HASH AND
+    ( U.TYPE = 'LOAD' OR U.UNLOAD_REASON LIKE BI.UNLOAD_REASON ) AND
+    ( U.TYPE = 'LOAD' OR BI.MAX_UNLOAD_PRIORITY = -1 OR T.UNLOAD_PRIORITY <= BI.MAX_UNLOAD_PRIORITY )
+GROUP BY
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(U.BEGIN_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE U.BEGIN_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(U.BEGIN_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE U.BEGIN_TIME END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')      != 0 THEN U.HOST                                                                  ELSE MAP(BI.HOST,                '%', 'any', BI.HOST)                END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(U.PORT)                                                      ELSE MAP(BI.PORT,                '%', 'any', BI.PORT)                END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')   != 0 THEN S.SERVICE_NAME                                                          ELSE MAP(BI.SERVICE_NAME,        '%', 'any', BI.SERVICE_NAME)        END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')    != 0 THEN U.SCHEMA_NAME                                                           ELSE MAP(BI.SCHEMA_NAME,         '%', 'any', BI.SCHEMA_NAME)         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')     != 0 THEN U.TABLE_NAME || MAP(U.PART_ID, 0, '', -1, '', ' (' || U.PART_ID || ')') ELSE MAP(BI.TABLE_NAME,          '%', 'any', BI.TABLE_NAME)          END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'COLUMN')    != 0 THEN U.COLUMN_NAME                                                           ELSE MAP(BI.COLUMN_NAME,         '%', 'any', BI.COLUMN_NAME)         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOAD_HASH') != 0 THEN U.LOAD_STATEMENT_HASH                                                   ELSE MAP(BI.LOAD_STATEMENT_HASH, '%', 'any', BI.LOAD_STATEMENT_HASH) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PRIORITY')  != 0 THEN TO_VARCHAR(T.UNLOAD_PRIORITY)                                           ELSE 'any'                                                           END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'REASON')    != 0 THEN U.UNLOAD_REASON                                                         ELSE MAP(BI.UNLOAD_REASON,        '%', 'any', BI.UNLOAD_REASON)      END,
+    BI.MIN_LOAD_DURATION_S,
+    BI.ORDER_BY
+)
+WHERE
+( MIN_LOAD_DURATION_S = -1 OR LOAD_DURATION_S >= MIN_LOAD_DURATION_S )
+ORDER BY
+  MAP(ORDER_BY, 'TIME', BEGIN_TIME, 'LOAD_DURATION', LOAD_DURATION_S) DESC,
+  MAP(ORDER_BY, 'LOADS', NUM_LOADS, 'LOAD_GB', LOAD_GB, 'UNLOADS', NUM_UNLOADS, 'UNLOAD_GB', UNLOAD_GB) DESC,
+  MAP(ORDER_BY, 'TABLE', SCHEMA_NAME || TABLE_NAME, 'HOST', HOST || PORT),
+  BEGIN_TIME DESC,
+  HOST,
+  PORT,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  COLUMN_NAME

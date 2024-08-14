@@ -1,0 +1,169 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_NSE_BufferCache_2.00.040+
+
+[DESCRIPTION]
+
+- Native storage extension (NSE) buffer cache details
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- See SAP Note 2799997 for more details related to NSE.
+- M_BUFFER_CACHE_STATISTICS and M_BUFFER_CACHE_POOL_STATISTICS available with SAP HANA >= 2.00.040
+- USED_SIZE with SAP HANA 2.0 SPS 04 is actually the allocated size. With SAP HANA 2.0 >= SPS 05 the 
+  former USED_SIZE value is shown in the ALLOCATED_SIZE column and a new and correct USED_SIZE column
+  is introduced.
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.040
+
+[SQL COMMAND VERSION]
+
+- 2019/07/10:  1.0 (initial version)
+- 2021/11/07:  1.1 (WARM_GB added)
+- 2021/11/08:  1.2 (OUT_OF_BUFFER_COUNT added)
+
+[INVOLVED TABLES]
+
+- M_BUFFER_CACHE_STATISTICS
+- M_BUFFER_CACHE_POOL_STATISTICS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- CACHE_NAME
+
+  Buffer cache name
+
+  'CS'            --> Display information for buffer cache CS
+  '%'             --> No restriction related to buffer cache name
+
+- STATE
+
+  Buffer cache state
+
+  'ENABLED'       --> Display buffers with state ENABLED
+  '%'             --> No restriction related to buffer state
+
+- REPLACEMENT_POLICY
+
+  Buffer cache replacement policy
+
+  'IMPROVED LRU'  --> Replacement based on improved least-recently used strategy
+
+- BUFFER_SIZE_KB
+
+  Buffer page size (KB)
+
+  4               --> Only display information for buffer pages with size 4 KB (4096 byte)
+  -1              --> No restriction related to buffer page size
+
+- EXCLUDE_UNUSED
+
+  Possibility to exclude "empty" buffers
+
+  'X'             --> Only show buffers that are not empty
+  ' '             --> Display all buffers
+
+[OUTPUT PARAMETERS]
+
+- HOST:               Host
+- PORT:               Port
+- CACHE_NAME:         Buffer cache name
+- STATE:              Buffer cache state
+- REPLACEMENT_POLICY: Page replacement policy
+- WARM_GB:            Amount of warm data (GB)
+- MAX_SIZE_GB:        Maximum possible buffer size (GB), controlled by max_size / max_size_rel, typically 10 % of memory)
+- USED_SIZE_GB:       Used buffer size (GB), may also include free memory
+- HIT_PCT:            Buffer cache hit ratio (%)
+- PAGE_SIZE_KB:       Page size class (KB)
+- PAGE_TOT_GB:        Total page size (GB)
+- PAGE_HOT_GB:        Hot page size (GB)
+- PAGE_FREE_GB:       Free page size (GB)
+- OOB:                Out-of-buffer count
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+|HOST    |PORT |CACHE_NAME|STATE  |REPLACEMENT_POLICY|MAX_SIZE_GB|USED_SIZE_GB|HIT_PCT|PAGE_SIZE_KB|PAGE_TOT_GB|PAGE_HOT_GB|PAGE_FREE_GB|
+-----------------------------------------------------------------------------------------------------------------------------------------
+|saphana1|31003|CS        |ENABLED|IMPROVED LRU      |     112.48|      112.48|  99.99|           4|       0.92|       0.01|        0.91|
+|        |     |          |       |                  |           |            |       |          16|       1.06|       0.01|        1.05|
+|        |     |          |       |                  |           |            |       |          64|       1.11|       0.04|        1.06|
+|        |     |          |       |                  |           |            |       |         256|      63.90|      63.49|        0.29|
+|        |     |          |       |                  |           |            |       |        1024|      44.95|      43.74|        1.15|
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  MAP(ROW_NUMBER() OVER (PARTITION BY C.HOST, C.PORT, C.CACHE_NAME ORDER BY CP.BUFFER_SIZE), 1, C.HOST, '') HOST,
+  MAP(ROW_NUMBER() OVER (PARTITION BY C.HOST, C.PORT, C.CACHE_NAME ORDER BY CP.BUFFER_SIZE), 1, LPAD(C.PORT, 5), '') PORT,
+  MAP(ROW_NUMBER() OVER (PARTITION BY C.HOST, C.PORT, C.CACHE_NAME ORDER BY CP.BUFFER_SIZE), 1, C.CACHE_NAME, '') CACHE_NAME,
+  MAP(ROW_NUMBER() OVER (PARTITION BY C.HOST, C.PORT, C.CACHE_NAME ORDER BY CP.BUFFER_SIZE), 1, C.STATE, '') STATE,
+  MAP(ROW_NUMBER() OVER (PARTITION BY C.HOST, C.PORT, C.CACHE_NAME ORDER BY CP.BUFFER_SIZE), 1, C.REPLACEMENT_POLICY, '') REPLACEMENT_POLICY,
+  MAP(ROW_NUMBER() OVER (PARTITION BY C.HOST, C.PORT, C.CACHE_NAME ORDER BY CP.BUFFER_SIZE), 1, LPAD(TO_DECIMAL(W.WARM_GB, 10, 2), 7), '') WARM_GB,
+  MAP(ROW_NUMBER() OVER (PARTITION BY C.HOST, C.PORT, C.CACHE_NAME ORDER BY CP.BUFFER_SIZE), 1, LPAD(TO_DECIMAL(C.MAX_SIZE / 1024 / 1024 / 1024, 10, 2), 11), '') MAX_SIZE_GB,
+  MAP(ROW_NUMBER() OVER (PARTITION BY C.HOST, C.PORT, C.CACHE_NAME ORDER BY CP.BUFFER_SIZE), 1, LPAD(TO_DECIMAL(C.USED_SIZE / 1024 / 1024 / 1024, 10, 2), 12), '') USED_SIZE_GB,
+  MAP(ROW_NUMBER() OVER (PARTITION BY C.HOST, C.PORT, C.CACHE_NAME ORDER BY CP.BUFFER_SIZE), 1, LPAD(TO_DECIMAL(C.HIT_RATIO, 10, 2), 7), '') HIT_PCT,
+  LPAD(TO_DECIMAL(CP.BUFFER_SIZE / 1024, 10, 0), 12) PAGE_SIZE_KB,
+  LPAD(TO_DECIMAL(CP.TOTAL_BUFFER_COUNT * CP.BUFFER_SIZE / 1024 / 1024 / 1024, 10, 2), 11) PAGE_TOT_GB,
+  LPAD(TO_DECIMAL(CP.HOT_BUFFER_COUNT * CP.BUFFER_SIZE / 1024 / 1024 / 1024, 10, 2), 11) PAGE_HOT_GB,
+  LPAD(TO_DECIMAL(CP.FREE_BUFFER_COUNT * CP.BUFFER_SIZE / 1024 / 1024 / 1024, 10, 2), 12) PAGE_FREE_GB,
+  LPAD(CP.OUT_OF_BUFFER_COUNT, 3) OOB
+FROM
+( SELECT                       /* Modification section */
+    '%' HOST,
+    '%' PORT,
+    '%' CACHE_NAME,
+    '%' STATE,
+    '%' REPLACEMENT_POLICY,
+    -1 BUFFER_SIZE_KB,
+    'X' EXCLUDE_UNUSED
+  FROM
+    DUMMY
+) BI,
+  M_BUFFER_CACHE_STATISTICS C,
+  M_BUFFER_CACHE_POOL_STATISTICS CP,
+  ( SELECT HOST, PORT, SUM(MAIN_PHYSICAL_SIZE_IN_PAGE_LOADABLE) / 1024 / 1024 / 1024 WARM_GB FROM M_CS_COLUMNS_PERSISTENCE GROUP BY HOST, PORT ) W
+WHERE
+  C.HOST LIKE BI.HOST AND
+  TO_VARCHAR(C.PORT) LIKE BI.PORT AND
+  C.CACHE_NAME LIKE BI.CACHE_NAME AND
+  C.STATE LIKE BI.STATE AND
+  C.REPLACEMENT_POLICY LIKE BI.REPLACEMENT_POLICY AND
+  ( BI.BUFFER_SIZE_KB = -1 OR CP.BUFFER_SIZE / 1024 = BI.BUFFER_SIZE_KB ) AND
+  ( BI.EXCLUDE_UNUSED = ' ' OR CP.TOTAL_BUFFER_COUNT > 0 ) AND
+  CP.HOST = C.HOST AND
+  CP.PORT = C.PORT AND
+  CP.CACHE_NAME = C.CACHE_NAME AND
+  W.HOST = CP.HOST AND
+  W.PORT = CP.PORT
+ORDER BY
+  C.HOST,
+  C.PORT,
+  C.CACHE_NAME,
+  CP.BUFFER_SIZE

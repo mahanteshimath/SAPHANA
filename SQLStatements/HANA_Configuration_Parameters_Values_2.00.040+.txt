@@ -1,0 +1,328 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Configuration_Parameters_Values_2.00.040+
+
+[DESCRIPTION]
+
+- Display SAP HANA parameter values 
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- M_CONFIGURATION_PARAMETER_VALUES available with SAP HANA >= 2.00.040
+- basepath_persistent_memory_volumes may be reported with a violated layer restriction (SYSTEM vs. HOST), this can be ignored because also SYSTEM is permitted
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.040
+
+[SQL COMMAND VERSION]
+
+- 2019/03/20:  1.0 (initial version)
+- 2019/06/02:  1.1 (ONLY_VIOLATED_RESTRICTIONS included)
+- 2019/10/23:  1.2 (LAYER_RESTRICTIONS included)
+- 2020/12/20:  1.3 (ONLY_WORKLOAD_SETTINGS included)
+- 2021/01/31:  1.4 (EXCLUDE_DAEMON and EXCLUDE_WEBDISPATCHER added)
+- 2021/07/12:  1.5 (UNIT added)
+- 2022/04/12:  1.6 (RAW_VALUE added)
+- 2022/09/17:  1.7 (CUSTOM_RESTRICTIONS included)
+
+[INVOLVED TABLES]
+
+- M_CONFIGURATION_PARAMETER_VALUES
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- FILE_NAME
+
+  File name
+
+  'alert.trc'     --> File with name alert.trc
+  '%oom%'         --> File with name containing 'oom'
+  '%'             --> All files
+
+- SECTION
+
+  Parameter file section
+
+  'joins'         --> Specific parameter file section 'joins'
+  'stat%'         --> All parameter file sections starting with 'stat'
+  '%'             --> All parameter file sections
+
+- PARAMETER_NAME
+
+  Parameter name
+
+  'enable'        --> Parameters with name 'enable'
+  'unload%'       --> Parameters starting with 'unload'
+  '%'             --> All parameters
+
+- LAYER_NAME
+
+  Parameter layer
+
+  'DEFAULT'       --> Default values
+  'SYSTEM'        --> Individual system-wide parameter settings
+  'HOST'          --> Individual host-wide parameter settings
+  '%'             --> No restriction related to parameter layer
+
+- VALUE
+
+  Parameter value
+
+  'true'          --> Parameters with value 'true'
+  '%cons%'        --> Parameter values containing 'cons'
+  '%'             --> No restriction related to parameter value
+
+- RAW_VALUE
+
+  Raw value
+
+  'true'          --> Parameters with raw value 'true'
+  '%'             --> No restriction related to raw value
+
+- TENANT_NAME
+
+  Multitenant tenant name
+
+  'C11'           --> Tenant C11
+  '%'             --> No restriction to tenant
+
+- LINE_LENGTH
+
+  Maximum displayed line size
+
+  50              --> Lines are wrapped after 50 characters
+  -1              --> No line wrapping
+
+- ONLY_PENDING_RESTARTS
+
+  Possibility to restrict the output to offline parameters that were changed and a restart is required to activate the change
+
+  'X'             --> Only show parameters with pending restarts
+  ' '             --> Show all parameters independent of pending restarts
+
+- ONLY_NON_DEFAULT_SETTINGS
+
+  Possibility to restrict the output to non-default settings
+
+  'X'             --> Suppress the display of parameter values with layer name DEFAULT
+  ' '             --> Display both default and non-default parameter values
+
+- ONLY_VIOLATED_RESTRICTIONS
+
+  Possibility to restrict the output to parameters with values violating restictions like value ranges
+
+  'X'             --> Only display parameters with values violating a restriction
+  ' '             --> Display all parameters regardless of restriction violations
+
+- ONLY_WORKLOAD_SETTINGS
+
+  Possiblity to restrict the output to parameters that are used to limit the CPU or memory workload
+
+  'X'             --> Only display parameters related to CPU or memory workload settings
+  ' '             --> No restriction to workload parameters
+
+- EXCLUDE_DAEMON
+
+  Possibility to exclude daemon related parameters
+
+  'X'             --> Only show parameters of services different from daemon
+  ' '             --> No restriction related to daemon parameters
+
+- EXCLUDE_WEBDISPATCHER
+
+  Possibility to exclude webdispatcher related parameters
+
+  'X'             --> Only show parameters of services different from webdispatcher
+  ' '             --> No restriction related to webdispatcher parameters
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'PARAMETER'     --> Aggregation by parameter (file name, section, key)
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+[OUTPUT PARAMETERS]
+
+- HOST:                Host
+- PORT:                Port
+- FILE_NAME:           Parameter (ini) file name
+- SECTION:             Parameter section
+- PARAMETER_NAME:      Parameter name
+- LAYER_NAME:          Layer name (e.g. DEFAULT for default setting)
+- VALUE:               Parameter value
+- UNIT:                Parameter unit
+- R:                   'X' if restart is required to activate recent parameter change, otherwise ' '
+- V:                   ' ' if no restriction is violated, 'V' for violated value striction, 'L' for violated layer restriction, 'C' for violated custom restrictions
+- VALUE_RANGE:         Parameter value range
+- LAYER_RESTRICTIONS:  Layer restrictions (e.g. HOST for host specific parameters)
+- CUSTOM_RESTRICTIONS: Custom restrictions (e.g. valid system replication site ID or valid decision function)
+- DATA_TYPE:           Parameter value data type
+
+[EXAMPLE OUTPUT]
+
+------------------------------------------------------------------------------------------------------------
+|HOST|PORT |LAYER_NAME|R|FILE_NAME       |SECTION                |PARAMETER_NAME                     |VALUE|
+------------------------------------------------------------------------------------------------------------
+|any |  any|DEFAULT   | |global.ini      |execution              |default_statement_concurrency_limit|0    |
+|any |  any|DEFAULT   | |global.ini      |execution              |max_concurrency                    |0    |
+|any |  any|DEFAULT   | |global.ini      |execution              |max_concurrency_hint               |0    |
+|any |  any|DEFAULT   | |indexserver.ini |livecache              |lockmanager_concurrency_level      |23   |
+|any |  any|DEFAULT   | |indexserver.ini |query_mediator         |use_concurrent_plan_generation     |TRUE |
+|any |  any|DEFAULT   | |indexserver.ini |table_consistency_check|check_max_concurrency              |0    |
+|any |  any|DEFAULT   | |indexserver.ini |table_consistency_check|check_max_concurrency_percent      |80   |
+|any |  any|DEFAULT   | |indexserver.ini |table_consistency_check|enable_concurrency_restriction     |TRUE |
+|any |  any|DEFAULT   | |indexserver.ini |table_consistency_check|internal_check_max_concurrency     |8    |
+------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  FILE_NAME,
+  SECTION,
+  PARAMETER_NAME,
+  LAYER_NAME,
+  MAP(VALUE, 'TRUE', 'true', 'FALSE', 'false', VALUE) VALUE,
+  RAW_VALUE,
+  UNIT,
+  MAP(RESTART_REQUIRED, 'TRUE', 'X', ' ') R,
+  MAP(VIOLATED_RESTRICTIONS, 'VALUE_RESTRICTION', 'V', 'LAYER_RESTRICTION', 'L', 'CUSTOM_RESTRICTIONS', 'C', VIOLATED_RESTRICTIONS) V,
+  IFNULL(VALUE_RANGE, 'n/a') VALUE_RANGE,
+  IFNULL(LAYER_RESTRICTIONS, 'n/a') LAYER_RESTRICTIONS,
+  IFNULL(CUSTOM_RESTRICTIONS, 'n/a') CUSTOM_RESTRICTIONS,
+  IFNULL(DATA_TYPE, 'n/a') DATA_TYPE
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')      != 0 THEN P.HOST                 ELSE MAP(BI.HOST,           '%', 'any', BI.HOST)           END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(P.PORT)     ELSE MAP(BI.PORT,           '%', 'any', BI.PORT)           END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PARAMETER') != 0 THEN P.FILE_NAME            ELSE MAP(BI.FILE_NAME,      '%', 'any', BI.FILE_NAME)      END FILE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PARAMETER') != 0 THEN P.SECTION              ELSE MAP(BI.SECTION,        '%', 'any', BI.SECTION)        END SECTION,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PARAMETER') != 0 THEN P.KEY                  ELSE MAP(BI.PARAMETER_NAME, '%', 'any', BI.PARAMETER_NAME) END PARAMETER_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PARAMETER') != 0 THEN PP.DATA_TYPE           ELSE 'any'                                                 END DATA_TYPE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PARAMETER') != 0 THEN PP.VALUE_RANGE         ELSE 'any'                                                 END VALUE_RANGE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PARAMETER') != 0 THEN PP.LAYER_RESTRICTIONS  ELSE 'any'                                                 END LAYER_RESTRICTIONS,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PARAMETER') != 0 THEN PP.CUSTOM_RESTRICTIONS ELSE 'any'                                                 END CUSTOM_RESTRICTIONS,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LAYER')     != 0 THEN P.LAYER_NAME           ELSE MAP(BI.LAYER_NAME,     '%', 'any', BI.LAYER_NAME)     END LAYER_NAME,
+    P.VALUE,
+    P.RAW_VALUE,
+    IFNULL(PP.UNIT, '') UNIT,
+    P.RESTART_REQUIRED,
+    P.VIOLATED_RESTRICTIONS
+  FROM
+  ( SELECT                      /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      '%' FILE_NAME,
+      '%' SECTION,
+      '%' PARAMETER_NAME,
+      '%' LAYER_NAME,
+      '%' VALUE,
+      '%' RAW_VALUE,
+      ' ' ONLY_PENDING_RESTARTS,
+      ' ' ONLY_NON_DEFAULT_SETTINGS,
+      ' ' ONLY_VIOLATED_RESTRICTIONS,
+      'X' ONLY_WORKLOAD_SETTINGS,
+      'X' EXCLUDE_DAEMON,
+      'X' EXCLUDE_WEBDISPATCHER,
+      'PARAMETER, LAYER' AGGREGATE_BY           /* HOST, PORT, PARAMETER, LAYER or comma separated combinations, NONE for no aggregation */
+    FROM
+      DUMMY
+  ) BI,
+    M_CONFIGURATION_PARAMETER_VALUES P LEFT OUTER JOIN
+  ( SELECT
+      SECTION,
+      KEY,
+      UNIT,
+      MAX(DATA_TYPE_NAME) DATA_TYPE,
+      MAX(VALUE_RESTRICTIONS) VALUE_RANGE,
+      MAX(LAYER_RESTRICTIONS) LAYER_RESTRICTIONS,
+      MAX(CUSTOM_RESTRICTIONS) CUSTOM_RESTRICTIONS
+    FROM
+      CONFIGURATION_PARAMETER_PROPERTIES
+    GROUP BY
+      SECTION,
+      KEY,
+      UNIT
+  ) PP ON
+    PP.SECTION = P.SECTION AND
+    PP.KEY = P.KEY
+  WHERE
+    P.HOST LIKE BI.HOST AND
+    TO_VARCHAR(P.PORT) LIKE BI.PORT AND
+    P.FILE_NAME LIKE BI.FILE_NAME AND
+    P.SECTION LIKE BI.SECTION AND
+    P.KEY LIKE BI.PARAMETER_NAME AND
+    P.LAYER_NAME LIKE BI.LAYER_NAME AND
+    P.VALUE LIKE BI.VALUE AND
+    P.RAW_VALUE LIKE BI.RAW_VALUE AND
+    ( BI.ONLY_PENDING_RESTARTS = ' ' OR P.RESTART_REQUIRED = 'TRUE' ) AND
+    ( BI.ONLY_NON_DEFAULT_SETTINGS = ' ' OR P.LAYER_NAME != 'DEFAULT' ) AND
+    ( BI.ONLY_VIOLATED_RESTRICTIONS = ' ' OR P.VIOLATED_RESTRICTIONS != '' ) AND
+    ( BI.ONLY_WORKLOAD_SETTINGS = ' ' OR
+      P.KEY IN ( 'affinity', 'bulk_load_threads', 'busy_executor_threshold', 'capture_thread_count', 'change_compression_threads', 
+                 'check_max_concurrency', 'check_max_concurrency_percent', 'default_statement_concurrency_limit', 'dynamic_parallel_insert_max_workers', 
+                 'enable_parallel_backup_encryption', 'estimate_compression_threads', 'get_candidates_threads', 'insert_max_threads', 
+                 'internal_check_max_concurrency', 'load_balancing_func', 'load_factor_job_weight_pct', 'load_factor_sys_weight_pct', 
+                 'loading_thread', 'max_concurrency', 'max_concurrency_dyn_min_pct', 
+                 'max_concurrency_hint', 'max_concurrency_hint_dyn_min_pct', 'max_concurrency_task_limit_factor', 'max_concurrent_connections', 
+                 'max_concurrent_queries', 'max_cpuload_for_parallel_merge', 'max_gc_parallelity', 'max_number_of_data_jobs', 
+                 'max_num_recompile_threads', 'max_sql_executors', 'num_cores', 'num_exec_threads', 'num_merge_threads', 'num_of_async_rep_queue', 
+                 'num_parallel_fox', 'other_threads_act_weight', 'other_worker_worker_weight_ratio', 
+                 'parallel_data_backup_backint_channels', 'parallel_merge_part_threads', 'parallel_merge_threads', 'prepare_threads', 
+                 'recovery_queue_count', 'row_order_optimizer_threads', 'split_history_parallel', 'split_threads', 'sql_executors', 
+                 'statement_memory_limit', 'statement_memory_limit_threshold', 'table_partition_size', 'tables_preloaded_in_parallel', 
+                 'threadpool', 'token_per_table', 'total_statement_memory_limit' ) OR
+      ( P.SECTION = 'fileio' AND P.KEY LIKE 'max%throughput%' )
+    ) AND
+    ( BI.EXCLUDE_DAEMON = ' ' OR P.FILE_NAME != 'daemon.ini' ) AND
+    ( BI.EXCLUDE_WEBDISPATCHER = ' ' OR P.FILE_NAME NOT IN ('webdispatcher.ini', 'webdispatcher...') )
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')      != 0 THEN P.HOST                 ELSE MAP(BI.HOST,           '%', 'any', BI.HOST)           END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(P.PORT)     ELSE MAP(BI.PORT,           '%', 'any', BI.PORT)           END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PARAMETER') != 0 THEN P.FILE_NAME            ELSE MAP(BI.FILE_NAME,      '%', 'any', BI.FILE_NAME)      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PARAMETER') != 0 THEN P.SECTION              ELSE MAP(BI.SECTION,        '%', 'any', BI.SECTION)        END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PARAMETER') != 0 THEN P.KEY                  ELSE MAP(BI.PARAMETER_NAME, '%', 'any', BI.PARAMETER_NAME) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PARAMETER') != 0 THEN PP.DATA_TYPE           ELSE 'any'                                                 END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PARAMETER') != 0 THEN PP.VALUE_RANGE         ELSE 'any'                                                 END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PARAMETER') != 0 THEN PP.LAYER_RESTRICTIONS  ELSE 'any'                                                 END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PARAMETER') != 0 THEN PP.CUSTOM_RESTRICTIONS ELSE 'any'                                                 END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LAYER')     != 0 THEN P.LAYER_NAME           ELSE MAP(BI.LAYER_NAME,     '%', 'any', BI.LAYER_NAME)     END,
+    P.VALUE,
+    P.RAW_VALUE,
+    IFNULL(PP.UNIT, ''),
+    P.RESTART_REQUIRED,
+    P.VIOLATED_RESTRICTIONS
+)
+ORDER BY
+  FILE_NAME,
+  SECTION,
+  PARAMETER_NAME,
+  HOST,
+  PORT

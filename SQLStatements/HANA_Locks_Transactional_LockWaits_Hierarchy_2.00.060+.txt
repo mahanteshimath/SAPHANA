@@ -1,0 +1,469 @@
+WITH 
+
+/* 
+
+[NAME]
+
+- HANA_Locks_Transactional_LockWaits_Hierarchy_2.00.060+
+
+[DESCRIPTION]
+
+- Current and historic transactional lock wait situations (record locks, object locks) in hierarchical display
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- M_SERVICE_THREADS.STATEMENT_HASH not available before Rev. 1.00.100+
+- A maximum of five hierarchy levels are considered
+- SAPGUI may not display the indents properly, you have to switch to "List output" to see them
+- SITE_ID in history tables available with SAP HANA >= 2.0 SPS 06
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.060
+
+[SQL COMMAND VERSION]
+
+- 2014/04/10:  1.0 (initial version)
+- 2016/12/01:  1.1 (CLIENT_HOST, CLIENT_IP, final blocking session and APPLICATION_SOURCE included)
+- 2016/12/29:  1.2 (consolidation of current and historic lock wait analysis in a single SQL statement)
+- 2017/01/23:  1.3 (WAIT_STATEMENT_HASH included)
+- 2017/03/08:  1.4 (Hierarchy included)
+- 2017/10/25:  1.5 (TIMEZONE included)
+- 2018/10/05:  1.6 (fallback to blocking statement string if statement hash is empty)
+- 2018/12/04:  1.7 (shortcuts for BEGIN_TIME and END_TIME like 'C', 'E-S900' or 'MAX')
+- 2022/05/26:  1.8 (dedicated 2.00.060+ version including SITE_ID for data source HISTORY)
+- 2022/10/02:  1.9 (redesign using SQL hierarchies)
+
+[INVOLVED TABLES]
+
+- HOST_BLOCKED_TRANSACTIONS
+- M_BLOCKED_TRANSACTIONS
+- M_CONNECTIONS
+- M_SERVICE_THREADS
+- M_SESSION_CONTEXT
+- M_TRANSACTIONS
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- SITE_ID
+
+  System replication site ID (may only work for DATA_SOURCE = 'HISTORY')
+
+  -1             --> No restriction related to site ID
+  1              --> Site id 1
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_ tables)
+  'HISTORY'       --> Data from persisted history information (HOST_ tables)
+
+[OUTPUT PARAMETERS]
+
+- SNAPSHOT_TIME:   Snapshot timestamp
+- CONN_ID:         Connection ID, indent indicates hierarchy (more indent means waiting for next connection above with less indent)
+- UTID:            Update transaction ID
+- WAIT_S:          Seconds since lock wait started
+- LT:              Lock type ('R' -> RECORD, 'T' -> TABLE, 'M' -> METADATA)
+- LM:              Lock mode ('E' -> EXCLUSIVE, 'IE' -> INTENTIONAL EXCLUSIVE, 'S' -> SHARED)
+- A:               'X' if lock holder is active on SAP HANA side, ' ' if lock holder is active outside of SAP HANA (e.g. client, communication)
+- SCHEMA:          Schema name of object related to lock wait
+- OBJECT_NAME:     Object name related to lock wait
+- STATEMENT_HASH:  Statement hash
+- ST:              System replication site ID
+- RECORD_ID:       ID of record related to lock wait
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|SNAPSHOT_TIME      |CONN_ID   |UTID       |WAIT_S |LT|LM|A|SCHEMA|OBJECT_NAME|CLIENT_HOST_PID |APPLICATION_SOURCE               |STATEMENT_HASH                  |RECORD_ID                                    |
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|2017/03/10 10:08:05|465456    | 4641526537|       |R |E | |SAPERP|LAGP       |saphana2 / 14438|/GLB/SAPLUGTPT_WM_INT_CONTROL:69 |                                |                                             |
+|                   |  400041  | 4641535730|     66|R |E | |SAPERP|LAGP       |                |SAPLL03T:18810                   |e940387338ef56106c040dea88495d01|OID=0x00017B72, PARTID=0x0, OFFSET=0xEEFA999B|
+|2017/03/10 10:08:05|452764    | 4641535448|       |R |E | |SAPERP|LAGP       |saphana4 / 9937 |/EUR/SAPLUEUPT_PRINTER_DETERM:914|                                |                                             |
+|                   |  465481  | 4641560741|      7|R |E | |SAPERP|LAGP       |                |SAPLL03T:18810                   |e940387338ef56106c040dea88495d01|OID=0x00017B72, PARTID=0x0, OFFSET=0xB5D2A9B8|
+|                   |  407820  | 4641562528|      2|R |E | |SAPERP|LAGP       |                |SAPLL03T:18810                   |e940387338ef56106c040dea88495d01|OID=0x00017B72, PARTID=0x0, OFFSET=0xB5D2A9B8|
+|2017/03/10 10:08:05|402958    | 4641563249|       |R |E | |SAPERP|LAGP       |saphana2 / 31923|/GLB/SAPLUGTPT_TB_EMPTY_TOTE:806 |                                |                                             |
+|                   |  455307  | 4641462162|      1|R |E | |SAPERP|LAGP       |saphana9 / 12460|SAPLL03T:18810                   |e940387338ef56106c040dea88495d01|OID=0x00017B72, PARTID=0x0, OFFSET=0x1E2AF78E|
+|                   |    428556| 4641563572|      1|R |E | |SAPERP|LAGP       |                |SAPLL03T:18810                   |e940387338ef56106c040dea88495d01|OID=0x00017B72, PARTID=0x0, OFFSET=0xF024D96D|
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+BASIS_INFO AS
+( SELECT
+    CASE
+      WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+      WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+      WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+      WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+      WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+      WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+      WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+      WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+      WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+      WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+      WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+      WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+      WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+    END BEGIN_TIME,
+    CASE
+      WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+      WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+      WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+      WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+      WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+      WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+      WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+      WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+      WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+      WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+      WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+      WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+      WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+    END END_TIME,
+    TIMEZONE,
+    SITE_ID,
+    HOST,
+    PORT,
+    SERVICE_NAME,
+    SCHEMA_NAME,
+    TABLE_NAME,
+    DATA_SOURCE
+  FROM
+  ( SELECT                            /* Modification section */
+      'C-H12' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+      'C' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+      'SERVER' TIMEZONE,                              /* SERVER, UTC */
+      -1 SITE_ID,
+      '%' HOST,
+      '%' PORT,
+      '%' SERVICE_NAME,
+      '%' SCHEMA_NAME,
+      '%' TABLE_NAME,
+      'HISTORY' DATA_SOURCE
+    FROM
+      DUMMY
+  )
+),
+LOCK_WAITS_HELPER AS
+( SELECT
+    CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(BT.END_TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE BT.END_TIMESTAMP END SNAPSHOT_TIME,
+    GREATEST(0, SECONDS_BETWEEN(BT.START_TIMESTAMP, BT.END_TIMESTAMP)) WAIT_S,
+    BT.WAITING_SCHEMA_NAME,
+    BT.WAITING_OBJECT_NAME,
+    BT.LOCK_TYPE,
+    BT.LOCK_MODE,
+    BT.FINAL_BLOCKING_SESSION,
+    BT.ACTIVE,
+    BT.BLOCKED_CONNECTION_ID,
+    BT.BLOCKED_UPDATE_TRANSACTION_ID,
+    BT.BLOCKED_CLIENT_HOST,
+    BT.BLOCKED_CLIENT_PID,
+    BT.BLOCKED_APPLICATION_SOURCE,
+    BT.BLOCKED_APPLICATION_USER,
+    BT.BLOCKED_STATEMENT_HASH,
+    BT.LOCK_OWNER_CONNECTION_ID,
+    BT.LOCK_OWNER_UPDATE_TRANSACTION_ID,
+    BT.LOCK_OWNER_CLIENT_HOST,
+    BT.LOCK_OWNER_CLIENT_PID,
+    BT.LOCK_OWNER_APPLICATION_SOURCE,
+    BT.LOCK_OWNER_APPLICATION_USER,
+    BT.LOCK_OWNER_STATEMENT_HASH,
+    BT.SITE_ID,
+    BT.HOST,
+    BT.PORT,
+    BT.WAITING_RECORD_ID
+  FROM
+    BASIS_INFO BI,
+  ( SELECT
+      'CURRENT' DATA_SOURCE,
+      CURRENT_TIMESTAMP END_TIMESTAMP,
+      CURRENT_SITE_ID() SITE_ID,
+      BT.HOST,
+      BT.PORT,
+      BT.LOCK_TYPE,
+      BT.LOCK_MODE,
+      BT.WAITING_SCHEMA_NAME,
+      BT.WAITING_OBJECT_NAME,
+      BT.WAITING_RECORD_ID,
+      BT.BLOCKED_TIME START_TIMESTAMP,
+      BT.BLOCKED_CONNECTION_ID,
+      BT.BLOCKED_UPDATE_TRANSACTION_ID,
+      C2.CLIENT_HOST BLOCKED_CLIENT_HOST,
+      C2.CLIENT_PID BLOCKED_CLIENT_PID,
+      SC2.VALUE BLOCKED_APPLICATION_SOURCE,
+      SC4.VALUE BLOCKED_APPLICATION_USER,
+      IFNULL(( SELECT MAX(TH.STATEMENT_HASH) FROM M_SERVICE_THREADS TH WHERE TH.UPDATE_TRANSACTION_ID = BT.BLOCKED_UPDATE_TRANSACTION_ID ), '') BLOCKED_STATEMENT_HASH,
+      BT.LOCK_OWNER_CONNECTION_ID,
+      BT.LOCK_OWNER_UPDATE_TRANSACTION_ID,
+      C.CLIENT_HOST LOCK_OWNER_CLIENT_HOST,
+      C.CLIENT_PID LOCK_OWNER_CLIENT_PID,
+      SC.VALUE LOCK_OWNER_APPLICATION_SOURCE,
+      SC3.VALUE LOCK_OWNER_APPLICATION_USER,
+      IFNULL(( SELECT MAX(TH.STATEMENT_HASH) FROM M_SERVICE_THREADS TH WHERE TH.UPDATE_TRANSACTION_ID = BT.LOCK_OWNER_UPDATE_TRANSACTION_ID ), '') LOCK_OWNER_STATEMENT_HASH,
+      CASE ( SELECT COUNT(*) FROM M_BLOCKED_TRANSACTIONS BT2 WHERE BT2.BLOCKED_UPDATE_TRANSACTION_ID = BT.LOCK_OWNER_UPDATE_TRANSACTION_ID ) WHEN 0 THEN 'X' ELSE ' ' END FINAL_BLOCKING_SESSION,
+      CASE ( SELECT COUNT(*) FROM M_SERVICE_THREADS TH WHERE TH.UPDATE_TRANSACTION_ID = BT.LOCK_OWNER_UPDATE_TRANSACTION_ID ) WHEN 0 THEN ' ' ELSE 'X' END ACTIVE
+    FROM
+      BASIS_INFO BI,
+      M_BLOCKED_TRANSACTIONS BT,
+      M_CONNECTIONS C,
+      M_TRANSACTIONS T LEFT OUTER JOIN
+      M_SESSION_CONTEXT SC ON
+        SC.HOST = T.HOST AND
+        SC.PORT = T.PORT AND
+        SC.CONNECTION_ID = T.CONNECTION_ID AND
+        SC.KEY = 'APPLICATIONSOURCE' LEFT OUTER JOIN
+      M_SESSION_CONTEXT SC3 ON
+        SC3.HOST = T.HOST AND
+        SC3.PORT = T.PORT AND
+        SC3.CONNECTION_ID = T.CONNECTION_ID AND
+        SC3.KEY = 'APPLICATIONUSER',
+      M_CONNECTIONS C2,
+      M_TRANSACTIONS T2 LEFT OUTER JOIN
+      M_SESSION_CONTEXT SC2 ON
+        SC2.HOST = T2.HOST AND
+        SC2.PORT = T2.PORT AND
+        SC2.CONNECTION_ID = T2.CONNECTION_ID AND
+        SC2.KEY = 'APPLICATIONSOURCE' LEFT OUTER JOIN
+      M_SESSION_CONTEXT SC4 ON
+        SC4.HOST = T2.HOST AND
+        SC4.PORT = T2.PORT AND
+        SC4.CONNECTION_ID = T2.CONNECTION_ID AND
+        SC4.KEY = 'APPLICATIONUSER'
+    WHERE
+      T.UPDATE_TRANSACTION_ID = BT.LOCK_OWNER_UPDATE_TRANSACTION_ID AND
+      C.HOST = T.HOST AND
+      C.PORT = T.PORT AND
+      C.CONNECTION_ID = T.CONNECTION_ID AND
+      T2.UPDATE_TRANSACTION_ID = BT.BLOCKED_UPDATE_TRANSACTION_ID AND
+      C2.HOST = T2.HOST AND
+      C2.PORT = T2.PORT AND
+      C2.CONNECTION_ID = T2.CONNECTION_ID
+    UNION ALL
+    SELECT DISTINCT
+      'HISTORY' DATA_SOURCE,
+      BT.SERVER_TIMESTAMP END_TIMESTAMP,
+      IFNULL(BT.SITE_ID, -1) SITE_ID,
+      BT.HOST,
+      BT.PORT,
+      BT.LOCK_TYPE,
+      BT.LOCK_MODE,
+      BT.WAITING_SCHEMA_NAME,
+      BT.WAITING_OBJECT_NAME,
+      BT.WAITING_RECORD_ID,
+      BT.BLOCKED_TIME START_TIMESTAMP,
+      BT.BLOCKED_CONNECTION_ID,
+      BT.BLOCKED_UPDATE_TRANSACTION_ID,
+      NULL BLOCKED_CLIENT_HOST,
+      NULL BLOCKED_CLIENT_PID,
+      BT.BLOCKED_APPLICATION_SOURCE,
+      BT.BLOCKED_APPLICATION_USER,
+      BT.BLOCKED_STATEMENT_HASH,
+      BT.LOCK_OWNER_CONNECTION_ID,
+      BT.LOCK_OWNER_UPDATE_TRANSACTION_ID,
+      BT.LOCK_OWNER_HOST LOCK_OWNER_CLIENT_HOST,
+      BT.LOCK_OWNER_PID LOCK_OWNER_CLIENT_PID,
+      BT.LOCK_OWNER_APPLICATION_SOURCE,
+      BT.LOCK_OWNER_APPLICATION_USER,
+      IFNULL(BT.LOCK_OWNER_STATEMENT_HASH, TO_VARCHAR(SUBSTR(BT.LOCK_OWNER_STATEMENT_STRING, 1, 50))) LOCK_OWNER_STATEMENT_HASH,
+      CASE ( SELECT COUNT(*) FROM _SYS_STATISTICS.HOST_BLOCKED_TRANSACTIONS BT2 WHERE BT2.SNAPSHOT_ID = BT.SNAPSHOT_ID AND BT2.BLOCKED_UPDATE_TRANSACTION_ID = BT.LOCK_OWNER_UPDATE_TRANSACTION_ID ) WHEN 0 THEN 'X' ELSE ' ' END FINAL_BLOCKING_SESSION,
+      '' ACTIVE
+    FROM
+      _SYS_STATISTICS.HOST_BLOCKED_TRANSACTIONS BT
+  ) BT
+  WHERE
+    ( BI.DATA_SOURCE = 'CURRENT' OR 
+      CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(BT.START_TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE BT.START_TIMESTAMP END BETWEEN BI.BEGIN_TIME AND BI.END_TIME OR 
+      CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(BT.END_TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE BT.END_TIMESTAMP END BETWEEN BI.BEGIN_TIME AND BI.END_TIME ) AND
+    ( BI.SITE_ID = -1 OR ( BI.SITE_ID = 0 AND BT.SITE_ID IN (-1, 0) ) OR BT.SITE_ID = BI.SITE_ID ) AND    BT.HOST LIKE BI.HOST AND
+    TO_VARCHAR(BT.PORT) LIKE BI.PORT AND
+    BT.WAITING_SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    BT.WAITING_OBJECT_NAME LIKE BI.TABLE_NAME AND
+    BI.DATA_SOURCE = BT.DATA_SOURCE
+),
+LOCK_WAITS AS
+( SELECT
+    SNAPSHOT_TIME,
+    WAIT_S,
+    WAITING_SCHEMA_NAME,
+    WAITING_OBJECT_NAME,
+    LOCK_TYPE,
+    LOCK_MODE,
+    ' ' FINAL_BLOCKING_SESSION,
+    ACTIVE,
+    BLOCKED_CONNECTION_ID,
+    BLOCKED_UPDATE_TRANSACTION_ID,
+    BLOCKED_CLIENT_HOST,
+    BLOCKED_CLIENT_PID,
+    BLOCKED_APPLICATION_SOURCE,
+    BLOCKED_APPLICATION_USER,
+    BLOCKED_STATEMENT_HASH,
+    LOCK_OWNER_CONNECTION_ID,
+    LOCK_OWNER_UPDATE_TRANSACTION_ID,
+    LOCK_OWNER_CLIENT_HOST,
+    LOCK_OWNER_CLIENT_PID,
+    LOCK_OWNER_APPLICATION_SOURCE,
+    LOCK_OWNER_APPLICATION_USER,
+    LOCK_OWNER_STATEMENT_HASH,
+    SITE_ID,
+    HOST,
+    PORT,
+    WAITING_RECORD_ID    
+  FROM
+    LOCK_WAITS_HELPER
+  UNION ALL
+  SELECT DISTINCT
+    SNAPSHOT_TIME,
+    0 WAIT_S,
+    WAITING_SCHEMA_NAME,
+    WAITING_OBJECT_NAME,
+    LOCK_TYPE,
+    LOCK_MODE,
+    FINAL_BLOCKING_SESSION,
+    ACTIVE,
+    LOCK_OWNER_CONNECTION_ID BLOCKED_CONNECTION_ID,
+    LOCK_OWNER_UPDATE_TRANSACTION_ID BLOCKED_UPDATE_TRANSACTION_ID,
+    LOCK_OWNER_CLIENT_HOST BLOCKED_CLIENT_HOST,
+    LOCK_OWNER_CLIENT_PID BLOCKED_CLIENT_PID,
+    LOCK_OWNER_APPLICATION_SOURCE BLOCKED_APPLICATION_SOURCE,
+    LOCK_OWNER_APPLICATION_USER BLOCKED_APPLICATION_USER,
+    LOCK_OWNER_STATEMENT_HASH BLOCKED_STATEMENT_HASH,
+    NULL LOCK_OWNER_CONNECTION_ID,
+    NULL LOCK_OWNER_UPDATE_TRANSACTION_ID,
+    NULL LOCK_OWNER_CLIENT_HOST,
+    NULL LOCK_OWNER_CLIENT_PID,
+    NULL LOCK_OWNER_APPLICATION_SOURCE,
+    NULL LOCK_OWNER_APPLICATION_USER,
+    NULL LOCK_OWNER_STATEMENT_HASH,
+    SITE_ID,
+    HOST,
+    PORT,
+    '' WAITING_RECORD_ID
+  FROM
+    LOCK_WAITS_HELPER
+  WHERE
+    FINAL_BLOCKING_SESSION = 'X'
+),
+LOCK_WAITS_HIERARCHY AS
+( SELECT
+    * 
+  FROM 
+    HIERARCHY
+    ( SOURCE ( SELECT *, SNAPSHOT_TIME || LOCK_OWNER_UPDATE_TRANSACTION_ID PARENT_ID, SNAPSHOT_TIME || BLOCKED_UPDATE_TRANSACTION_ID NODE_ID FROM LOCK_WAITS )
+      START WHERE FINAL_BLOCKING_SESSION = 'X'
+      SIBLING ORDER BY SNAPSHOT_TIME
+      NO CACHE
+    )
+)
+SELECT
+  MAP(HIERARCHY_LEVEL, 1, TO_VARCHAR(SNAPSHOT_TIME, 'YYYY/MM/DD HH24:MI:SS'), '') SNAPSHOT_TIME,
+  LPAD('', (HIERARCHY_LEVEL - 1) * 2) || IFNULL(TO_VARCHAR(BLOCKED_CONNECTION_ID), 'n/a') CONN_ID,
+  LPAD(BLOCKED_UPDATE_TRANSACTION_ID, 11) UTID,
+  LPAD(WAIT_S, 7) WAIT_S,
+  MAP(LOCK_TYPE, 'RECORD_LOCK', 'R', 'TABLE_LOCK', 'T', 'OBJECT_LOCK', 'T', 'METADATA_LOCK', 'M', LOCK_TYPE) LT,
+  MAP(LOCK_MODE, 'EXCLUSIVE', 'E', 'INTENTIONAL_EXCLUSIVE', 'IE', 'NON_KEY_EXCLUSIVE', 'NKE', 'SHARED', 'S', LOCK_MODE) LM,
+  ACTIVE A,
+  WAITING_SCHEMA_NAME SCHEMA,
+  WAITING_OBJECT_NAME OBJECT_NAME,
+  IFNULL(BLOCKED_CLIENT_HOST, '') CLIENT_HOST, 
+  IFNULL(TO_VARCHAR(BLOCKED_CLIENT_PID), '') CLIENT_PID, 
+  IFNULL(BLOCKED_APPLICATION_SOURCE, '') APPLICATION_SOURCE,
+  IFNULL(BLOCKED_APPLICATION_USER, '') APP_USER,
+  IFNULL(BLOCKED_STATEMENT_HASH, '') STATEMENT_HASH,
+  IFNULL(LPAD(SITE_ID, 2), '') ST,
+  WAITING_RECORD_ID RECORD_ID
+FROM
+  LOCK_WAITS_HIERARCHY
+ORDER BY
+  HIERARCHY_ROOT_RANK DESC,
+  HIERARCHY_PARENT_RANK,
+  HIERARCHY_RANK

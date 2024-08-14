@@ -1,0 +1,352 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_TraceFiles_Overview
+
+[DESCRIPTION]
+
+- Trace files overview
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Files py.sap* and hdb.sap* must not be removed, they are soft links to Python and daemon (SAP Note 2370780)
+- File kill.sap must not be removed (SAP Note 2349144)
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2014/03/29:  1.0 (initial version)
+- 2014/05/27:  1.1 (TIME_AGGREGATE_BY included)
+- 2014/08/18:  1.2 (AGGREGATE_BY included)
+- 2016/12/31:  1.3 (TIME_AGGREGATE_BY = 'TS<seconds>' included)
+- 2017/10/27:  1.4 (TIMEZONE included)
+- 2018/02/28:  1.5 (special files and links excluded from cleanup command generation)
+- 2018/12/04:  1.6 (shortcuts for BEGIN_TIME and END_TIME like 'C', 'E-S900' or 'MAX')
+- 2022/02/12:  1.7 (FILE_TYPE included)
+
+[INVOLVED TABLES]
+
+- M_TRACEFILES
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- FILE_NAME
+
+  File name
+
+  'alert.trc'     --> File with name alert.trc
+  '%oom%'         --> File with name containing 'oom'
+  '%'             --> All files
+
+- FILE_TYPE
+
+  File type
+
+  'Runtime Dump'  --> Display only runtime dumps
+  'Load Trace'    --> Display only load trace files
+  '%'             --> No restriction related to file type
+
+- ONLY_OOM
+
+  Restriction to out of memory related files
+
+  'X'             --> Only OOM files are displayed
+  ' '             --> No restriction to OOM files
+
+- MIN_FILE_SIZE_MB
+
+  Minimum file size (MB)
+
+  50              --> Only display files with a size of 50 MB or more
+  -1              --> No restriction related to file size
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOST'          --> Aggregation by host
+  'HOST, TIME'    --> Aggregation by host and time
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'SIZE'          --> Sorting by size 
+  'NAME'          --> Sorting by file name
+  'TIME'          --> Sorting by modification time
+
+[OUTPUT PARAMETERS]
+
+- MODIFICATION_TIME: Last modification time of file
+- HOST:              Host name
+- FILE_NAME:         File name
+- FILE_TYPE:         File type
+- CNT:               Number of trace files
+- FILE_SIZE_KB:      Size of files (in KB)
+- FILE_SIZE_PCT:     Percentage of file size compared to overall size
+- CLEANUP_COMMAND:   SAP HANA SQL command to clean up file
+
+[EXAMPLE OUTPUT]
+
+--------------------------------------------------------------------------
+|MODIFICATION_TIME|HOST   |FILE_NAME|NUM_FILES|FILE_SIZE_KB|FILE_SIZE_PCT|
+--------------------------------------------------------------------------
+|2014/05          |various|various  |      162|     1404075|        11.45|
+|2014/04          |various|various  |      242|     2855366|        23.29|
+|2014/03          |various|various  |      140|     1494182|        12.19|
+|2014/02          |various|various  |      226|     6264076|        51.10|
+|2014/01          |various|various  |       13|      150788|         1.23|
+|2013/12          |various|various  |      124|       87109|         0.71|
+|2013/11          |various|various  |        6|         816|         0.00|
+--------------------------------------------------------------------------
+
+*/
+
+  MODIFICATION_TIME,
+  HOST,
+  FILE_NAME,
+  FILE_TYPE,
+  LPAD(FILES, 5) FILES,
+  LPAD(TO_DECIMAL(ROUND(FILE_SIZE / 1024), 12, 0), 12) FILE_SIZE_KB,
+  LPAD(TO_DECIMAL(FILE_SIZE / SUM(FILE_SIZE) OVER () * 100, 10, 2), 13) FILE_SIZE_PCT,
+  CLEANUP_COMMAND
+FROM
+( SELECT
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(T.FILE_MTIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE T.FILE_MTIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(T.FILE_MTIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE T.FILE_MTIME END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END MODIFICATION_TIME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST') != 0 THEN T.HOST      ELSE MAP(BI.HOST, '%', 'any', BI.HOST)           END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'FILE') != 0 THEN T.FILE_NAME ELSE MAP(BI.FILE_NAME, '%', 'any', BI.FILE_NAME) END FILE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE') != 0 THEN T.FILE_TYPE ELSE MAP(BI.FILE_TYPE, '%', 'any', BI.FILE_TYPE) END FILE_TYPE,
+    COUNT(*) FILES,
+    SUM(T.FILE_SIZE) FILE_SIZE,
+    CASE
+      WHEN BI.AGGREGATE_BY = 'NONE' AND BI.RETENTION_DAYS != -1 AND DAYS_BETWEEN(MIN(T.FILE_MTIME), CURRENT_TIMESTAMP) >= BI.RETENTION_DAYS AND
+        MIN(T.FILE_NAME) NOT LIKE 'py.sap%' AND MIN(T.FILE_NAME) NOT LIKE 'hdb.sap%' AND MIN(T.FILE_NAME) NOT IN ( 'kill.sap' ) THEN
+        'ALTER SYSTEM REMOVE TRACES (' || CHAR(39) || MIN(T.HOST) || CHAR(39) || ', ' || CHAR(39) || MIN(T.FILE_NAME) || CHAR(39) || ');'
+      ELSE ''
+    END CLEANUP_COMMAND,
+    BI.ORDER_BY
+  FROM
+  ( SELECT
+      CASE
+        WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+        WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+        WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+        WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+        WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+        WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+        WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END BEGIN_TIME,
+      CASE
+        WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+        WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+        WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+        WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+        WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+        WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+        WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+        WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+        WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+        WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+        WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END END_TIME,
+      TIMEZONE,
+      HOST,
+      FILE_NAME,
+      FILE_TYPE,
+      ONLY_OOM,
+      MIN_FILE_SIZE_MB,
+      RETENTION_DAYS,
+      ONLY_SHOW_FILES_EXCEEDING_RETENTION,
+      GENERATE_CLEANUP_COMMANDS,
+      AGGREGATE_BY,
+      MAP(TIME_AGGREGATE_BY,
+        'NONE',        'YYYY/MM/DD HH24:MI:SS',
+        'HOUR',        'YYYY/MM/DD HH24',
+        'DAY',         'YYYY/MM/DD (DY)',
+        'HOUR_OF_DAY', 'HH24',
+        TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+      ORDER_BY
+    FROM
+    ( SELECT                     /* Modification section */
+        '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+        '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+        'SERVER' TIMEZONE,                              /* SERVER, UTC */
+        '%' HOST,
+        '%' FILE_NAME,
+        '%' FILE_TYPE,
+        ' ' ONLY_OOM,
+        -1 MIN_FILE_SIZE_MB,
+        42 RETENTION_DAYS,
+        ' ' ONLY_SHOW_FILES_EXCEEDING_RETENTION,
+        'X' GENERATE_CLEANUP_COMMANDS,
+        'TYPE' AGGREGATE_BY,        /* HOST, FILE, TYPE, TIME or comma separated combinations, NONE for no aggregation */
+        'NONE' TIME_AGGREGATE_BY,   /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+        'COUNT' ORDER_BY             /* NAME, TYPE, SIZE, TIME, COUNT */
+      FROM
+        DUMMY
+      )
+    ) BI,
+    ( SELECT
+        CASE
+          WHEN FILE_NAME LIKE '%.stat'                                                           THEN 'Stat File'
+          WHEN FILE_NAME LIKE 'backint%'                                                         THEN 'Backup'
+          WHEN FILE_NAME LIKE 'backup%'                                                          THEN 'Backup'
+          WHEN FILE_NAME LIKE 'cpu_%.dot'                                                        THEN 'Kernel Profiler'
+          WHEN FILE_NAME LIKE '%#_%._____.crashdump.%.trc' ESCAPE '#'                            THEN 'Crash Dump'
+          WHEN FILE_NAME LIKE 'daemon%children.trc'                                              THEN 'Stat File'
+          WHEN FILE_NAME LIKE 'dev#_%' ESCAPE '#' OR FILE_NAME LIKE '%dev_webdisp%'              THEN 'Developer Trace'
+          WHEN FILE_NAME LIKE '%.executed_statements.%'                                          THEN 'Executed Statements Trace'
+          WHEN FILE_NAME LIKE '%.expensive_statements.%'                                         THEN 'Expensive Statements Trace'
+          WHEN FILE_NAME LIKE '%extrace.py%'                                                     THEN 'Python Trace'
+          WHEN FILE_NAME LIKE '%.loads.%'                                                        THEN 'Load Trace'
+          WHEN FILE_NAME LIKE '%.hdbcons.trc'                                                    THEN 'hdbcons'
+          WHEN FILE_NAME LIKE 'hdbinst%' OR FILE_NAME LIKE 'hdblcm%' OR FILE_NAME LIKE 'hdbupd%' THEN 'HDB tools'
+          WHEN FILE_NAME LIKE 'localclient%.trc'                                                 THEN 'Python Scripts Trace'
+          WHEN FILE_NAME LIKE '%.longrunning_transaction.%'                                      THEN 'Runtime Dump'
+          WHEN FILE_NAME =    'nameserver_history.trc'                                           THEN 'Load History'
+          WHEN FILE_NAME LIKE '%perftrace%.tpt%'                                                 THEN 'Performance Trace'
+          WHEN FILE_NAME LIKE '%.profiler.trc%'                                                  THEN 'Performance Trace'
+          WHEN FILE_NAME LIKE '%.row_store_reorg.%'                                              THEN 'Row Store Reorganization'
+          WHEN FILE_NAME LIKE '%.rtedump.%'                                                      THEN 'Runtime Dump'
+          WHEN FILE_NAME LIKE '%servertrace.py%'                                                 THEN 'Python Trace'
+          WHEN FILE_NAME LIKE '%.sqlplan.trc%'                                                   THEN 'Performance Trace'
+          WHEN FILE_NAME LIKE 'sapstart%'                                                        THEN 'sapstart'
+          WHEN FILE_NAME LIKE '%sqltrace%.py%'                                                   THEN 'SQL Trace'
+          WHEN FILE_NAME LIKE '%sqltrace%.trc%'                                                  THEN 'SQL Trace'
+          WHEN FILE_NAME LIKE '%.table_consistency_check.%'                                      THEN 'Consistency Check'
+          WHEN FILE_NAME LIKE '%.table_partition_operation.%'                                    THEN 'Table Partition Operations Trace'
+          WHEN FILE_NAME LIKE '%.unloads.%'                                                      THEN 'Unload Trace'
+          WHEN FILE_NAME LIKE 'wait_%.dot'                                                       THEN 'Kernel Profiler'
+          WHEN FILE_NAME LIKE '%#_alert#_%' ESCAPE '#'                                           THEN 'Alert Trace'
+          WHEN FILE_NAME LIKE '%#_%._____#_%.trc%' ESCAPE '#'                                    THEN 'User-specific Trace'
+          WHEN FILE_NAME LIKE '%#_%._____.___.trc' ESCAPE '#'                                    THEN 'Database Trace'
+          ELSE 'Unclassified'
+        END FILE_TYPE,
+        T.*
+      FROM
+        M_TRACEFILES T
+    ) T
+  WHERE
+    CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(T.FILE_MTIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE T.FILE_MTIME END BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+    T.HOST LIKE BI.HOST AND
+    UPPER(T.FILE_NAME) LIKE UPPER(BI.FILE_NAME) AND
+    UPPER(T.FILE_TYPE) LIKE UPPER(BI.FILE_TYPE) AND
+    ( BI.ONLY_OOM = ' ' OR T.FILE_NAME LIKE '%oom%' ) AND
+    ( BI.ONLY_SHOW_FILES_EXCEEDING_RETENTION = ' ' OR
+      DAYS_BETWEEN(T.FILE_MTIME, CURRENT_TIMESTAMP) >= BI.RETENTION_DAYS
+    ) AND
+    ( BI.MIN_FILE_SIZE_MB = -1 OR T.FILE_SIZE / 1024 / 1024 >= BI.MIN_FILE_SIZE_MB )
+  GROUP BY
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(T.FILE_MTIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE T.FILE_MTIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(T.FILE_MTIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE T.FILE_MTIME END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST') != 0 THEN T.HOST      ELSE MAP(BI.HOST, '%', 'any', BI.HOST)           END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'FILE') != 0 THEN T.FILE_NAME ELSE MAP(BI.FILE_NAME, '%', 'any', BI.FILE_NAME) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE') != 0 THEN T.FILE_TYPE ELSE MAP(BI.FILE_TYPE, '%', 'any', BI.FILE_TYPE) END,
+    BI.RETENTION_DAYS,
+    BI.GENERATE_CLEANUP_COMMANDS,
+    BI.AGGREGATE_BY,
+    BI.TIME_AGGREGATE_BY,
+    BI.ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'NAME', FILE_NAME),
+  MAP(ORDER_BY, 'TYPE', FILE_TYPE),
+  MAP(ORDER_BY, 'SIZE', FILE_SIZE) DESC,
+  MAP(ORDER_BY, 'COUNT', FILES) DESC,
+  MAP(ORDER_BY, 'TIME', MODIFICATION_TIME) DESC
+

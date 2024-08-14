@@ -1,0 +1,594 @@
+WITH 
+
+/* 
+
+[NAME]
+
+- HANA_Tables_ColumnStore_TableSize_2.00.060+
+
+[DESCRIPTION]
+
+- Overview of current and historic table sizes in column store
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Persistent memory and NSE details available starting SAP HANA 2.00.030
+- Persistent memory and NSE details available in statistics server histories starting SAP HANA 2.00.040
+- HOST_COLUMN_TABLES_PART_SIZE.PERSISTENT_MEMORY_SIZE_IN_TOTAL available with SAP HANA >= 2.00.043
+- SITE_ID in history tables available with SAP HANA >= 2.00.060
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.060
+
+[SQL COMMAND VERSION]
+
+- 2014/03/06:  1.0 (initial version)
+- 2015/01/08:  1.1 (AGGREGATE_BY, ORDER_BY and RESULT_ROWS included)
+- 2015/06/22:  1.2 (RECORDS_HISTORY included)
+- 2015/07/17:  1.3 (RECORDS vs. RAW_REC separation)
+- 2016/12/31:  1.4 (TIME_AGGREGATE_BY = 'TS<seconds>' included)
+- 2017/02/02:  1.5 (DATA_SOURCE = 'CURRENT' included)
+- 2017/10/27:  1.6 (TIMEZONE included)
+- 2018/08/02:  1.7 (unused retention period included)
+- 2018/12/04:  1.8 (shortcuts for BEGIN_TIME and END_TIME like 'C', 'E-S900' or 'MAX')
+- 2019/06/05:  1.9 (dedicated 2.00.030+ version including persistent memory details)
+- 2019/12/03:  2.0 (TIMESTAMP_TYPE added)
+- 2020/02/07:  2.1 (PAGED_GB added)
+- 2020/08/15:  2.2 (dedicated 2.00.043+ version including HOST_COLUMN_TABLES_PART_SIZE.PERSISTENT_MEMORY_SIZE_IN_TOTAL)
+- 2020/09/24:  2.3 (IS_LOG_DELTA included)
+- 2020/11/28:  2.4 (ONLY_HISTORY_TABLES included)
+- 2021/05/10:  2.5 (HEAP_GB added)
+- 2022/05/26:  2.6 (dedicated 2.00.060+ version including SITE_ID for data source HISTORY)
+
+[INVOLVED TABLES]
+
+- M_CS_TABLES
+- HOST_COLUMN_TABLES_PART_SIZE
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- SITE_ID
+
+  System replication site ID (may only work for DATA_SOURCE = 'HISTORY')
+
+  -1             --> No restriction related to site ID
+  1              --> Site id 1
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- TIMESTAMP_TYPE
+
+  Type of timestamp
+
+  'SNAPSHOT'     --> Use current time / snapshot time as timestamp
+  'CREATE'       --> Use table create time as timestamp
+
+- PART_ID
+
+  Partition number
+
+  2               --> Only show information for partition number 2
+  -1              --> No restriction related to partition number
+
+- MIN_TOTAL_SIZE_GB
+
+  Lower limit for total memory size (GB)
+
+  5               --> Only consider sizes of at least 5 GB
+  -1              --> No restriction related to size
+
+- MAX_UNUSED_RETENTION_PERIOD_S
+
+  Maximum unused retention period (s)
+
+  3599            --> Only display tables with an unused retention period of less than 3600 s
+  -1              --> No restriction related to unused retention period
+
+- IS_LOG_DELTA
+
+  Flag for delta logging
+
+  'FALSE'         --> Only display tables with disabled delta logging
+  '%'             --> No restriction related to delta logging
+
+- ONLY_HISTORY_TABLES
+
+  Possibility to restrict output to history tables (having at least 1 record in history partition)
+
+  'X'             --> Only display history tables
+  ' '             --> No restriction to history tables
+
+- OBJECT_LEVEL
+
+  Controls display of partitions
+
+  'PARTITION'     --> Result is shown on partition level
+  'TABLE'         --> Result is shown on table level
+
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_ tables)
+  'HISTORY'       --> Data from persisted history information (HOST_ tables)
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'SIZE'          --> Sorting by size 
+  'TABLE'         --> Sorting by table name
+
+- RESULT_ROWS
+
+  Number of records to be returned by the query
+
+  100             --> Return a maximum number of 100 records
+  -1              --> Return all records
+
+[OUTPUT PARAMETERS]
+
+- SNAPSHOT_TIME:   Timestamp
+- ST:              System replication site ID
+- HOST:            Host name
+- PORT:            Port
+- SCHEMA_NAME:     Schema name
+- TABLE_NAME:      Table name
+- CNT:             Number of tables
+- RECORDS:         Total number of rows
+- RAW_REC_TOTAL:   Total number of raw rows
+- RAW_REC_MAIN:    Number of raw rows in main storage
+- RAW_REC_DELTA:   Number of raw rows in delta storage
+- RAW_REC_HISTORY: Number of rows in history
+- LAST_CMP_REC:    Number of rows at time of last optimize compression
+- TOTAL_GB:        Total memory table size (GB)
+- MAIN_GB:         Total memory table size in main (GB)
+- DELTA_GB:        Total memory table size in delta (GB)
+- DELTA_PCT:       Percentage of table size in delta
+- HEAP_GB:         Table size in heap memory (GB)
+- PERSMEM_GB:      Total persistent memory table size (GB)
+- PAGED_GB:        Paged attribute size (GB)
+- NONPAGED_GB:     Non-paged attribute size (GB)
+- MERGES:          Number of delta merges on table
+- RETENTION_S:     Unused retention period (s)
+- DL:              'X' if delta logging is enabled, ' ' if delta logging is disabled
+
+[EXAMPLE OUTPUT]
+
+--------------------------------------------------------------------------------------------------------------------------
+|SAMPLE_TIME        |HOST     |SCHEMA_NAME|TABLE_NAME|NUM_ROWS  |TOTAL_GB    |MAIN_GB     |DELTA_GB    |DELTA_PCT |MERGES|
+--------------------------------------------------------------------------------------------------------------------------
+|2014/04/22 14:13:45|saphana21|SAPECC     |KONV      |5722927730|      292.96|      288.38|        4.58|      1.56|     2|
+|2014/04/22 13:13:45|saphana21|SAPECC     |KONV      |5721069428|      293.83|      288.39|        5.43|      1.85|     0|
+|2014/04/22 12:13:45|saphana21|SAPECC     |KONV      |5718934095|      293.29|      288.39|        4.89|      1.66|     1|
+|2014/04/22 11:13:45|saphana21|SAPECC     |KONV      |5717212961|      293.53|      288.39|        5.14|      1.75|     0|
+|2014/04/22 10:13:45|saphana21|SAPECC     |KONV      |5716130036|      293.10|      288.39|        4.71|      1.60|     0|
+|2014/04/22 09:13:45|saphana21|SAPECC     |KONV      |5715619380|      292.82|      288.39|        4.42|      1.50|     2|
+|2014/04/22 08:13:45|saphana21|SAPECC     |KONV      |5714937259|      293.93|      288.41|        5.51|      1.87|     0|
+|2014/04/22 07:13:45|saphana21|SAPECC     |KONV      |5714700954|      293.66|      288.40|        5.25|      1.79|     0|
+|2014/04/22 06:13:45|saphana21|SAPECC     |KONV      |5714518360|      293.35|      288.40|        4.95|      1.68|     3|
+|2014/04/22 05:13:45|saphana21|SAPECC     |KONV      |5712168881|      294.77|      288.55|        6.21|      2.10|     5|
+|2014/04/22 04:13:45|saphana21|SAPECC     |KONV      |5708086240|      313.04|      305.75|        7.29|      2.33|     9|
+|2014/04/22 03:13:45|saphana21|SAPECC     |KONV      |5703372382|      296.04|      288.92|        7.11|      2.40|    10|
+|2014/04/22 02:13:45|saphana21|SAPECC     |KONV      |5699214379|      310.70|      303.76|        6.94|      2.23|    10|
+|2014/04/22 01:13:45|saphana21|SAPECC     |KONV      |5699117688|      293.70|      286.93|        6.77|      2.30|     1|
+--------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+BASIS_INFO AS
+( SELECT
+    CASE
+      WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+      WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+      WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+      WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+      WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+      WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+      WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+      WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+      WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+      WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+      WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+      WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+      WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+    END BEGIN_TIME,
+    CASE
+      WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+      WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+      WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+      WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+      WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+      WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+      WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+      WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+      WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+      WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+      WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+       WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+      WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+    END END_TIME,
+    TIMEZONE,
+    SITE_ID,
+    HOST,
+    PORT,
+    SCHEMA_NAME,
+    TABLE_NAME,
+    TIMESTAMP_TYPE,
+    PART_ID,
+    MIN_TOTAL_SIZE_GB,
+    MAX_UNUSED_RETENTION_PERIOD_S,
+    IS_LOG_DELTA,
+    ONLY_HISTORY_TABLES,
+    OBJECT_LEVEL,
+    DATA_SOURCE,
+    AGGREGATE_BY,
+    MAP(TIME_AGGREGATE_BY,
+      'NONE',        'YYYY/MM/DD HH24:MI:SS',
+      'HOUR',        'YYYY/MM/DD HH24',
+      'DAY',         'YYYY/MM/DD (DY)',
+      'HOUR_OF_DAY', 'HH24',
+      TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+    ORDER_BY,
+    RESULT_ROWS
+  FROM
+  ( SELECT                                                      /* Modification section */
+      '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+      '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+      'SERVER' TIMEZONE,                              /* SERVER, UTC */
+      -1 SITE_ID,
+      '%' HOST,
+      '%' PORT,
+      '%' SCHEMA_NAME,
+      '%' TABLE_NAME,
+      'SNAPSHOT' TIMESTAMP_TYPE,                 /* SNAPSHOT, CREATE */
+      -1 PART_ID,
+      10 MIN_TOTAL_SIZE_GB,
+      -1 MAX_UNUSED_RETENTION_PERIOD_S,
+      '%' IS_LOG_DELTA,
+      ' ' ONLY_HISTORY_TABLES,
+      'TABLE' OBJECT_LEVEL,
+      'CURRENT' DATA_SOURCE,       /* CURRENT, HISTORY */
+      'NONE' AGGREGATE_BY,         /* TIME, SITE_ID,HOST, PORT, SCHEMA, TABLE, RETENTION or comma separated combinations, NONE for no aggregation */
+      'NONE' TIME_AGGREGATE_BY,     /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+      'TIME' ORDER_BY,                /* NAME, TIME, REC_TOTAL, REC_MAIN, REC_DELTA, SIZE_TOTAL, SIZE_MAIN, SIZE_DELTA, SIZE_PERSMEM, SIZE_PAGED, SIZE_HEAP */
+      -1 RESULT_ROWS
+    FROM
+      DUMMY
+  )
+)
+SELECT
+  SAMPLE_TIME SNAPSHOT_TIME,
+  IFNULL(LPAD(SITE_ID, 2), '') ST,
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  LPAD(TO_DECIMAL(CNT, 11, 0), 5) CNT,
+  LPAD(TO_DECIMAL(ROUND(RECORDS), 12, 0), 12) RECORDS,
+  LPAD(TO_DECIMAL(ROUND(RAW_REC_TOTAL), 13, 0), 13) RAW_REC_TOTAL,
+  LPAD(TO_DECIMAL(ROUND(RAW_REC_MAIN), 12, 0), 12) RAW_REC_MAIN,
+  LPAD(TO_DECIMAL(ROUND(RAW_REC_DELTA), 13, 0), 13) RAW_REC_DELTA,
+  LPAD(TO_DECIMAL(ROUND(RAW_REC_HISTORY), 15, 0), 15) RAW_REC_HISTORY,
+  LPAD(TO_DECIMAL(ROUND(LAST_CMP_REC), 12, 0), 12) LAST_CMP_REC,
+  LPAD(TO_DECIMAL(TOTAL_BYTE / 1024 / 1024 / 1024, 10, 2), 12) TOTAL_GB,
+  LPAD(TO_DECIMAL(MAIN_BYTE / 1024 / 1024 / 1024, 10, 2), 12) MAIN_GB,
+  LPAD(TO_DECIMAL(DELTA_BYTE / 1024 / 1024 / 1024, 10, 2), 10) DELTA_GB,
+  LPAD(TO_DECIMAL(DELTA_PCT, 5, 2), 9) DELTA_PCT,
+  LPAD(TO_DECIMAL((TOTAL_BYTE - PERSMEM_BYTE) / 1024 / 1024 / 1024, 10, 2), 10) HEAP_GB,
+  LPAD(TO_DECIMAL(PERSMEM_BYTE / 1024 / 1024 / 1024, 10, 2), 12) PERSMEM_GB,
+  LPAD(TO_DECIMAL(PAGED_BYTE / 1024 / 1024 / 1024, 10, 2), 10) PAGED_GB,
+  LPAD(TO_DECIMAL((TOTAL_BYTE - PAGED_BYTE) / 1024 / 1024 / 1024, 10, 2), 11) NONPAGED_GB,
+  LPAD(MERGES, 6) MERGES,
+  LPAD(UNUSED_RETENTION_PERIOD, 11) RETENTION_S,
+  MAP(IS_LOG_DELTA, 'FALSE', '', 'TRUE', 'X', IS_LOG_DELTA) DL
+FROM
+( SELECT
+    SAMPLE_TIME,
+    SITE_ID,
+    HOST,
+    PORT,
+    SCHEMA_NAME,
+    TABLE_NAME,
+    CNT,
+    RECORDS,
+    RAW_REC_TOTAL,
+    RAW_REC_MAIN,
+    RAW_REC_DELTA,
+    RAW_REC_HISTORY,
+    LAST_CMP_REC,
+    TOTAL_BYTE,
+    MAIN_BYTE,
+    DELTA_BYTE,
+    PERSMEM_BYTE,
+    PAGED_BYTE,
+    DELTA_PCT,
+    MERGES,
+    UNUSED_RETENTION_PERIOD,
+    IS_LOG_DELTA,
+    ROW_NUMBER () OVER (ORDER BY 
+      MAP(ORDER_BY, 'NAME', SCHEMA_NAME || TABLE_NAME || HOST || PORT || SAMPLE_TIME), 
+      MAP(ORDER_BY, 'TIME', SAMPLE_TIME) DESC,
+      MAP(ORDER_BY, 
+        'REC_TOTAL', RAW_REC_TOTAL, 
+        'REC_MAIN', RAW_REC_MAIN, 
+        'REC_DELTA', RAW_REC_DELTA,
+        'SIZE_TOTAL', TOTAL_BYTE, 
+        'SIZE_MAIN', MAIN_BYTE, 
+        'SIZE_DELTA', DELTA_BYTE,
+        'SIZE_HEAP', TOTAL_BYTE - PERSMEM_BYTE,
+        'SIZE_PERSMEM', PERSMEM_BYTE,
+        'SIZE_PAGED', PAGED_BYTE ) DESC,
+      MAP(ORDER_BY, 'TIME', HOST || PORT || SCHEMA_NAME || TABLE_NAME ) ) ROW_NUM,
+    MIN_TOTAL_SIZE_GB,
+    RESULT_ROWS
+  FROM
+  ( SELECT
+      CASE 
+        WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TIME') != 0 THEN 
+          CASE 
+            WHEN TIME_AGGREGATE_BY LIKE 'TS%' THEN
+              TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+              'YYYY/MM/DD HH24:MI:SS'), SERVER_TIMESTAMP) / SUBSTR(TIME_AGGREGATE_BY, 3)) * SUBSTR(TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+            ELSE TO_VARCHAR(SERVER_TIMESTAMP, TIME_AGGREGATE_BY)
+          END
+        ELSE 'any' 
+      END SAMPLE_TIME,
+      SITE_ID,
+      HOST,
+      PORT,
+      SCHEMA_NAME,
+      TABLE_NAME,
+      SUM(CNT) CNT,
+      AVG(RECORDS) RECORDS,
+      AVG(RAW_REC_MAIN + RAW_REC_DELTA) RAW_REC_TOTAL,
+      AVG(RAW_REC_MAIN) RAW_REC_MAIN,
+      AVG(RAW_REC_DELTA) RAW_REC_DELTA,
+      AVG(RAW_REC_HISTORY) RAW_REC_HISTORY,
+      AVG(LAST_CMP_REC) LAST_CMP_REC,
+      AVG(TOTAL_BYTE) TOTAL_BYTE,
+      AVG(MAIN_BYTE) MAIN_BYTE,
+      AVG(DELTA_BYTE) DELTA_BYTE,
+      AVG(PERSMEM_BYTE) PERSMEM_BYTE,
+      AVG(PAGED_BYTE) PAGED_BYTE,
+      MAP(AVG(TOTAL_BYTE), 0, 0, AVG(DELTA_BYTE) / AVG(TOTAL_BYTE) * 100) DELTA_PCT,
+      SUM(MERGES) MERGES,
+      MAP(MIN(IS_LOG_DELTA), MAX(IS_LOG_DELTA), MIN(IS_LOG_DELTA), 'any') IS_LOG_DELTA,
+      UNUSED_RETENTION_PERIOD,
+      MIN_TOTAL_SIZE_GB,
+      ORDER_BY,
+      RESULT_ROWS
+    FROM
+    ( SELECT
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SITE_ID')   != 0 THEN TO_VARCHAR(CT.SITE_ID)                 ELSE MAP(BI.SITE_ID,      -1, 'any', TO_VARCHAR(BI.SITE_ID)) END SITE_ID,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')      != 0 THEN CT.HOST                                ELSE MAP(BI.HOST,        '%', 'any', BI.HOST)                END HOST,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(CT.PORT)                    ELSE MAP(BI.PORT,        '%', 'any', BI.PORT)                END PORT,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')    != 0 THEN CT.SCHEMA_NAME                         ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)         END SCHEMA_NAME,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'RETENTION') != 0 THEN TO_VARCHAR(CT.UNUSED_RETENTION_PERIOD) ELSE 'any'                                                   END UNUSED_RETENTION_PERIOD,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')     != 0 THEN CT.TABLE_NAME || CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND CT.PART_ID != 0 THEN ' (' || CT.PART_ID || ')' ELSE '' END ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME || CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND CT.PART_ID != 0 THEN ' (' || CT.PART_ID || ')' ELSE '' END ) END TABLE_NAME,
+        CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(CT.SERVER_TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE CT.SERVER_TIMESTAMP END SERVER_TIMESTAMP,
+        COUNT(*) CNT,
+        SUM(CT.RECORD_COUNT) RECORDS,
+        SUM(CT.RAW_RECORD_COUNT_IN_MAIN) RAW_REC_MAIN,
+        SUM(CT.RAW_RECORD_COUNT_IN_DELTA) RAW_REC_DELTA,
+        SUM(CT.RAW_RECORD_COUNT_IN_HISTORY_MAIN + CT.RAW_RECORD_COUNT_IN_HISTORY_DELTA) RAW_REC_HISTORY,
+        SUM(CT.LAST_COMPRESSED_RECORD_COUNT) LAST_CMP_REC,
+        SUM(CT.MEMORY_SIZE_IN_TOTAL + CT.PERSISTENT_MEMORY_SIZE_IN_TOTAL) TOTAL_BYTE,
+        SUM(CT.MEMORY_SIZE_IN_MAIN + CT.PERSISTENT_MEMORY_SIZE_IN_TOTAL) MAIN_BYTE,
+        SUM(CT.MEMORY_SIZE_IN_DELTA) DELTA_BYTE,
+        SUM(CT.PERSISTENT_MEMORY_SIZE_IN_TOTAL) PERSMEM_BYTE,
+        SUM(CT.MEMORY_SIZE_IN_PAGE_LOADABLE_MAIN) PAGED_BYTE,
+        SUM(CT.MERGES) MERGES,
+        MAP(MIN(CT.IS_LOG_DELTA), MAX(CT.IS_LOG_DELTA), MIN(CT.IS_LOG_DELTA), 'any') IS_LOG_DELTA,
+        BI.MIN_TOTAL_SIZE_GB,
+        BI.AGGREGATE_BY,
+        BI.TIME_AGGREGATE_BY,
+        BI.ORDER_BY,
+        BI.RESULT_ROWS
+      FROM
+        BASIS_INFO BI,
+      ( SELECT
+          'CURRENT' DATA_SOURCE,
+          MAP(TIMESTAMP_TYPE, 'SNAPSHOT', CURRENT_TIMESTAMP, 'CREATE', CREATE_TIME) SERVER_TIMESTAMP,
+          CURRENT_SITE_ID() SITE_ID,
+          HOST,
+          PORT,
+          SCHEMA_NAME,
+          TABLE_NAME,
+          PART_ID,
+          RECORD_COUNT,
+          RAW_RECORD_COUNT_IN_MAIN,
+          RAW_RECORD_COUNT_IN_DELTA,
+          RAW_RECORD_COUNT_IN_HISTORY_MAIN,
+          RAW_RECORD_COUNT_IN_HISTORY_DELTA,
+          LAST_COMPRESSED_RECORD_COUNT,
+          MEMORY_SIZE_IN_TOTAL,
+          MEMORY_SIZE_IN_MAIN,
+          MEMORY_SIZE_IN_DELTA,
+          PERSISTENT_MEMORY_SIZE_IN_TOTAL,
+          MEMORY_SIZE_IN_PAGE_LOADABLE_MAIN,
+          MERGE_COUNT MERGES,
+          UNUSED_RETENTION_PERIOD,
+          IS_LOG_DELTA
+        FROM
+        ( SELECT TIMESTAMP_TYPE FROM BASIS_INFO ),
+          M_CS_TABLES
+        UNION ALL
+        SELECT
+          'HISTORY' DATA_SOURCE,
+          MAP(TIMESTAMP_TYPE, 'SNAPSHOT', SERVER_TIMESTAMP, 'CREATE', CREATE_TIME) SERVER_TIMESTAMP,
+          SITE_ID,
+          HOST,
+          PORT,
+          SCHEMA_NAME,
+          TABLE_NAME,
+          PART_ID,
+          RECORD_COUNT,
+          RAW_RECORD_COUNT_IN_MAIN,
+          RAW_RECORD_COUNT_IN_DELTA,
+          RAW_RECORD_COUNT_IN_HISTORY_MAIN,
+          RAW_RECORD_COUNT_IN_HISTORY_DELTA,
+          LAST_COMPRESSED_RECORD_COUNT,
+          MEMORY_SIZE_IN_TOTAL,
+          MEMORY_SIZE_IN_MAIN,
+          MEMORY_SIZE_IN_DELTA,
+          IFNULL(PERSISTENT_MEMORY_SIZE_IN_TOTAL, 0) PERSISTENT_MEMORY_SIZE_IN_TOTAL,
+          IFNULL(MEMORY_SIZE_IN_PAGE_LOADABLE_MAIN, 0) MEMORY_SIZE_IN_PAGE_LOADABLE_MAIN,
+          MERGE_COUNT - LAG(MERGE_COUNT, 1) OVER (PARTITION BY SCHEMA_NAME, TABLE_NAME, PART_ID ORDER BY SERVER_TIMESTAMP) MERGES,
+          UNUSED_RETENTION_PERIOD,
+          IS_LOG_DELTA
+        FROM
+        ( SELECT TIMESTAMP_TYPE FROM BASIS_INFO ),
+          _SYS_STATISTICS.HOST_COLUMN_TABLES_PART_SIZE
+      ) CT
+      WHERE
+        ( BI.SITE_ID = -1 OR ( BI.SITE_ID = 0 AND CT.SITE_ID IN (-1, 0) ) OR CT.SITE_ID = BI.SITE_ID ) AND
+        CT.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+        CT.TABLE_NAME LIKE BI.TABLE_NAME AND
+        ( BI.PART_ID = -1 OR CT.PART_ID = BI.PART_ID ) AND
+        CT.HOST LIKE BI.HOST AND
+        TO_VARCHAR(CT.PORT) LIKE BI.PORT AND
+        ( BI.ONLY_HISTORY_TABLES = ' ' OR CT.RAW_RECORD_COUNT_IN_HISTORY_MAIN + CT.RAW_RECORD_COUNT_IN_HISTORY_DELTA > 0 ) AND
+        CT.DATA_SOURCE = BI.DATA_SOURCE AND
+        ( BI.DATA_SOURCE = 'CURRENT' OR
+          CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(CT.SERVER_TIMESTAMP, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE CT.SERVER_TIMESTAMP END BETWEEN BI.BEGIN_TIME AND BI.END_TIME
+        ) AND
+        ( BI.MAX_UNUSED_RETENTION_PERIOD_S = -1 OR CT.UNUSED_RETENTION_PERIOD BETWEEN 1 AND BI.MAX_UNUSED_RETENTION_PERIOD_S ) AND
+        CT.IS_LOG_DELTA LIKE BI.IS_LOG_DELTA
+      GROUP BY
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SITE_ID')   != 0 THEN TO_VARCHAR(CT.SITE_ID)                 ELSE MAP(BI.SITE_ID,      -1, 'any', TO_VARCHAR(BI.SITE_ID)) END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')      != 0 THEN CT.HOST                                ELSE MAP(BI.HOST,        '%', 'any', BI.HOST)                END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(CT.PORT)                    ELSE MAP(BI.PORT,        '%', 'any', BI.PORT)                END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')    != 0 THEN CT.SCHEMA_NAME                         ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)         END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'RETENTION') != 0 THEN TO_VARCHAR(CT.UNUSED_RETENTION_PERIOD) ELSE 'any'                                                   END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')     != 0 THEN CT.TABLE_NAME || CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND CT.PART_ID != 0 THEN ' (' || CT.PART_ID || ')' ELSE '' END ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME || CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND CT.PART_ID != 0 THEN ' (' || CT.PART_ID || ')' ELSE '' END ) END,
+        CT.SERVER_TIMESTAMP,
+        BI.MIN_TOTAL_SIZE_GB,
+        BI.AGGREGATE_BY,
+        BI.TIME_AGGREGATE_BY,
+        BI.ORDER_BY,
+        BI.RESULT_ROWS,
+        BI.TIMEZONE
+    )
+    GROUP BY
+      CASE 
+        WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TIME') != 0 THEN 
+          CASE 
+            WHEN TIME_AGGREGATE_BY LIKE 'TS%' THEN
+              TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+              'YYYY/MM/DD HH24:MI:SS'), SERVER_TIMESTAMP) / SUBSTR(TIME_AGGREGATE_BY, 3)) * SUBSTR(TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+            ELSE TO_VARCHAR(SERVER_TIMESTAMP, TIME_AGGREGATE_BY)
+          END
+        ELSE 'any' 
+      END,
+      SITE_ID,
+      HOST,
+      PORT,
+      SCHEMA_NAME,
+      TABLE_NAME,
+      MIN_TOTAL_SIZE_GB,
+      UNUSED_RETENTION_PERIOD,
+      ORDER_BY,
+      RESULT_ROWS
+  )
+)
+WHERE
+  ( RESULT_ROWS = -1 OR ROW_NUM <= RESULT_ROWS ) AND
+  ( MIN_TOTAL_SIZE_GB = -1 OR TOTAL_BYTE / 1024 / 1024 / 1024 >= MIN_TOTAL_SIZE_GB )
+ORDER BY
+  ROW_NUM

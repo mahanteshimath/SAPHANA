@@ -1,0 +1,135 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Indexes_HashCollisions_1.00.90+
+
+[DESCRIPTION]
+
+- Overview of hash collisions for INVERTED HASH indexes
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- M_CS_INDEXES only available for revision 90 and higher
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.90
+
+[SQL COMMAND VERSION]
+
+- 2014/12/17:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_CS_INDEXES
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- COLUMN_NAME
+
+  Column name
+
+  'MATNR'         --> Column MATNR
+  'Z%'            --> Columns starting with "Z"
+  '%'             --> No restriction related to columns
+
+[OUTPUT PARAMETERS]
+
+- HOST:                 Host name
+- PORT:                 Port
+- SERVICE:              Service name
+- SCHEMA_NAME:          Schema name
+- TABLE_NAME:           Table name
+- INDEX_NAME:           Index name
+- HASH_COLLISION_COUNT: Number of hash collisions
+
+[EXAMPLE OUTPUT]
+
+------------------------------------------------------------------------------------------------
+|HOST  |PORT |SCHEMA_NAME|TABLE_NAME        |INDEX_NAME                   |HASH_COLLISION_COUNT|
+------------------------------------------------------------------------------------------------
+|hana01|31003|SAPSR3     |/BIC/AADI1NONP00  |/BIC/AADI1NONP00_PK          |             7131444|
+|hana01|31003|SAPSR3     |/BIC/ACLGDSOZA_TST|_SYS_INDEX_CS_#4263388_#0_#P0|             2510124|
+|hana01|31003|SAPSR3     |/BIC/ACLGDSOZA_TST|_SYS_INDEX_CS_#4263402_#0_#P0|              114495|
+------------------------------------------------------------------------------------------------
+
+*/
+
+  I.HOST,
+  LPAD(I.PORT, 5) PORT,
+  S.SERVICE_NAME SERVICE,
+  I.SCHEMA_NAME,
+  I.TABLE_NAME,
+  I.INDEX_NAME,
+  LPAD(SUM(I.HASH_COLLISION_COUNT), 20) HASH_COLLISION_COUNT
+FROM
+( SELECT                       /* Modification section */
+    '%' HOST,
+    '%' PORT,
+    '%' SERVICE_NAME,
+    '%' SCHEMA_NAME,
+    '%' TABLE_NAME,
+    '%' INDEX_NAME,
+    1 MIN_HASH_COLLISION_COUNT
+  FROM
+    DUMMY
+) BI,
+  M_SERVICES S,
+  M_CS_INDEXES I
+WHERE
+  S.HOST LIKE BI.HOST AND
+  TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+  S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+  I.HOST = S.HOST AND
+  I.PORT = S.PORT AND
+  I.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+  I.TABLE_NAME LIKE BI.TABLE_NAME AND
+  I.INDEX_NAME LIKE BI.INDEX_NAME AND
+  ( BI.MIN_HASH_COLLISION_COUNT = -1 OR I.HASH_COLLISION_COUNT >= BI.MIN_HASH_COLLISION_COUNT )
+GROUP BY
+  I.HOST,
+  I.PORT,
+  S.SERVICE_NAME,
+  I.SCHEMA_NAME,
+  I.TABLE_NAME,
+  I.INDEX_NAME
+ORDER BY
+  SUM(I.HASH_COLLISION_COUNT) DESC

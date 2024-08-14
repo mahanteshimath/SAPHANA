@@ -1,0 +1,170 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_NSE_BufferCache_Tables_2.00.040+
+
+[DESCRIPTION]
+
+- Tables currently located in native storage extension (NSE) buffer cache
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- See SAP Note 2799997 for more details related to NSE.
+- M_BUFFER_CACHE_STATISTICS and M_BUFFER_CACHE_POOL_STATISTICS available with SAP HANA >= 2.00.040
+- USED_SIZE with SAP HANA 2.0 SPS 04 is actually the allocated size. With SAP HANA 2.0 >= SPS 05 the 
+  former USED_SIZE value is shown in the ALLOCATED_SIZE column and a new and correct USED_SIZE column
+  is introduced.
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.040
+
+[SQL COMMAND VERSION]
+
+- 2021/11/07:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- M_BUFFER_CACHE_STATISTICS
+- M_CS_TABLES
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- PART_ID
+
+  Partition number
+
+  2               --> Only show information for partition number 2
+  -1              --> No restriction related to partition number
+
+- OBJECT_LEVEL
+
+  Controls display of partitions
+
+  'PARTITION'     --> Result is shown on partition level
+  'TABLE'         --> Result is shown on table level
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'SIZE'          --> Sorting by size 
+  'TABLE'         --> Sorting by table name
+
+[OUTPUT PARAMETERS]
+
+- HOST:        Host
+- PORT:        Port
+- SCHEMA_NAME: Schema name
+- TABLE_NAME:  Table name
+- BUFF_GB:     Size of NSE buffer cache (GB)
+- TABLE_GB:    Current size of table in NSE buffer cache (GB)
+- TAB_PCT:     Current share of NSE buffer cache occupied by table (%)
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------
+|HOST    |PORT |SCHEMA_NAME|TABLE_NAME     |BUFF_GB|TABLE_GB|TAB_PCT|
+---------------------------------------------------------------------
+|saphana1|30003|SAPERP     |ZFBCOEP (2)    | 390.62|   99.20|  25.39|
+|saphana1|30003|SAPERP     |ZFBCOEP (8)    | 390.62|   91.24|  23.35|
+|saphana1|30003|SAPERP     |ZFBBSIS_BCK (4)| 390.62|   57.49|  14.71|
+|saphana1|30003|SAPERP     |ZFBBSIS_BCK (2)| 390.62|   56.70|  14.51|
+|saphana1|30003|SAPERP     |ZFBBSAD_BCK (2)| 390.62|   28.17|   7.21|
+|saphana1|30003|SAPERP     |ZFBBSAS_BCK (2)| 390.62|   20.56|   5.26|
+|saphana1|30003|SAPERP     |ZFBBSIS_BCK (8)| 390.62|   14.32|   3.66|
+|saphana1|30003|SAPERP     |ZFBCOEP (4)    | 390.62|    5.67|   1.45|
+|saphana1|30003|SAPERP     |ZFBBSIS_BCK (6)| 390.62|    4.14|   1.06|
+---------------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  LPAD(TO_DECIMAL(BUFF_GB, 10, 2), 7) BUFF_GB,
+  LPAD(TO_DECIMAL(TABLE_GB, 10, 2), 8) TABLE_GB,
+  LPAD(TO_DECIMAL(MAP(BUFF_GB, 0, 0, TABLE_GB / BUFF_GB * 100), 10, 2), 7) TAB_PCT
+FROM
+( SELECT
+    C.HOST,
+    C.PORT,
+    T.SCHEMA_NAME,
+    T.TABLE_NAME || CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND T.PART_ID != 0 THEN ' (' || T.PART_ID || ')' ELSE '' END TABLE_NAME,
+    C.MAX_SIZE / 1024 / 1024 / 1024 BUFF_GB,
+    SUM(MEMORY_SIZE_IN_PAGE_LOADABLE_MAIN) / 1024 / 1024 / 1024 TABLE_GB,
+    BI.ORDER_BY
+  FROM
+  ( SELECT                       /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      '%' SCHEMA_NAME,
+      '%' TABLE_NAME,
+      -1 PART_ID,
+      'TABLE' OBJECT_LEVEL,
+      'SIZE' ORDER_BY                 /* SIZE, TABLE */
+    FROM
+      DUMMY
+  ) BI,
+    M_BUFFER_CACHE_STATISTICS C,
+    M_CS_TABLES T
+  WHERE
+    C.HOST LIKE BI.HOST AND
+    TO_VARCHAR(C.PORT) LIKE BI.PORT AND
+    T.HOST = C.HOST AND
+    T.PORT = C.PORT AND
+    T.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    T.TABLE_NAME LIKE BI.TABLE_NAME AND
+    ( BI.PART_ID = -1 OR T.PART_ID = BI.PART_ID ) AND
+    T.MEMORY_SIZE_IN_PAGE_LOADABLE_MAIN > 0
+  GROUP BY
+    C.HOST,
+    C.PORT,
+    T.SCHEMA_NAME,
+    C.MAX_SIZE,
+    T.TABLE_NAME || CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND T.PART_ID != 0 THEN ' (' || T.PART_ID || ')' ELSE '' END,
+    BI.ORDER_BY
+)
+ORDER BY  
+  MAP(ORDER_BY, 'SIZE', TABLE_GB) DESC,
+  SCHEMA_NAME || TABLE_NAME

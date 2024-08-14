@@ -1,0 +1,548 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Tables_ColumnStore_Merges_2.00.059.01+
+
+[DESCRIPTION]
+
+- Delta merge information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- ERROR_DESCRIPTION in M_DELTA_MERGE_STATISTICS only available as of SAP HANA 1.00.70
+- ERROR_DESCRIPTION in HOST_DELTA_MERGE_STATISTICS only available with SAP HANA >= 1.00.90
+- "Delta merge" in the context of this command also includes other table optimizations like optimize
+  compression, so the wording is not 100 % precise
+- Columns RESOURCE_WAIT_TIME, PHASE_1_HESITANT_LOCK_WAIT_TIME, PHASE_1_BLOCKING_LOCK_WAIT_TIME, 
+  PHASE_1_LOCK_TIME, PHASE_2_HESITANT_LOCK_WAIT_TIME, PHASE_2_BLOCKING_LOCK_WAIT_TIME and PHASE_2_LOCK_TIME
+  of M_DELTA_MERGE_STATISTICS available with SAP HANA >= 2.00.059.01.
+- Can be used for monitoring remote system replication sites, see SAP Note 1999880 
+  ("Is it possible to monitor remote system replication sites on the primary system") for details.
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.059.01
+
+[SQL COMMAND VERSION]
+
+- 2014/04/19:  1.0 (initial version)
+- 2014/07/14:  1.1 (ERROR_DESCRIPTION included)
+- 2014/11/24:  1.2 (HOST_DELTA_MERGE_STATISTICS included)
+- 2014/12/27:  1.3 (TYPE and MOTIVATION extended)
+- 2015/01/02:  1.4 (dedicated ESS version created)
+- 2015/03/14:  1.5 (MERGE_ERROR included)
+- 2015/06/02:  1.6 (ONLY_CRITICAL_ERRORS included)
+- 2016/12/31:  1.7 (TIME_AGGREGATE_BY = 'TS<seconds>' included)
+- 2017/02/07:  1.8 (OBJECT_LEVEL included)
+- 2017/03/30:  1.9 (PART_ID included)
+- 2017/10/27:  2.0 (TIMEZONE included)
+- 2018/12/04:  2.1 (shortcuts for BEGIN_TIME and END_TIME like 'C', 'E-S900' or 'MAX')
+- 2021/11/07:  2.2 (dedicated 2.00.059.01+ version including *_WAIT_TIME and *_LOCK_TIME columns)
+- 2023/01/10:  2.3 (MIN_BLOCKING_LOCK_WAIT_TIME_S filter included)
+
+[INVOLVED TABLES]
+
+- M_DELTA_MERGE_STATISTICS
+- HOST_DELTA_MERGE_STATISTICS
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- PART_ID
+
+  Partition number
+
+  2               --> Only show information for partition number 2
+  -1              --> No restriction related to partition number
+
+- MIN_DURATION_S
+
+  Threshold for minimum merge duration (in s)
+
+  600             --> Only display merges with a duration >= 600 s
+  -1              --> Show all merges
+
+- MIN_RECORDS_MERGED
+
+  Threshold for minimum number of merged records
+
+  1000000         --> Only display merges of at least 1000000 records
+  -1              --> No limitation based on merged records
+
+- MIN_BLOCKING_LOCK_WAIT_TIME_S
+
+  Threshold for minimum blocking index handle lock wait time (s)
+
+  10              --> Only display merges with at least 10 seconds blocking index handle lock wait time
+  -1              --> No restriction related to blocking index handle lock wait time
+
+- MIN_LOCK_TIME_S
+
+  Threshold for minimum index handle lock time (s)
+
+  10              --> Only display merges with at least 10 seconds index handle lock time
+  -1              --> No restriction related to index handle lock time
+
+- MERGE_TYPE
+
+  Merge type
+
+  'MERGE'         --> Normal merges
+  'SPARSE'        --> Compression optimizations
+  '%'             --> No restriction related to merge type
+
+- MERGE_MOTIVATION
+
+  Merge motivation
+
+  'AUTO'          --> Auto and critical merge
+  'SMART'         --> Smart merge
+  'HARD'          --> Hard merge
+  '%'             --> No restriction related to merge motivation
+
+- MERGE_ERROR
+
+  Merge error message
+
+  '%6924%'        --> Only show merges that failed with an error containing '6924'
+  '%'             --> No restriction related to merge error message
+
+- ONLY_FAILED_MERGES
+
+  Possibility to restrict results to failed merges
+
+  'X'             --> Only show merges that were not successful
+  ' '             --> Show all merges
+
+- ONLY_CRITICAL_ERRORS
+
+  Possibility to restrict results to critical errors
+
+  'X'             --> Only show merges that failed with a critical error
+  ' '             --> No restriction related to critical errors
+
+- OBJECT_LEVEL
+
+  Controls display of partitions
+
+  'PARTITION'     --> Result is shown on partition level
+  'TABLE'         --> Result is shown on table level
+
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_ tables)
+  'HISTORY'       --> Data from persisted history information (HOST_ tables)
+  '%'             --> All data sources
+
+- AGGREGATION_TYPE
+
+  Type of aggregation (e.g. average, sum, maximum)
+
+  'AVG'           --> Average value
+  'SUM'           --> Total value
+  'MAX'           --> Maximum value
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'TIME'          --> Sorting by time
+  'TABLE'         --> Sorting by table name
+  
+[OUTPUT PARAMETERS]
+
+- START_TIME:      Start time of merge
+- END_TIME:        End time of merge
+- DURATION_S:      Merge duration (s)
+- HOST:            Host name
+- PORT:            Port
+- COUNT:           Number of merges
+- TYPE:            Merge type
+- MOTIVATION:      Merge motivation
+- SCHEMA_NAME:     Schema name
+- TABLE_NAME:      Table name
+- ROWS_MERGED:     Number of records merged
+- RW_S:            Resource wait time (s), e.g. waiting for merge tokens
+- P1_HLW_S:        Phase 1 hesitant lock wait time (s), i.e. waiting for index handle
+- P1_BLW_S:        Phase 1 blocking lock wait time (s), kicks in when phase 1 hesitant lock was not acquired in time
+- P1_L_S:          Phase 1 lock time (s), i.e. time holding the index handle in phase 1
+- P2_HLW_S:        Phase 2 hesitant lock wait time (s), i.e. waiting for index handle
+- P2_BLW_S:        Phase 2 blocking lock wait time (s), kicks in when phase 2 hesitant lock was not acquired in time
+- P2_L_S:          Phase 2 lock time (s), i.e. time holding the index handle in phase 2
+- LAST_ERROR:      Last error message (0 if no error)
+
+[EXAMPLE OUTPUT]
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|START_TIME         |END_TIME           |DURATION_S|HOST         |PORT |COUNT  |TYPE |MOTIVATION|SCHEMA_NAME|TABLE_NAME      |ROWS_MERGED|RW_S|P1_HLW_S|P1_BLW_S|P1_L_S|P2_HLW_S|P2_BLW_S|P2_L_S|LAST_ERROR|
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|2021/10/27 02:11:58|2021/10/27 02:42:02|  12626.41|saphanahost01|30240|      7|MERGE|AUTO      |SAPERP     |/1CADMC/00005768|          0|   0|       0|       0|     1|       0|       0|     5|0         |
+|2021/10/27 02:11:58|2021/10/27 02:42:02|  12626.37|saphanahost01|30240|      7|MERGE|AUTO      |SAPERP     |/1CADMC/00005843|        686|   0|       0|       0|     3|       0|       0|     5|0         |
+|2021/10/27 02:11:58|2021/10/27 02:42:02|  12626.15|saphanahost01|30240|      7|MERGE|AUTO      |SAPERP     |/1CADMC/00005745|        530|   0|       0|       0|     2|       0|       0|     6|0         |
+|2021/10/27 02:11:58|2021/10/27 02:42:02|  10824.21|saphanahost01|30240|      6|MERGE|AUTO      |SAPERP     |/1CADMC/00002866|          0|   0|       0|       0|     1|       0|       0|     5|0         |
+|2021/10/27 02:11:58|2021/10/27 02:42:02|  10823.95|saphanahost01|30240|      6|MERGE|AUTO      |SAPERP     |/1CADMC/00002824|          0|   0|       0|       0|     1|       0|       0|     5|0         |
+|2021/10/26 19:33:24|2021/10/26 20:03:24|  10798.92|saphanahost01|30240|      6|MERGE|AUTO      |SAPERP     |/1CADMC/00005743|       1847|   0|       0|       0|     2|       0|       0|     4|0         |
+|2021/10/26 19:33:23|2021/10/26 20:03:24|   9002.99|saphanahost01|30240|      5|MERGE|AUTO      |SAPERP     |/1CADMC/00005739|          0|   0|       0|       0|     0|       0|       0|     4|0         |
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  START_TIME,
+  END_TIME,
+  LPAD(TO_DECIMAL(DURATION_S, 10, 2), 10) DURATION_S,
+  HOST,
+  PORT,
+  LPAD(NUM, 7) COUNT,
+  TYPE,
+  MOTIVATION,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  LPAD(TO_DECIMAL(ROUND(RECORDS_MERGED), 11, 0), 11) ROWS_MERGED,
+  LPAD(TO_DECIMAL(ROUND(RW_S), 10, 0), 4) RW_S,
+  LPAD(TO_DECIMAL(ROUND(P1_HLW_S), 10, 0), 8) P1_HLW_S,
+  LPAD(TO_DECIMAL(ROUND(P1_BLW_S), 10, 0), 8) P1_BLW_S,
+  LPAD(TO_DECIMAL(ROUND(P1_L_S), 10, 0), 6) P1_L_S,
+  LPAD(TO_DECIMAL(ROUND(P2_HLW_S), 10, 0), 8) P2_HLW_S,
+  LPAD(TO_DECIMAL(ROUND(P2_BLW_S), 10, 0), 8) P2_BLW_S,
+  LPAD(TO_DECIMAL(ROUND(P2_L_S), 10, 0), 6) P2_L_S,
+  LAST_ERROR
+FROM
+( SELECT
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(M.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE M.START_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(M.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE M.START_TIME END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END START_TIME,
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' AND BI.TIME_AGGREGATE_BY LIKE 'YYYY/MM/DD HH24:MI:SS%' THEN
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(M.END_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE M.END_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(M.END_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE M.END_TIME END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END END_TIME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')       != 0 THEN M.HOST             ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                         END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')       != 0 THEN TO_VARCHAR(M.PORT) ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                         END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')     != 0 THEN M.SCHEMA_NAME      ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)           END SCHEMA_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')      != 0 THEN M.TABLE_NAME || MAP(BI.OBJECT_LEVEL, 'TABLE', '', MAP(M.PART_ID, 0, '', CHAR(32) || '(' || M.PART_ID || ')')) 
+      ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME) END TABLE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')       != 0 THEN M.TYPE             ELSE MAP(BI.MERGE_TYPE, '%', 'any', BI.MERGE_TYPE)             END TYPE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MOTIVATION') != 0 THEN M.MOTIVATION       ELSE MAP(BI.MERGE_MOTIVATION, '%', 'any', BI.MERGE_MOTIVATION) END MOTIVATION,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'ERROR')      != 0 THEN M.LAST_ERROR       ELSE MAP(BI.MERGE_ERROR, '%', 'any', BI.MERGE_ERROR)           END LAST_ERROR,
+    COUNT(*) NUM,
+    MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(M.RW_S),           'AVG', AVG(M.RW_S),           'SUM', SUM(M.RW_S)        ) RW_S,
+    MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(M.P1_HLW_S),       'AVG', AVG(M.P1_HLW_S),       'SUM', SUM(M.P1_HLW_S)    ) P1_HLW_S,
+    MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(M.P1_BLW_S),       'AVG', AVG(M.P1_BLW_S),       'SUM', SUM(M.P1_BLW_S)    ) P1_BLW_S,
+    MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(M.P1_L_S),         'AVG', AVG(M.P1_L_S),         'SUM', SUM(M.P1_L_S)      ) P1_L_S,
+    MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(M.P2_HLW_S),       'AVG', AVG(M.P2_HLW_S),       'SUM', SUM(M.P2_HLW_S)    ) P2_HLW_S,
+    MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(M.P2_BLW_S),       'AVG', AVG(M.P2_BLW_S),       'SUM', SUM(M.P2_BLW_S)    ) P2_BLW_S,
+    MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(M.P2_L_S),         'AVG', AVG(M.P2_L_S),         'SUM', SUM(M.P2_L_S)      ) P2_L_S,
+    MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(M.RECORDS_MERGED), 'AVG', AVG(M.RECORDS_MERGED), 'SUM', SUM(RECORDS_MERGED)) RECORDS_MERGED,
+    MAP(BI.AGGREGATION_TYPE, 'MAX', MAX(M.DURATION_S),     'AVG', AVG(M.DURATION_S),     'SUM', SUM(M.DURATION_S)  ) DURATION_S,
+    BI.ORDER_BY
+  FROM
+  ( SELECT
+      CASE
+        WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+        WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+        WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+        WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+        WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+        WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+        WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END BEGIN_TIME,
+      CASE
+        WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+        WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+        WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+        WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+        WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+        WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+        WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+        WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+        WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+        WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+        WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END END_TIME,
+      TIMEZONE,
+      HOST,
+      PORT,
+      SCHEMA_NAME,
+      TABLE_NAME,
+      PART_ID,
+      MIN_DURATION_S,
+      MIN_RECORDS_MERGED,
+      MIN_BLOCKING_LOCK_WAIT_TIME_S,
+      MIN_LOCK_TIME_S,
+      MERGE_TYPE,
+      MERGE_MOTIVATION,
+      MERGE_ERROR,
+      ONLY_FAILED_MERGES, 
+      ONLY_CRITICAL_ERRORS,
+      OBJECT_LEVEL,
+      DATA_SOURCE,
+      AGGREGATE_BY,
+      MAP(TIME_AGGREGATE_BY,
+        'NONE',        'YYYY/MM/DD HH24:MI:SS.FF3',
+        'HOUR',        'YYYY/MM/DD HH24',
+        'DAY',         'YYYY/MM/DD (DY)',
+        'HOUR_OF_DAY', 'HH24',
+        TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+      TIME_AGGREGATE_BY TIME_AGGREGATE_BY_ORIG,
+      AGGREGATION_TYPE,
+      ORDER_BY
+    FROM
+    ( SELECT                                                /* Modification section */
+        '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+        '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+        'SERVER' TIMEZONE,                              /* SERVER, UTC */
+        '%' HOST,
+        '%' PORT,
+        '%' SCHEMA_NAME,
+        '%' TABLE_NAME,
+        -1 PART_ID,
+        -1 MIN_DURATION_S,
+        -1 MIN_RECORDS_MERGED,
+        -1 MIN_BLOCKING_LOCK_WAIT_TIME_S,
+        10 MIN_LOCK_TIME_S,
+        '%' MERGE_TYPE,                 /* MERGE, HINT, SPARSE, RECLAIM */
+        '%' MERGE_MOTIVATION,           /* AUTO, SMART, HARD, FORCED, CRITICAL, FORCED+HARD */
+        '%' MERGE_ERROR,
+        ' ' ONLY_FAILED_MERGES,
+        ' ' ONLY_CRITICAL_ERRORS,
+        'TABLE' OBJECT_LEVEL,
+        'HISTORY' DATA_SOURCE,
+        'SUM' AGGREGATION_TYPE,       /* MAX, AVG, SUM */
+        'NONE' AGGREGATE_BY,           /* TIME, HOST, PORT, SCHEMA, TABLE, TYPE, MOTIVATION, ERROR and comma-separated combinations, NONE for no aggregation */
+        'NONE' TIME_AGGREGATE_BY,     /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+        'TIME' ORDER_BY              /* TIME, TABLE, COUNT, DURATION, ROWS */
+      FROM
+        DUMMY
+    )
+  ) BI,
+  ( SELECT
+      'CURRENT' DATA_SOURCE,
+      HOST,
+      PORT,
+      SCHEMA_NAME,
+      TABLE_NAME,
+      PART_ID,
+      START_TIME,
+      EXECUTION_TIME / 1000 DURATION_S,
+      ADD_SECONDS(START_TIME, EXECUTION_TIME / 1000) END_TIME,
+      TYPE,
+      MOTIVATION,
+      TO_BIGINT(GREATEST(0, MERGED_DELTA_RECORDS)) RECORDS_MERGED,
+      MAP(LAST_ERROR, '0', '0', LAST_ERROR || CHAR(32) || ERROR_DESCRIPTION) LAST_ERROR,
+      IFNULL(GREATEST(0, RESOURCE_WAIT_TIME), 0) / 1000 RW_S,
+      IFNULL(GREATEST(0, PHASE_1_HESITANT_LOCK_WAIT_TIME), 0) / 1000 P1_HLW_S,
+      IFNULL(GREATEST(0, PHASE_1_BLOCKING_LOCK_WAIT_TIME), 0) / 1000 P1_BLW_S,
+      IFNULL(GREATEST(0, PHASE_1_LOCK_TIME / 1000), 0) P1_L_S,
+      IFNULL(GREATEST(0, PHASE_2_HESITANT_LOCK_WAIT_TIME), 0) / 1000 P2_HLW_S,
+      IFNULL(GREATEST(0, PHASE_2_BLOCKING_LOCK_WAIT_TIME), 0) / 1000 P2_BLW_S,
+      IFNULL(GREATEST(0, PHASE_2_LOCK_TIME), 0) / 1000 P2_L_S
+    FROM
+      M_DELTA_MERGE_STATISTICS
+    UNION ALL
+    SELECT DISTINCT
+      'HISTORY' DATA_SOURCE,
+      HOST,
+      PORT,
+      SCHEMA_NAME,
+      TABLE_NAME,
+      PART_ID,
+      START_TIME,
+      EXECUTION_TIME / 1000 DURATION_S,
+      ADD_SECONDS(START_TIME, EXECUTION_TIME / 1000) END_TIME,
+      TYPE,
+      MOTIVATION,
+      TO_BIGINT(GREATEST(0, MERGED_DELTA_RECORDS)) RECORDS_MERGED,
+      MAP(LAST_ERROR, '0', '0', LAST_ERROR || CHAR(32) || ERROR_DESCRIPTION) LAST_ERROR,
+      IFNULL(GREATEST(0, RESOURCE_WAIT_TIME), 0) / 1000 RW_S,
+      IFNULL(GREATEST(0, PHASE_1_HESITANT_LOCK_WAIT_TIME), 0) / 1000 P1_HLW_S,
+      IFNULL(GREATEST(0, PHASE_1_BLOCKING_LOCK_WAIT_TIME), 0) / 1000 P1_BLW_S,
+      IFNULL(GREATEST(0, PHASE_1_LOCK_TIME), 0) / 1000 P1_L_S,
+      IFNULL(GREATEST(0, PHASE_2_HESITANT_LOCK_WAIT_TIME), 0) / 1000 P2_HLW_S,
+      IFNULL(GREATEST(0, PHASE_2_BLOCKING_LOCK_WAIT_TIME), 0) / 1000 P2_BLW_S,
+      IFNULL(GREATEST(0, PHASE_2_LOCK_TIME), 0) / 1000 P2_L_S
+    FROM
+      _SYS_STATISTICS.HOST_DELTA_MERGE_STATISTICS
+  ) M
+  WHERE
+    M.HOST LIKE BI.HOST AND
+    M.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    M.TABLE_NAME LIKE BI.TABLE_NAME AND
+    ( BI.PART_ID = -1 OR M.PART_ID = BI.PART_ID ) AND
+    TO_VARCHAR(M.PORT) LIKE BI.PORT AND
+    CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(M.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE M.START_TIME END BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+    M.DATA_SOURCE LIKE BI.DATA_SOURCE AND
+    M.TYPE LIKE BI.MERGE_TYPE AND
+    ( M.MOTIVATION LIKE BI.MERGE_MOTIVATION OR
+      M.MOTIVATION IN ( 'FORCED', 'HARD' ) AND BI.MERGE_MOTIVATION = 'FORCED+HARD'
+    ) AND
+    M.LAST_ERROR LIKE BI.MERGE_ERROR AND
+    ( BI.MIN_DURATION_S = -1 OR M.DURATION_S >= BI.MIN_DURATION_S ) AND
+    ( BI.MIN_RECORDS_MERGED = -1 OR M.RECORDS_MERGED >= BI.MIN_RECORDS_MERGED ) AND
+    ( BI.MIN_BLOCKING_LOCK_WAIT_TIME_S = -1 OR M.P1_BLW_S >= BI.MIN_BLOCKING_LOCK_WAIT_TIME_S OR M.P2_BLW_S >= MIN_BLOCKING_LOCK_WAIT_TIME_S ) AND
+    ( BI.MIN_LOCK_TIME_S = -1 OR M.P1_L_S >= BI.MIN_LOCK_TIME_S OR M.P2_L_S >= BI.MIN_LOCK_TIME_S ) AND
+    ( BI.ONLY_FAILED_MERGES = ' ' OR M.LAST_ERROR != '0' ) AND
+    ( BI.ONLY_CRITICAL_ERRORS = ' ' OR
+      ( M.LAST_ERROR != '0' AND
+        M.LAST_ERROR NOT LIKE '%2465%' AND
+        M.LAST_ERROR NOT LIKE '%2480%' AND
+        M.LAST_ERROR NOT LIKE '%2481%' AND
+        M.LAST_ERROR NOT LIKE '%2482%' AND
+        M.LAST_ERROR NOT LIKE '%2486%'
+      )
+    )
+  GROUP BY
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(M.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE M.START_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(M.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE M.START_TIME END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' AND BI.TIME_AGGREGATE_BY LIKE 'YYYY/MM/DD HH24:MI:SS%' THEN
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(M.END_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE M.END_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(M.END_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE M.END_TIME END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')       != 0 THEN M.HOST             ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')       != 0 THEN TO_VARCHAR(M.PORT) ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')     != 0 THEN M.SCHEMA_NAME      ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)           END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')      != 0 THEN M.TABLE_NAME || MAP(BI.OBJECT_LEVEL, 'TABLE', '', MAP(M.PART_ID, 0, '', CHAR(32) || '(' || M.PART_ID || ')')) 
+      ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')       != 0 THEN M.TYPE             ELSE MAP(BI.MERGE_TYPE, '%', 'any', BI.MERGE_TYPE)             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MOTIVATION') != 0 THEN M.MOTIVATION       ELSE MAP(BI.MERGE_MOTIVATION, '%', 'any', BI.MERGE_MOTIVATION) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'ERROR')      != 0 THEN M.LAST_ERROR       ELSE MAP(BI.MERGE_ERROR, '%', 'any', BI.MERGE_ERROR)           END,
+    BI.AGGREGATION_TYPE,
+    BI.ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'TIME', START_TIME) DESC,
+  MAP(ORDER_BY, 'TABLE', TABLE_NAME),
+  MAP(ORDER_BY, 'COUNT', NUM, 'DURATION', DURATION_S, 'ROWS', RECORDS_MERGED) DESC

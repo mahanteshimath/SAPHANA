@@ -1,0 +1,106 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Traces_PerformanceTrace_2.00.040+
+
+[DESCRIPTION]
+
+- Information for current / recent performance trace
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- See SAP Note 2119087 for a central overview about available traces
+- M_PERFTRACE.ROOT_STATEMENT_HASH available starting Revision 2.00.040
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2017/10/02:  1.0 (initial version)
+- 2017/10/27:  1.1 (TIMEZONE included)
+- 2020/02/07:  1.2 (dedicated 2.00.040+ version including ROOT_STATEMENT_HASH)
+
+[INVOLVED TABLES]
+
+- M_PERFTRACE
+
+[INPUT PARAMETERS]
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- STATUS
+
+  Performance trace status
+
+  'STOPPED'       --> Show information for traces with status STOPPED
+  '%'             --> No restriction related to trace status
+
+- STATEMENT_HASH      
+ 
+  Hash of SQL statement to be analyzed
+
+  '2e960d7535bf4134e2bd26b9d80bd4fa' --> SQL statement with hash '2e960d7535bf4134e2bd26b9d80bd4fa'
+  '%'                                --> No statement hash restriction (only possible if hash is not mandatory)
+  
+[OUTPUT PARAMETERS]
+
+- START_TIME:        Start time of performance trace
+- END_TIME:          End time of performance trace
+- DURATION_S:        Performance trace duration (s)
+- STATUS:            Performance trace status
+- REMAIN_S:          Remaining performance trace activity time (s)
+- SIZE_MB:           Size of performance trace file (MB)
+- DB_USER:           Database user who started performance trace
+- APP_USER:          Application user who started performance trace
+- APP_NAME:          Application name that started performance trace
+- PLAN_EXECUTION:    TRUE if trace was activated with plan execution trace, otherwise FALSE
+- FUNCTION_PROFILER: TRUE if trace was activated with function profiler, otherwise FALSE
+- STATEMENT_HASH:    Root statement hash (in case the trace was restricted to a hash)
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+|START_TIME         |END_TIME           |DURATION_S|STATUS |REMAIN_S|SIZE_MB |DB_USER|APP_USER  |APP_NAME|PLAN_EXECUTION|FUNCTION_PROFILER|
+-------------------------------------------------------------------------------------------------------------------------------------------
+|2017/10/02 06:53:03|2017/10/02 06:57:20|       257|STOPPED|       0|    0.00|       |ENDUSER   |        |TRUE          |TRUE             |
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  IFNULL(TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(P.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE P.START_TIME END, 'YYYY/MM/DD HH24:MI:SS'), '') START_TIME,
+  IFNULL(TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(P.STOP_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE P.STOP_TIME END, 'YYYY/MM/DD HH24:MI:SS'), '') END_TIME,
+  IFNULL(LPAD(SECONDS_BETWEEN(P.START_TIME, MAP(P.STOP_TIME, NULL, CURRENT_TIMESTAMP, P.STOP_TIME)), 10), '') DURATION_S,
+  P.STATUS,
+  LPAD(P.REMAINING_SECONDS, 8) REMAIN_S,
+  LPAD(TO_DECIMAL(P.FILE_SIZE / 1024 / 1024, 10, 2), 8) SIZE_MB,
+  P.USER_NAME DB_USER,
+  P.APPLICATION_USER_NAME APP_USER,
+  P.APPLICATION_NAME APP_NAME,
+  P.PLAN_EXECUTION,
+  P.FUNCTION_PROFILER,
+  P.ROOT_STATEMENT_HASH STATEMENT_HASH
+FROM
+( SELECT                  /* Modification section */
+    'SERVER' TIMEZONE,                              /* SERVER, UTC */
+    '%' STATUS,
+    '%' STATEMENT_HASH
+  FROM
+    DUMMY
+) BI,
+  M_PERFTRACE P
+WHERE
+  P.STATUS LIKE BI.STATUS AND
+  P.ROOT_STATEMENT_HASH LIKE BI.STATEMENT_HASH

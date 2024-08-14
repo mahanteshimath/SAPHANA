@@ -1,0 +1,614 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_LoadHistory_Services_2.00.030+
+
+[DESCRIPTION]
+
+- Nameserver load history for service specific information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Traditionally collected in nameserver_history.trc and displayed in "Performance" -> "Load" in SAP HANA Studio
+- M_LOAD_HISTORY_SERVICE available with SAP HANA >= 1.00.900
+- HOST_LOAD_HISTORY_SERVICE available with SAP HANA >= 1.00.120
+- Admission control columns available in M_LOAD_HISTORY_SERVICE with SAP HANA >= 2.00.010
+- Admission control columns available in HOST_LOAD_HISTORY_SERVICE with SAP HANA >= 2.00.030 (and >= 2.00.012.04, >= 2.00.024.00)
+- I/O related information is not considered, you can use SQL: "HANA_IO_LoadHistory" for that purpose
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.030
+
+[SQL COMMAND VERSION]
+
+- 2015/01/27:  1.0 (initial version)
+- 2015/12/09:  1.1 (WAIT_THR and WAIT_SQL included)
+- 2016/02/03:  1.2 (aggregation bug corrected)
+- 2016/03/16:  1.3 (EXCLUDE_STANDBY included)
+- 2016/07/19:  1.4 (dedicated 1.00.120+ version including HOST_LOAD_HISTORY_SERVICES)
+- 2016/12/31:  1.5 (TIME_AGGREGATE_BY = 'TS<seconds>' included)
+- 2017/10/25:  1.6 (TIMEZONE included)
+- 2018/02/28:  1.7 (HANDLES included)
+- 2018/10/05:  1.8 (different aggregation handling)
+- 2018/12/04:  1.9 (shortcuts for BEGIN_TIME and END_TIME like 'C', 'E-S900' or 'MAX')
+- 2019/03/21:  2.0 (dedicated 2.00.010+ version including admission control for CURRENT)
+- 2019/09/07:  2.1 (dedicated 2.00.030+ version including admission control for HISTORY)
+- 2020/04/23:  2.2 (MIN_CPU_PCT added)
+- 2020/06/04:  2.3 (MIN_VERSIONS added)
+- 2020/08/22:  2.4 (MIN_PING_MS added)
+- 2020/12/12:  2.5 (MIN_HANDLES included)
+- 2022/01/31:  2.6 (MIN_REJECTIONS_PER_S included)
+- 2022/03/24:  2.7 (MIN_QUEUE_SIZE added)
+- 2023/02/27:  2.8 (elimination of negative column values and redesign of aggregation)
+- 2023/02/28:  2.9 (MIN_SYS_CPU_PCT added)
+
+[INVOLVED TABLES]
+
+- M_LOAD_HISTORY_SERVICE
+- HOST_LOAD_HISTORY_SERVICE
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- EXCLUDE_STANDBY
+
+  'X'             --> Exclude standby nodes (based on current standby node, no history available)
+  ' '             --> No exclusion of standby nodes
+
+- MIN_CPU_PCT
+
+  Minimum threshold for CPU consumption
+
+  80              --> Display occurrences of at least 80 % CPU consumption
+  -1              --> No restriction related to CPU consumption
+
+- MIN_SYS_CPU_PCT
+
+  Minimum threshold for ssytem CPU consumption
+
+  20              --> Display occurrences of at least 20 % system CPU consumption
+  -1              --> No restriction related to system CPU consumption
+
+- MIN_VERSIONS
+
+  Minimum threshold for row store versions
+
+  10000000        --> Only display times with at least 10000000 versions
+  -1              --> No restriction related to row store versions
+
+- MIN_PING_MS
+
+  Minimum load history ping time (ms)
+
+  1000            --> Only display load history data with at least 1000 ms ping time
+  -1              --> No restriction related to load history ping time
+
+- MIN_HANDLES
+
+  Minimum open file handles
+
+  50000           --> Only display load history data with at least 50000 open file handles
+  -1              --> No restriction related to number of open file handles
+
+- MIN_REJECTIONS_PER_S
+
+  Minimum admission control rejections per second
+
+  1               --> Only display load history intervals with at least 1 admission control rejection per second
+  -1              --> No restriction relaed to admission control rejections
+
+- MIN_QUEUE_SIZE
+
+  Minimum admission control queue size
+
+  200             --> Only show times with an admission control queue of at least 200 requests
+  -1              --> No restriction related to admission control queue size
+
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_ tables)
+  'HISTORY'       --> Data from persisted history information (HOST_ tables)
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+[OUTPUT PARAMETERS]
+
+- SNAPSHOT_TIME: Start time of considered time interval
+- HOST:          Host name
+- PORT:          Port
+- PING_MS:       Ping time from name server (ms), including communication, KPI collection and trace output
+- CPU:           CPU usage (%)
+- SYS:           System CPU usage (%)
+- USED_GB:       Memory used (GB)
+- CONNS:         Connections
+- TRANS:         Active transactions
+- BTRANS:        Blocked transactions
+- STMT_PS:       Number of executed statements per second
+- ACT_THR:       Active threads
+- WAIT_THR:      Waiting threads
+- ACT_SQL:       Active SQLExecutor threads
+- WAIT_SQL:      Waiting SQLExecutor threads
+- PEND_SESS:     Pending sessions
+- VERSIONS:      Row store versions
+- COM_RANGE:     Commit ID range
+- HANDLES:       Open file handles
+- MERGES:        Number of merges
+- UNLOADS:       Number of unloads
+- SWAP_MB:       Swap in (MB)
+- AC_AC:         Admission control admit count (per s)
+- AC_RC:         Admission control reject count (per s)
+- AC_QS:         Admission control queue size
+- AC_WT:         Admission control wait time (per s)
+
+[EXAMPLE OUTPUT]
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+|SAMPLE_TIME        |HOST  |PORT |PING_MS|CPU|SYS|USED_GB|SWAP_MB|CONNS|TRANS|BTRANS|EXECS |ACT_THR|ACT_SQL|VERSIONS|UPD_RANGE|COM_RANGE|MERGES|UNLOADS|
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+|2015/01/27 11:24:07|ls2999|31003|      3|  0|  0| 138.59|   0.00|   71|   43|     0|  1375|   1.00|   0.00|       2|        1|        0|     0|      0|
+|2015/01/27 11:23:06|ls2999|31003|      3|  0|  0| 138.58|   0.00|   71|   41|     0|   813|   1.00|   0.00|       0|        1|        1|     0|      0|
+|2015/01/27 11:22:06|ls2999|31003|      3|  0|  0| 138.58|   0.00|   71|   39|     0|  2120|   1.00|   0.00|       5|        1|        0|     4|      0|
+|2015/01/27 11:21:05|ls2999|31003|      3|  0|  0| 138.59|   0.00|   71|   40|     0|   864|   1.00|   0.00|       1|        1|        0|     1|      0|
+|2015/01/27 11:20:04|ls2999|31003|      3|  0|  0| 138.58|   0.00|   70|   41|     0|  5078|   1.00|   0.00|       5|   137367|      224|     1|      0|
+|2015/01/27 11:19:03|ls2999|31003|      4|  1|  0| 138.56|   0.00|   73|   43|     0| 51677|   1.00|   0.00|     627|   261609|     2092|     1|      0|
+|2015/01/27 11:18:03|ls2999|31003|      3|  1|  0| 138.57|   0.00|   71|   44|     0| 57161|   2.00|   1.00|     596|   227294|     2166|     2|      0|
+|2015/01/27 11:17:02|ls2999|31003|      3|  2|  0| 138.54|   0.00|   71|   42|     0| 61364|   4.00|   2.00|     569|   193256|     5887|     4|      0|
+|2015/01/27 11:16:01|ls2999|31003|      3|  1|  0| 138.51|   0.00|   71|   43|     0| 68344|   2.00|   1.00|     238|   156049|     2151|     2|      0|
+|2015/01/27 11:15:00|ls2999|31003|      3|  1|  0| 138.41|   0.00|   71|   43|     0| 63790|   2.00|   0.00|     202|   118016|     1670|     3|      0|
+|2015/01/27 11:13:59|ls2999|31003|      3|  1|  0| 138.36|   0.00|   76|   44|     0| 61619|   2.00|   1.00|     311|    80885|     1340|     2|      0|
+|2015/01/27 11:12:59|ls2999|31003|      4|  1|  0| 138.32|   0.00|   73|   44|     0| 57308|   2.00|   1.00|     289|    45409|     1840|     2|      0|
+|2015/01/27 11:11:57|ls2999|31003|      4|  1|  0| 138.25|   0.00|   72|   42|     0| 54432|   1.00|   0.00|     364|    12678|     1369|     2|      0|
+|2015/01/27 11:10:56|ls2999|31003|      3|  0|  0| 138.18|   0.00|   67|   40|     0| 30431|   2.00|   0.00|      42|      397|       17|     2|      0|
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  SAMPLE_TIME SNAPSHOT_TIME,
+  HOST,
+  LPAD(PORT, 5) PORT,
+  LPAD(TO_DECIMAL(ROUND(PING_MS), 10, 0), 7) PING_MS,
+  LPAD(TO_DECIMAL(CPU_PCT, 10, 2), 5) CPU,
+  LPAD(TO_DECIMAL(SYS_CPU_PCT, 10, 2), 5) SYS, 
+  LPAD(TO_DECIMAL(USED_MEM_GB, 10, 2), 8) USED_GB,
+  LPAD(TO_DECIMAL(ROUND(CONNECTIONS), 10, 0), 5) CONNS,
+  LPAD(TO_DECIMAL(ROUND(TRANSACTIONS), 10, 0), 5) TRANS,
+  LPAD(TO_DECIMAL(BLOCKED_TRANSACTIONS, 10, 2), 6) BTRANS,
+  LPAD(TO_DECIMAL(ROUND(EXECUTIONS / INTERVAL_S), 10, 0), 7) STMT_PS,
+  LPAD(TO_DECIMAL(ACTIVE_THREADS, 10, 2), 7) ACT_THR,
+  LPAD(TO_DECIMAL(WAITING_THREADS, 10, 2), 8) WAIT_THR,
+  LPAD(TO_DECIMAL(ACTIVE_SQL_EXECUTORS, 10, 2), 7) ACT_SQL,
+  LPAD(TO_DECIMAL(WAITING_SQL_EXECUTORS, 10, 2), 8) WAIT_SQL,
+  LPAD(TO_DECIMAL(PENDING_SESSIONS, 10, 2), 9) PEND_SESS,
+  LPAD(TO_DECIMAL(ROUND(VERSIONS), 10, 0), 10) VERSIONS,
+  LPAD(TO_DECIMAL(ROUND(COMMIT_ID_RANGE), 10, 0), 9) COM_RANGE,
+  LPAD(TO_DECIMAL(ROUND(HANDLES), 10, 0), 7) HANDLES,
+  LPAD(TO_DECIMAL(ROUND(MERGES), 10, 0), 6) MERGES,
+  LPAD(TO_DECIMAL(ROUND(UNLOADS), 10, 0), 7) UNLOADS,
+  LPAD(TO_DECIMAL(SWAP_IN_MB, 10, 2), 7) SWAP_MB,
+  LPAD(TO_DECIMAL(ROUND(ADMISSION_CONTROL_ADMITS / INTERVAL_S), 10, 0), 7) AC_AC,
+  LPAD(TO_DECIMAL(ROUND(ADMISSION_CONTROL_REJECTS / INTERVAL_S), 10, 0), 7) AC_RC,
+  LPAD(TO_DECIMAL(ROUND(ADMISSION_CONTROL_QUEUE_SIZE), 10, 0), 7) AC_QS,
+  LPAD(TO_DECIMAL(ROUND(ADMISSION_CONTROL_WAIT_TIME / INTERVAL_S), 10, 0), 7) AC_WT
+FROM
+( SELECT
+    CASE 
+      WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(SAMPLE_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE SAMPLE_TIME END) / SUBSTR(TIME_AGGREGATE_BY, 3)) * SUBSTR(TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(SAMPLE_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE SAMPLE_TIME END, TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END SAMPLE_TIME,
+    HOST,
+    TO_VARCHAR(PORT) PORT,
+    AVG(PING_MS) PING_MS,
+    AVG(CPU_PCT) CPU_PCT,
+    AVG(SYS_CPU_PCT) SYS_CPU_PCT,
+    AVG(USED_MEM_GB) USED_MEM_GB,
+    AVG(SWAP_IN_MB) SWAP_IN_MB,
+    AVG(CONNECTIONS) CONNECTIONS,
+    AVG(TRANSACTIONS) TRANSACTIONS,
+    AVG(BLOCKED_TRANSACTIONS) BLOCKED_TRANSACTIONS,
+    SUM(EXECUTIONS) EXECUTIONS,
+    AVG(COMMIT_ID_RANGE) COMMIT_ID_RANGE,
+    AVG(VERSIONS) VERSIONS,
+    AVG(PENDING_SESSIONS) PENDING_SESSIONS,
+    AVG(RECORD_LOCKS) RECORD_LOCKS,
+    AVG(ACTIVE_THREADS) ACTIVE_THREADS,
+    AVG(ACTIVE_SQL_EXECUTORS) ACTIVE_SQL_EXECUTORS,
+    AVG(WAITING_THREADS) WAITING_THREADS,
+    AVG(WAITING_SQL_EXECUTORS) WAITING_SQL_EXECUTORS,
+    SUM(MERGES) MERGES,
+    SUM(UNLOADS) UNLOADS,
+    AVG(HANDLES) HANDLES,
+    SUM(ADMISSION_CONTROL_ADMITS) ADMISSION_CONTROL_ADMITS,
+    SUM(ADMISSION_CONTROL_REJECTS) ADMISSION_CONTROL_REJECTS,
+    AVG(ADMISSION_CONTROL_QUEUE_SIZE) ADMISSION_CONTROL_QUEUE_SIZE,
+    SUM(ADMISSION_CONTROL_WAIT_TIME) ADMISSION_CONTROL_WAIT_TIME,
+    SUM(INTERVAL_S) INTERVAL_S,
+    MIN_CPU_PCT,
+    MIN_SYS_CPU_PCT,
+    MIN_VERSIONS,
+    MIN_PING_MS,
+    MIN_HANDLES,
+    MIN_REJECTIONS_PER_S,
+    MIN_QUEUE_SIZE
+  FROM
+  ( SELECT
+      SAMPLE_TIME,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST') != 0 THEN HOST ELSE MAP(BI_HOST, '%', 'any', BI_HOST) END HOST,
+      PORT,
+      AVG(PING_MS) PING_MS,
+      AVG(CPU_PCT) CPU_PCT,
+      AVG(SYS_CPU_PCT) SYS_CPU_PCT,
+      AVG(USED_MEM_GB) USED_MEM_GB,
+      AVG(SWAP_IN_MB) SWAP_IN_MB,
+      SUM(CONNECTIONS) CONNECTIONS,
+      SUM(TRANSACTIONS) TRANSACTIONS,
+      SUM(BLOCKED_TRANSACTIONS) BLOCKED_TRANSACTIONS,
+      SUM(EXECUTIONS) EXECUTIONS,
+      MAX(COMMIT_ID_RANGE) COMMIT_ID_RANGE,
+      SUM(VERSIONS) VERSIONS,
+      SUM(PENDING_SESSIONS) PENDING_SESSIONS,
+      SUM(RECORD_LOCKS) RECORD_LOCKS,
+      SUM(ACTIVE_THREADS) ACTIVE_THREADS,
+      SUM(ACTIVE_SQL_EXECUTORS) ACTIVE_SQL_EXECUTORS,
+      SUM(WAITING_THREADS) WAITING_THREADS,
+      SUM(WAITING_SQL_EXECUTORS) WAITING_SQL_EXECUTORS,
+      SUM(MERGES) MERGES,
+      SUM(UNLOADS) UNLOADS,
+      SUM(HANDLES) HANDLES,
+      SUM(ADMISSION_CONTROL_ADMITS) ADMISSION_CONTROL_ADMITS,
+      SUM(ADMISSION_CONTROL_REJECTS) ADMISSION_CONTROL_REJECTS,
+      SUM(ADMISSION_CONTROL_QUEUE_SIZE) ADMISSION_CONTROL_QUEUE_SIZE,
+      SUM(ADMISSION_CONTROL_WAIT_TIME) ADMISSION_CONTROL_WAIT_TIME,
+      AVG(INTERVAL_S) INTERVAL_S,
+      MIN_CPU_PCT,
+      MIN_SYS_CPU_PCT,
+      MIN_VERSIONS,
+      MIN_PING_MS,
+      MIN_HANDLES,
+      MIN_REJECTIONS_PER_S,
+      MIN_QUEUE_SIZE,
+      TIMEZONE,
+      AGGREGATE_BY,
+      TIME_AGGREGATE_BY
+    FROM
+    ( SELECT
+        L.TIME SAMPLE_TIME,
+        L.HOST,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT') != 0 THEN TO_VARCHAR(L.PORT) ELSE MAP(BI.PORT, '%', 'any', BI.PORT) END PORT,
+        SUM(L.PING_TIME) PING_MS,
+        SUM(L.CPU) CPU_PCT,
+        SUM(L.SYSTEM_CPU) SYS_CPU_PCT,
+        SUM(L.MEMORY_USED) / 1024 / 1024 / 1024 USED_MEM_GB,
+        SUM(L.SWAP_IN) / 1024 / 1024 SWAP_IN_MB,
+        SUM(L.CONNECTIONS) CONNECTIONS,
+        SUM(L.TRANSACTIONS) TRANSACTIONS,
+        SUM(L.BLOCKED_TRANSACTIONS) BLOCKED_TRANSACTIONS,
+        SUM(L.STATEMENTS) EXECUTIONS,
+        MAX(L.COMMIT_ID_RANGE) COMMIT_ID_RANGE,
+        SUM(L.VERSIONS) VERSIONS,
+        SUM(L.PENDING_SESSIONS) PENDING_SESSIONS,
+        SUM(L.RECORD_LOCKS) RECORD_LOCKS,
+        SUM(L.ACTIVE_THREADS) ACTIVE_THREADS,
+        SUM(L.ACTIVE_SQL_EXECUTORS) ACTIVE_SQL_EXECUTORS,
+        SUM(L.WAITING_THREADS) WAITING_THREADS,
+        SUM(L.WAITING_SQL_EXECUTORS) WAITING_SQL_EXECUTORS,
+        SUM(L.MERGES) MERGES,
+        SUM(L.UNLOADS) UNLOADS,
+        SUM(L.HANDLES) HANDLES,
+        SUM(ADMISSION_CONTROL_ADMITS) ADMISSION_CONTROL_ADMITS,
+        SUM(ADMISSION_CONTROL_REJECTS) ADMISSION_CONTROL_REJECTS,
+        SUM(ADMISSION_CONTROL_QUEUE_SIZE) ADMISSION_CONTROL_QUEUE_SIZE,
+        SUM(ADMISSION_CONTROL_WAIT_TIME) ADMISSION_CONTROL_WAIT_TIME,
+        AVG(INTERVAL_S) INTERVAL_S,
+        BI.HOST BI_HOST,
+        BI.MIN_CPU_PCT,
+        BI.MIN_SYS_CPU_PCT,
+        BI.MIN_VERSIONS,
+        BI.MIN_PING_MS,
+        BI.MIN_HANDLES,
+        BI.MIN_REJECTIONS_PER_S,
+        BI.MIN_QUEUE_SIZE,
+        BI.TIMEZONE,
+        BI.AGGREGATE_BY,
+        BI.TIME_AGGREGATE_BY
+      FROM
+      ( SELECT
+          CASE
+            WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+            WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+            WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+            WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+            WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+            WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+            WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+            WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+            WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+            WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+            WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+            WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+            WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+          END BEGIN_TIME,
+          CASE
+            WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+            WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+            WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+            WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+            WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+            WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+            WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+            WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+            WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+            WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+            WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+            WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+            WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+          END END_TIME,
+          TIMEZONE,
+          HOST,
+          PORT,
+          EXCLUDE_STANDBY,
+          MIN_CPU_PCT,
+          MIN_SYS_CPU_PCT,
+          MIN_VERSIONS,
+          MIN_PING_MS,
+          MIN_HANDLES,
+          MIN_REJECTIONS_PER_S,
+          MIN_QUEUE_SIZE,
+          AGGREGATE_BY,
+          DATA_SOURCE,
+          MAP(TIME_AGGREGATE_BY,
+            'NONE',        'YYYY/MM/DD HH24:MI:SS',
+            'HOUR',        'YYYY/MM/DD HH24',
+            'DAY',         'YYYY/MM/DD (DY)',
+            'HOUR_OF_DAY', 'HH24',
+            TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY
+        FROM
+        ( SELECT                      /* Modification section */
+            'C-D32' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+            'C' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+            'SERVER' TIMEZONE,                              /* SERVER, UTC */
+            '%' HOST,
+            '%' PORT,
+            'X' EXCLUDE_STANDBY,
+            -1 MIN_CPU_PCT,
+            -1 MIN_SYS_CPU_PCT,
+            -1 MIN_VERSIONS,
+            -1 MIN_PING_MS,
+            -1 MIN_HANDLES,
+            -1 MIN_REJECTIONS_PER_S,
+            -1 MIN_QUEUE_SIZE,
+            'HISTORY' DATA_SOURCE,           /* CURRENT, HISTORY */
+            'TIME' AGGREGATE_BY,               /* TIME, HOST, PORT and comma separated combinations, NONE for no aggregation */
+            'DAY' TIME_AGGREGATE_BY     /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+          FROM
+            DUMMY
+        )
+      ) BI INNER JOIN
+      ( SELECT
+          'CURRENT' DATA_SOURCE,
+          TIME,
+          HOST,
+          PORT,
+          PING_TIME,
+          CPU,
+          SYSTEM_CPU,
+          MEMORY_USED,
+          SWAP_IN,
+          GREATEST(0, CONNECTION_COUNT) CONNECTIONS,
+          GREATEST(0, TRANSACTION_COUNT) TRANSACTIONS,
+          GREATEST(0, BLOCKED_TRANSACTION_COUNT) BLOCKED_TRANSACTIONS,
+          GREATEST(0, STATEMENT_COUNT) STATEMENTS,
+          COMMIT_ID_RANGE,
+          GREATEST(MVCC_VERSION_COUNT) VERSIONS,
+          GREATEST(0, PENDING_SESSION_COUNT) PENDING_SESSIONS,
+          GREATEST(0, RECORD_LOCK_COUNT) RECORD_LOCKS,
+          GREATEST(0, ACTIVE_THREAD_COUNT) ACTIVE_THREADS,
+          GREATEST(0, ACTIVE_SQL_EXECUTOR_COUNT) ACTIVE_SQL_EXECUTORS,
+          GREATEST(0, WAITING_THREAD_COUNT) WAITING_THREADS,
+          GREATEST(0, WAITING_SQL_EXECUTOR_COUNT) WAITING_SQL_EXECUTORS,
+          GREATEST(0, CS_MERGE_COUNT) MERGES,
+          GREATEST(0, CS_UNLOAD_COUNT) UNLOADS,
+          HANDLE_COUNT HANDLES,
+          ADMISSION_CONTROL_ADMIT_COUNT ADMISSION_CONTROL_ADMITS,
+          ADMISSION_CONTROL_REJECT_COUNT ADMISSION_CONTROL_REJECTS,
+          ADMISSION_CONTROL_QUEUE_SIZE,
+          ADMISSION_CONTROL_WAIT_TIME,
+          NANO100_BETWEEN(LEAD(TIME, 1) OVER (PARTITION BY HOST, PORT ORDER BY TIME DESC), TIME) / 10000000 INTERVAL_S
+        FROM
+          M_LOAD_HISTORY_SERVICE
+        UNION ALL
+        SELECT
+          'HISTORY' DATA_SOURCE,
+          TIME,
+          HOST,
+          PORT,
+          PING_TIME,
+          CPU,
+          SYSTEM_CPU,
+          MEMORY_USED,
+          SWAP_IN,
+          GREATEST(0, CONNECTION_COUNT) CONNECTIONS,
+          GREATEST(0, TRANSACTION_COUNT) TRANSACTIONS,
+          GREATEST(0, BLOCKED_TRANSACTION_COUNT) BLOCKED_TRANSACTIONS,
+          GREATEST(0, STATEMENT_COUNT) STATEMENTS,
+          COMMIT_ID_RANGE,
+          GREATEST(MVCC_VERSION_COUNT) VERSIONS,
+          GREATEST(0, PENDING_SESSION_COUNT) PENDING_SESSIONS,
+          GREATEST(0, RECORD_LOCK_COUNT) RECORD_LOCKS,
+          GREATEST(0, ACTIVE_THREAD_COUNT) ACTIVE_THREADS,
+          GREATEST(0, ACTIVE_SQL_EXECUTOR_COUNT) ACTIVE_SQL_EXECUTORS,
+          GREATEST(0, WAITING_THREAD_COUNT) WAITING_THREADS,
+          GREATEST(0, WAITING_SQL_EXECUTOR_COUNT) WAITING_SQL_EXECUTORS,
+          GREATEST(0, CS_MERGE_COUNT) MERGES,
+          GREATEST(0, CS_UNLOAD_COUNT) UNLOADS,
+          HANDLE_COUNT HANDLES,
+          ADMISSION_CONTROL_ADMIT_COUNT ADMISSION_CONTROL_ADMITS,
+          ADMISSION_CONTROL_REJECT_COUNT ADMISSION_CONTROL_REJECTS,
+          ADMISSION_CONTROL_QUEUE_SIZE,
+          ADMISSION_CONTROL_WAIT_TIME,
+          NANO100_BETWEEN(LEAD(TIME, 1) OVER (PARTITION BY HOST, PORT ORDER BY TIME DESC), TIME) / 10000000 INTERVAL_S
+        FROM
+          _SYS_STATISTICS.HOST_LOAD_HISTORY_SERVICE
+      ) L ON
+          L.HOST LIKE BI.HOST AND
+          TO_VARCHAR(L.PORT) LIKE BI.PORT AND
+          CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(L.TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE L.TIME END BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+          L.DATA_SOURCE = BI.DATA_SOURCE LEFT OUTER JOIN
+        M_SERVICES S ON
+          S.HOST = L.HOST AND
+          S.SERVICE_NAME = 'indexserver'
+      WHERE
+        ( BI.EXCLUDE_STANDBY = ' ' OR S.COORDINATOR_TYPE IS NULL OR S.COORDINATOR_TYPE != 'STANDBY' )
+      GROUP BY
+        L.TIME,
+        L.HOST,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT') != 0 THEN TO_VARCHAR(L.PORT) ELSE MAP(BI.PORT, '%', 'any', BI.PORT) END,
+        BI.HOST,
+        BI.MIN_CPU_PCT,
+        BI.MIN_SYS_CPU_PCT,
+        BI.MIN_VERSIONS,
+        BI.MIN_PING_MS,
+        BI.MIN_HANDLES,
+        BI.MIN_REJECTIONS_PER_S,
+        BI.MIN_QUEUE_SIZE,
+        BI.TIMEZONE,
+        BI.AGGREGATE_BY,
+        BI.TIME_AGGREGATE_BY
+    )
+    GROUP BY
+      SAMPLE_TIME,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST') != 0 THEN HOST ELSE MAP(BI_HOST, '%', 'any', BI_HOST) END,
+      PORT,
+      AGGREGATE_BY,
+      MIN_CPU_PCT,
+      MIN_SYS_CPU_PCT,
+      MIN_VERSIONS,
+      MIN_PING_MS,
+      MIN_HANDLES,
+      MIN_REJECTIONS_PER_S,
+      MIN_QUEUE_SIZE,
+      TIMEZONE,
+      AGGREGATE_BY,
+      TIME_AGGREGATE_BY
+  )
+  GROUP BY
+    CASE 
+      WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(SAMPLE_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE SAMPLE_TIME END) / SUBSTR(TIME_AGGREGATE_BY, 3)) * SUBSTR(TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(SAMPLE_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE SAMPLE_TIME END, TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    HOST,
+    PORT,
+    MIN_CPU_PCT,
+    MIN_SYS_CPU_PCT,
+    MIN_VERSIONS,
+    MIN_PING_MS,
+    MIN_HANDLES,
+    MIN_REJECTIONS_PER_S,
+    MIN_QUEUE_SIZE
+)
+WHERE
+  ( MIN_CPU_PCT = -1 OR CPU_PCT >= MIN_CPU_PCT ) AND
+  ( MIN_SYS_CPU_PCT = -1 OR SYS_CPU_PCT >= MIN_SYS_CPU_PCT ) AND
+  ( MIN_VERSIONS = -1 OR VERSIONS >= MIN_VERSIONS ) AND
+  ( MIN_PING_MS = -1 OR PING_MS >= MIN_PING_MS ) AND
+  ( MIN_HANDLES = -1 OR HANDLES >= MIN_HANDLES ) AND
+  ( MIN_REJECTIONS_PER_S = -1 OR ADMISSION_CONTROL_REJECTS / INTERVAL_S >= MIN_REJECTIONS_PER_S ) AND
+  ( MIN_QUEUE_SIZE = 0 OR ADMISSION_CONTROL_QUEUE_SIZE >= MIN_QUEUE_SIZE )
+ORDER BY
+  SAMPLE_TIME DESC,
+  HOST,
+  PORT

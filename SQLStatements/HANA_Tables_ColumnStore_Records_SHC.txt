@@ -1,0 +1,348 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Tables_ColumnStore_Records_SHC
+
+[DESCRIPTION]
+
+- Number of records (incl. main and delta) of column store tables
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- M_CS_TABLES.RAW_RECORD_COUNT_IN_HISTORY_MAIN and RAW_RECORD_COUNT_IN_HISTORY_DELTA no longer available in SAP HANA Cloud
+
+[VALID FOR]
+
+- Revisions:              cloud
+- Environment:            SAP HANA Cloud
+
+[SQL COMMAND VERSION]
+
+- 2014/05/09:  1.0 (initial version)
+- 2014/12/28:  1.1 (UDIV and HIST included)
+- 2015/01/02:  1.2 (MAX_MEM_SIZE_GB included)
+- 2015/01/13:  1.3 (MIN_UDIV_RECORDS added)
+- 2015/06/09:  1.4 (EXCLUDE_SID_TABLES added)
+- 2021/02/08:  1.5 (dedicated SAP HANA Cloud version)
+
+[INVOLVED TABLES]
+
+- M_CS_TABLES
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- OBJECT_LEVEL
+
+  Controls display of partitions
+
+  'PARTITION'     --> Result is shown on partition level
+  'TABLE'         --> Result is shown on table level
+
+- MIN_TOTAL_RECORDS
+
+  Minimum number of total records
+
+  100000          --> Only display tables with at least 100,000 records
+  -1              --> No restriction related to records
+
+- MIN_DELTA_RECORDS
+
+  Minimum number of records in delta storage
+
+  100000          --> Only display tables with at least 100,000 records in delta storage
+  -1              --> No restriction related to records in delta storage
+
+- MIN_UDIV_RECORDS
+
+  Minimum number of UDIV records
+
+  100000          --> Only display tables with at least 100,000 UDIV records
+  -1              --> No restriction related to UDIV records
+
+- MIN_DELTA_PCT
+
+  Minimum percentage of records in delta storage (compared to overall number of records in main and delta)
+
+  80              --> Only display tables with at least 80 % of records in delta storage
+  -1              --> No restriction related to percentage of records in delta storage
+
+- MIN_MAX_MEM_SIZE_MB
+
+  Minimum threshold for the maximum table memory size (MB)
+
+  
+  500             --> Only consider tables with a maximum memory size of 500 MB or higher
+  -1              --> No restriction related to maximum memory size
+
+- EXCLUDE_SID_TABLES
+
+  Possibility to exclude BW SID tables (typically /B%/S%)
+
+  'X'             --> Only check tables not following the /B%/S% naming convention
+  ' '             --> No restriction in terms of table name
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'TOTAL'         --> Sorting by total number of rows
+  'MAIN'          --> Sorting by number of rows in main
+  'DELTA'         --> Sorting by number of rows in delta
+  'DELTA_PCT'     --> Sorting by percentage of rows in delta
+
+- RESULT_ROWS
+
+  Number of records to be returned by the query
+
+  100             --> Return a maximum number of 100 records
+  -1              --> Return all records
+
+[OUTPUT PARAMETERS]
+
+- HOST:            Host
+- PORT:            Port
+- SERVICE:         Service name
+- SCHEMA_NAME:     Schema name
+- TABLE_NAME:      Table name
+- RECORDS:         Number of rows
+- RECORDS_MAIN:    Raw number of rows in main store
+- RECORDS_DELTA:   Raw number of rows in delta storage
+- DELTA_PCT:       Percentage of rows in delta (delta / (main + delta))
+- RECORDS_UDIV:    Number of UDIV records (required for visibility / MVCC purposes)
+- UDIV_PCT:        Percentage of UDIV rows (udiv / (main + delta))
+- MAX_MEM_SIZE_GB: Maximum table memory size (GB)
+- LAST_MERGE_TIME: Time of last successful merge operation
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+|HOST  |PORT |SCHEMA_NAME    |TABLE_NAME                |RECORDS   |RECORDS_MAIN|RECORDS_DELTA|DELTA_PCT|RECORDS_UDIV|UDIV_PCT|RECORDS_HIST|LAST_MERGE_TIME    |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+|hana01|31003|SAPSR3         |/B28/SA9POO31             | 499902162|   499902162|            0|     0.00|   499902162|  100.00|           0|2014/04/23 11:51:03|
+|hana01|31003|SAPSR3         |/BIC/PZSPMCNT             |  41614442|    41614442|            0|     0.00|    41614442|  100.00|           0|2014/06/12 00:25:22|
+|hana01|31003|SAPSR3         |/BIC/SZSPMCNT             |  41614442|    41614442|            0|     0.00|    41614442|  100.00|           0|2014/06/12 00:24:43|
+|hana01|31003|SAPSR3         |/BIC/B0001243000 (1)      |  41614441|    41614441|            0|     0.00|    41614441|  100.00|           0|2014/06/05 00:10:33|
+|hana01|31003|SAPSR3         |/BIC/AZSBOOKSD00          |  41614441|    41614441|            0|     0.00|    41614441|  100.00|      131202|2012/12/03 13:48:31|
+|hana01|31003|SAPSR3         |/BIC/AZSPMDSO00           |  41614441|    41614441|            0|     0.00|    41614441|  100.00|           0|2014/06/05 00:12:02|
+|hana01|31003|SAPSR3         |/BIC/FZSPMSP03 (1)        |  36682823|    36682823|            0|     0.00|    36682823|  100.00|           0|2014/06/05 09:47:42|
+|hana01|31003|SAPSR3         |/BIC/AZSBKTEST00          |  19802194|    19802194|            0|     0.00|    19802194|  100.00|           0|2012/10/19 17:00:17|
+|hana01|31003|SAPSR3         |/BIC/FDMSPOC03 (4)        |  19209745|    19209745|            0|     0.00|    19209745|  100.00|           0|2013/09/12 01:14:38|
+|hana01|31003|SAPSR3         |/BIC/FZZEROSUP (4)        |  17647620|    17647620|            0|     0.00|    17647620|  100.00|           0|2013/07/02 15:17:19|
+|hana01|31003|SAPSR3         |/BIC/FZSBOOK0J (4)        |  16940297|    16940297|            0|     0.00|    16940297|  100.00|           0|2013/02/16 18:46:01|
+|hana01|31003|SAPSR3         |/BIC/FZSBOOK02 (1)        |  16545071|    16545071|            0|     0.00|    16545071|  100.00|           0|2012/12/05 11:30:55|
+|hana01|31003|SAPSR3         |/BIC/FZSBOOK03 (1)        |  15881604|    15881604|            0|     0.00|    15881604|  100.00|           0|2012/12/05 11:30:44|
+|hana01|31003|SAPSR3         |/BIC/FDMSPOC02 (4)        |  15377850|    15377850|            0|     0.00|    15377850|  100.00|           0|2013/09/12 01:14:35|
+|hana01|31005|_SYS_STATISTICS|STATISTICS_ALERTS (3)     |  14165717|    14165717|            0|     0.00|    14165717|  100.00|           0|2012/10/01 02:19:21|
+|hana01|31003|SAPSR3         |/BIC/AZASBOOK40           |  13050522|    13050522|            0|     0.00|    13050522|  100.00|           0|2013/03/04 17:52:49|
+|hana01|31003|SAPSR3         |/BIC/ACLGDSO300           |  11362541|    11362541|            0|     0.00|    11362541|  100.00|           0|2013/02/15 20:27:26|
+|hana01|31003|SAPSR3         |/BIC/AMCLGDSO500          |  11362541|    11362541|            0|     0.00|    11362541|  100.00|           0|2014/04/30 16:45:30|
+|hana01|31003|SAPSR3         |/BIC/AMCLGDSO440          |  11362541|    11362541|            0|     0.00|    11362541|  100.00|           0|2014/04/30 16:45:30|
+|hana01|31003|SAPSR3         |/BIC/AMCLGDSO300          |  11362541|    11362541|            0|     0.00|    11362541|  100.00|           0|2014/04/29 16:14:17|
+|hana01|31003|SAPSR3         |/BIC/B0001204000 (1)      |  11362541|    11362541|            0|     0.00|    11362541|  100.00|           0|2014/04/29 16:14:11|
+|hana01|31003|SAPSR3         |/BIC/B0000456000 (1)      |  10099999|    10099999|            0|     0.00|    10099999|  100.00|           0|2013/02/06 14:14:09|
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SERVICE_NAME SERVICE,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  LPAD(RECORDS, 13) RECORDS,
+  LPAD(RECORDS_MAIN, 13) RECORDS_MAIN,
+  LPAD(RECORDS_DELTA, 13) RECORDS_DELTA,
+  LPAD(TO_VARCHAR(TO_DECIMAL(DELTA_PCT, 10, 2)), 9) DELTA_PCT,
+  LPAD(RECORDS_UDIV, 12) RECORDS_UDIV,
+  LPAD(TO_VARCHAR(TO_DECIMAL(UDIV_PCT, 10, 2)), 8) UDIV_PCT,
+  LPAD(TO_DECIMAL(MAX_MEM_SIZE_MB / 1024, 10, 2), 15) MAX_MEM_SIZE_GB,
+  MAP(LAST_MERGE_TIME, NULL, 'n/a', TO_VARCHAR(LAST_MERGE_TIME, 'YYYY/MM/DD HH24:MI:SS')) LAST_MERGE_TIME
+FROM
+( SELECT
+    HOST,
+    PORT,
+    SERVICE_NAME,
+    SCHEMA_NAME,
+    TABLE_NAME,
+    RECORDS,
+    RECORDS_MAIN,
+    RECORDS_DELTA,
+    DELTA_PCT,
+    RECORDS_UDIV,
+    UDIV_PCT,
+    MAX_MEM_SIZE_MB,
+    LAST_MERGE_TIME,
+    RESULT_ROWS,
+    ROW_NUMBER () OVER (ORDER BY MAP(ORDER_BY, 'TOTAL', RECORDS, 'MAIN', RECORDS_MAIN, 'DELTA', RECORDS_DELTA, 'DELTA_PCT', DELTA_PCT, 
+      'UDIV', RECORDS_UDIV, 'UDIV_PCT', UDIV_PCT, 'SIZE', MAX_MEM_SIZE_MB) DESC) ROW_NUM
+  FROM
+  ( SELECT
+      HOST,
+      PORT,
+      SERVICE_NAME,
+      SCHEMA_NAME,
+      TABLE_NAME,
+      SUM(RECORDS) RECORDS,
+      SUM(RECORDS_MAIN) RECORDS_MAIN,
+      SUM(RECORDS_DELTA) RECORDS_DELTA,
+      CASE
+        WHEN SUM(RECORDS_MAIN) + SUM(RECORDS_DELTA) = 0 THEN 0
+        ELSE SUM(RECORDS_DELTA) / SUM(RECORDS_DELTA + RECORDS_MAIN) * 100
+      END DELTA_PCT,
+      SUM(RECORDS_UDIV) RECORDS_UDIV,
+      CASE
+        WHEN SUM(RECORDS_MAIN) + SUM(RECORDS_DELTA) = 0 THEN 0
+        ELSE SUM(RECORDS_UDIV) / SUM(RECORDS_DELTA + RECORDS_MAIN) * 100
+      END UDIV_PCT,
+      SUM(MAX_MEM_SIZE_MB) MAX_MEM_SIZE_MB,
+      MAX(LAST_MERGE_TIME) LAST_MERGE_TIME,
+      MIN_TOTAL_RECORDS,
+      MIN_DELTA_RECORDS,
+      MIN_DELTA_PCT,
+      MIN_UDIV_RECORDS,
+      MIN_UDIV_PCT,
+      MIN_MAX_MEM_SIZE_MB,
+      ORDER_BY,
+      RESULT_ROWS
+    FROM
+    ( SELECT
+        T.HOST,
+        T.PORT,
+        S.SERVICE_NAME,
+        T.SCHEMA_NAME,
+        CASE BI.OBJECT_LEVEL
+          WHEN 'PARTITION' THEN T.TABLE_NAME || MAP(T.PART_ID, 0, '', ' (' || T.PART_ID || ')')
+          WHEN 'TABLE'     THEN T.TABLE_NAME
+        END TABLE_NAME,
+        T.RECORD_COUNT RECORDS,
+        T.RAW_RECORD_COUNT_IN_MAIN RECORDS_MAIN,
+        T.RAW_RECORD_COUNT_IN_DELTA RECORDS_DELTA,
+        T.MAX_UDIV RECORDS_UDIV,
+        T.ESTIMATED_MAX_MEMORY_SIZE_IN_TOTAL / 1024 / 1024 MAX_MEM_SIZE_MB,
+        T.LAST_MERGE_TIME,
+        BI.MIN_TOTAL_RECORDS,
+        BI.MIN_DELTA_RECORDS,
+        BI.MIN_DELTA_PCT,
+        BI.MIN_UDIV_RECORDS,
+        BI.MIN_UDIV_PCT,
+        BI.MIN_MAX_MEM_SIZE_MB,
+        BI.RESULT_ROWS,
+        BI.ORDER_BY
+      FROM
+      ( SELECT                     /* Modification section */
+          '%' HOST,
+          '%' PORT,
+          '%' SERVICE_NAME,
+          '%' SCHEMA_NAME,
+          '%' TABLE_NAME,
+          'TABLE' OBJECT_LEVEL,
+          1000000000 MIN_TOTAL_RECORDS,
+          -1 MIN_DELTA_RECORDS,
+          -1 MIN_DELTA_PCT,
+          -1 MIN_UDIV_RECORDS,
+          -1 MIN_UDIV_PCT,
+          -1 MIN_MAX_MEM_SIZE_MB,
+          'X' EXCLUDE_SID_TABLES,
+          'MAIN' ORDER_BY,          /* TOTAL, MAIN, DELTA, DELTA_PCT, UDIV, UDIV_PCT, SIZE */
+          50 RESULT_ROWS                 
+        FROM
+          DUMMY
+      ) BI INNER JOIN
+        M_SERVICES S ON
+          S.HOST LIKE BI.HOST AND
+          TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+          S.SERVICE_NAME LIKE BI.SERVICE_NAME INNER JOIN
+      ( SELECT
+          HOST,
+          PORT,
+          SCHEMA_NAME,
+          TABLE_NAME,
+          PART_ID,
+          RECORD_COUNT,
+          RAW_RECORD_COUNT_IN_MAIN,
+          RAW_RECORD_COUNT_IN_DELTA,
+          MAX_UDIV,
+          ESTIMATED_MAX_MEMORY_SIZE_IN_TOTAL,
+          LAST_MERGE_TIME
+        FROM
+          M_CS_TABLES
+      ) T ON 
+          T.HOST = S.HOST AND
+          T.PORT = S.PORT AND
+          T.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+          T.TABLE_NAME LIKE BI.TABLE_NAME AND
+          ( BI.EXCLUDE_SID_TABLES = ' ' OR T.TABLE_NAME NOT LIKE '/B%/S%' )
+    )
+    GROUP BY
+      HOST,
+      PORT,
+      SERVICE_NAME,
+      SCHEMA_NAME,
+      TABLE_NAME,
+      MIN_TOTAL_RECORDS,
+      MIN_DELTA_RECORDS,
+      MIN_DELTA_PCT,
+      MIN_UDIV_RECORDS,
+      MIN_UDIV_PCT,
+      MIN_MAX_MEM_SIZE_MB,
+      ORDER_BY,
+      RESULT_ROWS
+  )
+  WHERE
+    ( MIN_DELTA_RECORDS = -1 OR RECORDS_DELTA >= MIN_DELTA_RECORDS ) AND
+    ( MIN_TOTAL_RECORDS = -1 OR RECORDS >= MIN_TOTAL_RECORDS ) AND
+    ( MIN_DELTA_PCT = -1 OR DELTA_PCT >= MIN_DELTA_PCT ) AND
+    ( MIN_UDIV_RECORDS = -1 OR RECORDS_UDIV >= MIN_UDIV_RECORDS ) AND
+    ( MIN_UDIV_PCT = -1 OR UDIV_PCT >= MIN_UDIV_PCT ) AND
+    ( MIN_MAX_MEM_SIZE_MB = -1 OR MAX_MEM_SIZE_MB >=  MIN_MAX_MEM_SIZE_MB )
+)
+WHERE
+  ( RESULT_ROWS = -1 OR ROW_NUM <= RESULT_ROWS )
+ORDER BY
+  ROW_NUM

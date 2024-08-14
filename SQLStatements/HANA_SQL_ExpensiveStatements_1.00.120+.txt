@@ -1,0 +1,553 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_SQL_ExpensiveStatements_1.00.120+
+
+[DESCRIPTION]
+
+- Load information for expensive SQL statements
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Only populated if expensive statements trace is activated (SAP Note 2180165)
+- Column STATEMENT_HASH available with SAP HANA >= 1.00.60
+- Column STATEMENT_EXECUTION_ID and view M_EXPENSIVE_STATEMENT_EXECUTION_LOCATION_STATISTICS available starting with SAP HANA 1.00.120.
+- SRV_PER_EXEC_MS only populated if the related client network communication was traced, activation
+  of SQL client network I/O trace via:
+
+  indexserver.ini --> [sql_client_network_io] --> enabled = true
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.120
+
+[SQL COMMAND VERSION]
+
+- 2014/03/29:  1.0 (initial version)
+- 2014/11/05:  1.1 (DB_USER, OPERATION included)
+- 2014/11/18:  1.2 (MEMORY_SIZE included, OPERATION -> OPERATIONS)
+- 2014/12/05:  1.3 (SRV_PER_EXEC_MS included)
+- 2014/12/15:  1.4 (CPU_MS included)
+- 2014/12/18:  1.5 (BIND_VALUES added)
+- 2015/05/06:  1.6 (APPLICATION_SOURCE and HOST added)
+- 2016/02/14:  1.7 (ERROR_CODE / ERROR_TEXT included)
+- 2016/02/23:  1.8 (TIME_AGGREGATE_BY included)
+- 2016/03/12:  1.9 (MIN_MEM_GB included)
+- 2016/03/23:  2.0 (CONN_ID included)
+- 2016/12/31:  2.1 (TIME_AGGREGATE_BY = 'TS<seconds>' included)
+- 2017/10/23:  2.2 (M_EXPENSIVE_STATEMENT_EXECUTION_LOCATION_STATISTICS included)
+- 2017/10/26:  2.3 (TIMEZONE included)
+- 2018/01/07:  2.4 (AGGREGATE_BY = 'BINDS' added)
+- 2018/03/12:  2.5 (ORDER_BY = 'EXECUTIONS' added)
+- 2018/10/10:  2.6 (MIN_DURATION_S included)
+- 2018/12/04:  2.7 (shortcuts for BEGIN_TIME and END_TIME like 'C', 'E-S900' or 'MAX')
+- 2019/03/27:  2.8 (SQL_LEN and MIN_SQL_TEXT_LENGTH included)
+- 2020/06/02:  2.9 (PORT added
+
+[INVOLVED TABLES]
+
+- M_EXPENSIVE_STATEMENTS
+- M_EXPENSIVE_STATEMENT_EXECUTION_LOCATION_STATISTICS
+- M_SQL_CLIENT_NETWORK_IO
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- SQL_PATTERN
+
+  Pattern for SQL text (case insensitive)
+
+  'INSERT%'       --> SQL statements starting with INSERT
+  '%DBTABLOG%'    --> SQL statements containing DBTABLOG
+  '%'             --> All SQL statements
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- CONN_ID
+
+  Connection ID
+
+  330655          --> Connection ID 330655
+  -1              --> No connection ID restriction
+
+- APP_SOURCE
+
+  Application source
+
+  'SAPL2:437'     --> Application source 'SAPL2:437'
+  'SAPMSSY2%'     --> Application sources starting with SAPMSSY2
+  '%'             --> No application source restriction
+
+- STATEMENT_HASH      
+ 
+  Hash of SQL statement to be analyzed
+
+  '2e960d7535bf4134e2bd26b9d80bd4fa' --> SQL statement with hash '2e960d7535bf4134e2bd26b9d80bd4fa'
+  '%'                                --> No statement hash restriction 
+
+- OPERATIONS
+
+  SQL operations (comma separated if multiple are specified)
+
+  'AGGREGATED_EXECUTION, CALL' --> Overall execution time of SQL statement or a procedure call
+  'COMPILE'                    --> Compile step of SQL statement
+  '%'                          --> No restriction in terms of SQL operation
+
+- APP_USER
+
+  Application user
+
+  'SAPSYS'        --> Application user 'SAPSYS'
+  '%'             --> No application user restriction
+
+- DB_USER
+
+  Database user
+
+  'SYSTEM'        --> Database user 'SYSTEM'
+  '%'             --> No database user restriction
+
+- SQL_TEXT_OUTPUT_LENGTH
+
+  Maximum displayed size of SQL statement text
+
+  50              --> SQL text is truncated to 50 characters
+  -1              --> No SQL text size limitation
+
+- MIN_MEM_GB
+
+  Minimum memory allocation (GB)
+
+  10              --> Suppress the display of SQL statements with a memory allocation of less than 10 GB
+  -1              --> No restriction linked to minimum memory allocation
+
+- MAX_MEM_GB
+
+  Maximum memory allocation (GB)
+
+  10000           --> Suppress the display of SQL statements with a memory allocation of more than 10 TB (because this information can hardly be correct)
+  -1              --> No restriction linked to maximum memory allocation
+
+- MIN_SQL_TEXT_LENGTH
+
+  Minimum length of SQL statement text
+
+  1000000         --> Only display statements with SQL texts of at least 1 million characters
+  -1              --> No restriction related to SQL text length
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HASH'          --> Aggregation by statement hash
+  'USER'          --> Aggregation by application user
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'TIME'          --> Sorting by start time
+  'DURATION'      --> Sorting by execution time
+  'MEMORY'        --> Sorting by used memory
+  'CPU'           --> Sorting by CPU time
+
+- RESULT_ROWS
+
+  Number of records to be returned by the query
+
+  100             --> Return a maximum number of 100 records
+  -1              --> Return all records
+
+[OUTPUT PARAMETERS]
+
+- START_TIME:          Last start time of SQL statement
+- HOST:                Host name
+- PORT:                Port
+- CONN_ID:             Connection ID
+- STATEMENT_HASH:      Hash value of SQL statement
+- EXECUTIONS:          Number of executions
+- ELAPSED_MS:          Elapsed time (ms)
+- CPU_MS:              CPU time (ms), only available if CPU tracking is active (see SAP Note 2100040, "How can additional CPU resource tracking be activated")
+- ELA_PER_EXEC_MS:     Elapsed time per execution (ms)
+- SRV_PER_EXEC_MS:     Server time per execution (ms) reported by SQL network client I/O trace (if enabled)
+- REC_PER_EXEC:        Rows returned per execution (ms)
+- LOCK_PER_EXEC_MS:    Lock wait time per execution (ms)
+- CPU_PER_EXEC_MS:     CPU time per execution (ms)
+- MEM_USED_GB:         Total memory used by SQL statement (GB)
+- MEM_PER_EXEC_GB:     Average memory used per execution (GB)
+- OPERATION:           SQL operation
+- APP_USER:            Application user name
+- DB_USER:             Database user name
+- ERROR:               Error details (0 in case of successful execution)
+- SQL_LEN:             SQL statement text length
+- SQL_TEXT:            SQL statement text
+- BIND_VALUES:         Bind values
+- LOCATION_STATISTICS: Memory consumption per node / service
+
+[EXAMPLE OUTPUT]
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|START_TIME|STATEMENT_HASH                  |EXECUTIONS|ELAPSED_MS  |ELA_PER_EXEC_MS|REC_PER_EXEC |LOCK_PER_EXEC_MS|CPU_PER_EXEC_MS|MEM_USED_GB|MEM_PER_EXEC_GB|OPERATION           |APP_USER|DB_USER|SQL_TEXT                                |
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|any       |2b6020f8ef846d2f27869f9ec0f71716|         1|  2728443.36|     2728443.36| 375303455.00|            0.00|           0.00|     201.86|         201.86|AGGREGATED_EXECUTION|any     |any    |SELECT ... FROM "/BIC/FZAFNNC21" "F" JOI|
+|any       |4637a9714979af4bd8fd367f7af4aa14|        80|   120945.37|        1511.81|         0.00|            0.00|           0.00|     124.01|           1.55|CALL                |any     |any    |CALL SYS.TREXviaDBSLWithParameter(  X , |
+|any       |476e62bad52ddf6b23358bbb150b01a1|         6|   216470.43|       36078.40|         0.00|            0.00|           0.00|     122.11|          20.35|CALL                |any     |any    |CALL SYS.TREXviaDBSLWithParameter(  X , |
+|any       |9eb106f43ab0764b099c53fc8c8f5594|       175|   231771.55|        1324.40|         0.00|            0.00|           0.00|     104.59|           0.59|CALL                |any     |any    |CALL SYS.TREXviaDBSLWithParameter(  X , |
+|any       |4921d84bfa4a0e37c329a8c54474e47a|        41|   176117.30|        4295.54|         0.00|            0.00|           0.00|      96.99|           2.36|CALL                |any     |any    |CALL SYS.TREXviaDBSLWithParameter(  X , |
+|any       |e336f7c83fefa69ad5b40b0f0617a0ef|       149|   200580.16|        1346.17|         0.00|            0.00|           0.00|      73.94|           0.49|CALL                |any     |any    |CALL SYS.TREXviaDBSLWithParameter(  X , |
+|any       |68e0005069dcf874b5f9767876e7ae4b|         2|   842914.45|      421457.22|   5333304.00|            0.00|           0.00|      69.68|          34.84|AGGREGATED_EXECUTION|any     |any    |SELECT ... FROM "/BIC/B0001496001" T_00 |
+|any       |c41eba065ebd26b55d0bb06ac941060e|        15|    82572.99|        5504.86|         0.00|            0.00|           0.00|      57.33|           3.82|CALL                |any     |any    |CALL SYS.TREXviaDBSLWithParameter(  X , |
+|any       |69c4caa534064a1f49610656af5ce175|        68|   435846.24|        6409.50|         0.00|            0.00|           0.00|      53.56|           0.78|CALL                |any     |any    |CALL SYS.TREXviaDBSLWithParameter(  X , |
+|any       |1970a033ca6992eff42165e5eab84136|         1|   687718.86|      687718.86|  99349746.00|            0.00|           0.00|      53.37|          53.37|AGGREGATED_EXECUTION|any     |any    |SELECT ... FROM "/BIC/FZAFNNC21" "F" JOI|
+|any       |3a31d724de91f29b994979d295276b3e|         1|  7260255.71|     7260255.71|  68893130.00|            0.00|           0.00|      46.88|          46.88|AGGREGATED_EXECUTION|any     |any    |SELECT ... FROM "/BIC/FZRRNNC14B" "F" JO|
+|any       |e2c401fae8191499aa0b9b3b22b939dc|      2231|  5202781.08|        2332.03|    805890.59|            0.00|           0.00|      46.54|           0.02|AGGREGATED_EXECUTION|any     |any    |SELECT ... FROM "/BI0/PCRM_MKTELM" WHERE|
+|any       |f06554d540ef8fb60f9abaff88930787|        80|    99237.47|        1240.46|         0.00|            0.00|           0.00|      42.49|           0.53|CALL                |any     |any    |CALL SYS.TREXviaDBSLWithParameter(  X , |
+|any       |aff756a9bca146aad669ec445e8478da|        58|    91989.83|        1586.03|         0.00|            0.00|           0.00|      40.51|           0.69|CALL                |any     |any    |CALL SYS.TREXviaDBSLWithParameter(  X , |
+|any       |4c9cf60ee4cce165c25a6dd793dbf256|       115|   436506.74|        3795.71|         0.00|            0.00|           0.00|      35.90|           0.31|CALL                |any     |any    |CALL SYS.TREXviaDBSLWithParameter(  X , |
+|any       |f76edb3467799537195820791d78e73f|         1|   400905.59|      400905.59|    225352.00|            0.00|           0.00|      34.84|          34.84|AGGREGATED_EXECUTION|any     |any    |SELECT ... FROM "/BIC/B0001496001" T_00 |
+|any       |0ac6a31d5992b9c4c8f58d18b895acda|         2|    60571.69|       30285.84|         0.00|            0.00|           0.00|      32.73|          16.36|CALL                |any     |any    |CALL SYS.TREXviaDBSLWithParameter(  X , |
+|any       |4c4e3a120ac593d591fa344fb216d9ca|        67|    83551.48|        1247.03|         0.00|            0.00|           0.00|      30.42|           0.45|CALL                |any     |any    |CALL SYS.TREXviaDBSLWithParameter(  X , |
+|any       |d047ff791f4d9caec65f25df0c01dc36|         8|    31452.60|        3931.57|         0.00|            0.00|           0.00|      28.78|           3.59|CALL                |any     |any    |CALL SYS.TREXviaDBSLWithParameter(  X , |
+|any       |5e220c5f618fd9f2b4ec9440d5af5700|         3|   395776.19|      131925.39|  18317808.00|            0.00|           0.00|      27.32|           9.10|AGGREGATED_EXECUTION|any     |any    |SELECT ... FROM "/BIC/B0002403001" T_00 |
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+*/
+
+  START_TIME,
+  HOST,
+  LPAD(PORT, 5) PORT,
+  LPAD(CONN_ID, 10) CONN_ID,
+  STATEMENT_HASH,
+  LPAD(EXECUTIONS, 10) EXECUTIONS,
+  LPAD(TO_DECIMAL(ELAPSED_MS, 12, 2), 14) ELAPSED_MS,
+  LPAD(TO_DECIMAL(CPU_MS, 12, 2), 10) CPU_MS,
+  LPAD(TO_DECIMAL(ELA_PER_EXEC_MS, 12, 2), 15) ELA_PER_EXEC_MS,
+  IFNULL(LPAD(TO_DECIMAL(SRV_PER_EXEC_MS, 12, 2) , 15), 'n/a') SRV_PER_EXEC_MS,
+  LPAD(TO_DECIMAL(REC_PER_EXEC, 12, 2), 13) REC_PER_EXEC,
+  LPAD(TO_DECIMAL(LOCK_PER_EXEC_MS, 12, 2), 16) LOCK_PER_EXEC_MS,
+  LPAD(TO_DECIMAL(CPU_PER_EXEC_MS, 12, 2), 15) CPU_PER_EXEC_MS,
+  LPAD(TO_DECIMAL(MEM_USED_GB, 10, 2), 11) MEM_USED_GB,
+  LPAD(TO_DECIMAL(MEM_PER_EXEC_GB, 10, 2), 15) MEM_PER_EXEC_GB,
+  OPERATION,
+  APP_SOURCE,
+  APP_USER,
+  DB_USER,
+  ERROR,
+  LPAD(TO_DECIMAL(SQL_TEXT_LENGTH, 10, 0), 7) SQL_LEN,
+  SQL_TEXT,
+  BIND_VALUES,
+  IFNULL(LOCATION_STATISTICS, '') LOCATION_STATISTICS
+FROM
+( SELECT
+    HOST,
+    PORT,
+    CONN_ID,
+    STATEMENT_HASH,
+    EXECUTIONS,
+    ELAPSED_MS,
+    CPU_MS,
+    ELA_PER_EXEC_MS,
+    SRV_PER_EXEC_MS,
+    LOCK_PER_EXEC_MS,
+    CPU_PER_EXEC_MS,
+    REC_PER_EXEC,
+    MEM_USED_GB,
+    MEM_PER_EXEC_GB,
+    START_TIME,
+    OPERATION,
+    APP_SOURCE,
+    APP_USER,
+    DB_USER,
+    ERROR,
+    SUBSTR(CASE
+      WHEN LOCATE(UPPER(SQL_TEXT), 'FROM') <= 15 THEN
+        SQL_TEXT
+      ELSE
+        SUBSTR(SQL_TEXT, 1, LOCATE(SQL_TEXT, CHAR(32))) || '...' || SUBSTR(SQL_TEXT, LOCATE(UPPER(SQL_TEXT), 'FROM') - 1)
+    END, 1, MAP(SQL_TEXT_OUTPUT_LENGTH, -1, 9999, SQL_TEXT_OUTPUT_LENGTH)) SQL_TEXT,
+    SQL_TEXT_LENGTH,
+    BIND_VALUES,
+    LOCATION_STATISTICS,
+    RESULT_ROWS,
+    ROW_NUMBER () OVER (ORDER BY
+      MAP(ORDER_BY, 'TIME', START_TIME) DESC, 
+      MAP(ORDER_BY, 'DURATION', ELAPSED_MS, 'MEMORY', MEM_USED_GB, 'CPU', CPU_MS, 'COUNT', EXECUTIONS, 'EXECUTIONS', EXECUTIONS, 'LENGTH', SQL_TEXT_LENGTH) DESC
+    ) ROW_NUM
+  FROM
+  ( SELECT
+      CASE 
+        WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+          CASE 
+            WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+              TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+              'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(ES.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE ES.START_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+            ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(ES.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE ES.START_TIME END, BI.TIME_AGGREGATE_BY)
+          END
+        ELSE 'any' 
+      END START_TIME,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')      != 0 THEN ES.HOST                                             ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                     END HOST,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(ES.PORT)                                 ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                     END PORT,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HASH')      != 0 THEN ES.STATEMENT_HASH                                   ELSE MAP(BI.STATEMENT_HASH, '%', 'any', BI.STATEMENT_HASH) END STATEMENT_HASH,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CONN_ID')   != 0 THEN TO_VARCHAR(ES.CONNECTION_ID)                        ELSE MAP(BI.CONN_ID, -1, 'any', TO_VARCHAR(BI.CONN_ID))    END CONN_ID,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OPERATION') != 0 THEN ES.OPERATION                                        ELSE MAP(BI.OPERATIONS, '%', 'any', BI.OPERATIONS)         END OPERATION,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_USER')  != 0 THEN ES.APP_USER                                         ELSE MAP(BI.APP_USER, '%', 'any', BI.APP_USER)             END APP_USER,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'DB_USER')   != 0 THEN ES.DB_USER                                          ELSE MAP(BI.DB_USER, '%', 'any', BI.DB_USER)               END DB_USER,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SOURCE')    != 0 THEN ES.APPLICATION_SOURCE                               ELSE MAP(BI.APP_SOURCE, '%', 'any', BI.APP_SOURCE)         END APP_SOURCE,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'ERROR')     != 0 THEN ES.ERROR_CODE || MAP(ES.ERROR_TEXT, '', '', ' (' || ES.ERROR_TEXT || ')') ELSE 'any'                           END ERROR,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BINDS')     != 0 THEN ES.PARAMETERS                                       ELSE 'any'                                                 END BIND_VALUES,
+      COUNT(*) EXECUTIONS,
+      SUM(ES.DURATION_MICROSEC) / 1000 ELAPSED_MS,
+      SUM(CASE WHEN ES.CPU_TIME / 1024 / 1024 / 1024 BETWEEN 0 AND 1000000 THEN ES.CPU_TIME ELSE 0 END) / 1000 CPU_MS,
+      SUM(ES.DURATION_MICROSEC) / COUNT(*) / 1000 ELA_PER_EXEC_MS,
+      SUM(N.SERVER_DURATION) / COUNT(*) / 1000 SRV_PER_EXEC_MS,
+      SUM(ES.LOCK_WAIT_DURATION) / COUNT(*) / 1000 LOCK_PER_EXEC_MS,
+      SUM(CASE WHEN ES.CPU_TIME / 1024 / 1024 / 1024 BETWEEN 0 AND 1000000 THEN ES.CPU_TIME ELSE 0 END) / COUNT(*) / 1000 CPU_PER_EXEC_MS,
+      SUM(GREATEST(CASE WHEN ES.RECORDS BETWEEN 0 AND 100000000000 THEN ES.RECORDS ELSE 0 END, 0)) / COUNT(*) REC_PER_EXEC,
+      SUM(CASE WHEN ES.MEMORY_SIZE / 1024 / 1024 / 1024 >= 1000000 THEN 0 ELSE ES.MEMORY_SIZE / 1024 / 1024 / 1024 END) MEM_USED_GB,
+      SUM(CASE WHEN ES.MEMORY_SIZE / 1024 / 1024 / 1024 >= 1000000 THEN 0 ELSE ES.MEMORY_SIZE / 1024 / 1024 / 1024 END) / COUNT(*) MEM_PER_EXEC_GB,
+      LTRIM(MAP(MIN(TO_VARCHAR(SUBSTR(ES.STATEMENT_STRING, 1, 5000))), MAX(TO_VARCHAR(SUBSTR(ES.STATEMENT_STRING, 1, 5000))), MIN(TO_VARCHAR(SUBSTR(ES.STATEMENT_STRING, 1, 5000))), 'various')) SQL_TEXT,
+      AVG(LENGTH(ES.STATEMENT_STRING)) SQL_TEXT_LENGTH,
+      MAP(MIN(ESL.LOCATION_STATISTICS), MAX(ESL.LOCATION_STATISTICS), MIN(ESL.LOCATION_STATISTICS), 'various') LOCATION_STATISTICS,
+      BI.ORDER_BY,
+      BI.RESULT_ROWS,
+      BI.SQL_TEXT_OUTPUT_LENGTH,
+      BI.MIN_SQL_TEXT_LENGTH
+    FROM
+    ( SELECT
+        CASE
+          WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+          WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+          WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+          WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+          WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+          WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+          WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+          WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+          WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+          WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+          WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+          WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+          WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+        END BEGIN_TIME,
+        CASE
+          WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+          WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+          WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+          WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+          WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+          WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+          WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+          WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+          WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+          WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+          WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+          WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+          WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+        END END_TIME,
+        TIMEZONE,
+        HOST,
+        PORT,
+        CONN_ID,
+        STATEMENT_HASH,
+        APP_USER,
+        DB_USER,
+        SQL_PATTERN,
+        APP_SOURCE,
+        ERROR_CODE,
+        ERROR_TEXT,
+        ONLY_ERRORS,
+        SQL_TEXT_OUTPUT_LENGTH,
+        MIN_MEM_GB,
+        MAX_MEM_GB,
+        MIN_DURATION_S,
+        MIN_SQL_TEXT_LENGTH,
+        OPERATIONS,
+        AGGREGATE_BY,
+        ORDER_BY,
+        RESULT_ROWS,
+        MAP(TIME_AGGREGATE_BY,
+          'NONE',        'YYYY/MM/DD HH24:MI:SS',
+          'HOUR',        'YYYY/MM/DD HH24',
+          'DAY',         'YYYY/MM/DD (DY)',
+          'HOUR_OF_DAY', 'HH24',
+          TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY
+      FROM
+      ( SELECT                                       /* Modification section */
+          '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+          '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+          'SERVER' TIMEZONE,                              /* SERVER, UTC */
+          '%' HOST,
+          '%' PORT,
+          -1 CONN_ID,
+          '%' STATEMENT_HASH,
+          '%' APP_USER,
+          '%' DB_USER,
+          '%' SQL_PATTERN,
+          '%' APP_SOURCE,
+          -1 ERROR_CODE,
+          '%' ERROR_TEXT,
+          ' ' ONLY_ERRORS,
+          40  SQL_TEXT_OUTPUT_LENGTH,
+          -1 MIN_MEM_GB,
+          -1 MAX_MEM_GB,
+          -1 MIN_DURATION_S,
+          -1 MIN_SQL_TEXT_LENGTH,
+          '%' OPERATIONS,     /* TOTAL for total values per statement (AGGREGATED_EXECUTION + CALL + EXECUTE + EXECUTE_DDL + INSERT + UPDATE + DELETE + COMPILE), various individual steps like SELECT or COMPILE */
+          'NONE' AGGREGATE_BY,                         /* TIME, HOST, PORT, CONN_ID, HASH, APP_USER, DB_USER, OPERATION, SOURCE, ERROR, BINDS or comma separated combinations, NONE for no aggregation */
+          'NONE' TIME_AGGREGATE_BY,                    /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+          'LENGTH' ORDER_BY,                             /* TIME, DURATION, MEMORY, COUNT, CPU, EXECUTIONS, LENGTH */
+          -1 RESULT_ROWS
+        FROM
+          DUMMY
+      )
+    ) BI INNER JOIN
+      M_EXPENSIVE_STATEMENTS ES ON
+        CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(ES.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE ES.START_TIME END BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+        ES.HOST LIKE BI.HOST AND
+        TO_VARCHAR(ES.PORT) LIKE BI.PORT AND
+        ES.STATEMENT_HASH LIKE BI.STATEMENT_HASH AND
+        ( BI.CONN_ID = -1 OR ES.CONNECTION_ID = BI.CONN_ID ) AND
+        ( BI.OPERATIONS = 'TOTAL' AND ES.OPERATION IN ('AGGREGATED_EXECUTION', 'CALL', 'COMPILE', 'EXECUTE', 'EXECUTE_DDL', 'INSERT', 'UPDATE', 'DELETE') OR
+          INSTR(BI.OPERATIONS, ES.OPERATION) != 0 OR
+          BI.OPERATIONS = '%' ) AND
+        ES.APP_USER LIKE BI.APP_USER AND
+        ES.DB_USER LIKE BI.DB_USER AND
+        IFNULL(ES.APPLICATION_SOURCE, '') LIKE BI.APP_SOURCE AND
+        ( BI.MIN_MEM_GB = -1 OR ES.MEMORY_SIZE / 1024 / 1024 / 1024 >= BI.MIN_MEM_GB ) AND 
+        ( BI.MAX_MEM_GB = -1 OR ES.MEMORY_SIZE / 1024 / 1024 / 1024 <= BI.MAX_MEM_GB ) AND
+        ( BI.MIN_DURATION_S = -1 OR ES.DURATION_MICROSEC >= BI.MIN_DURATION_S * 1000000 ) AND
+        IFNULL(ES.ERROR_TEXT, '') LIKE BI.ERROR_TEXT AND
+        ( BI.ERROR_CODE = -1 OR ES.ERROR_CODE = BI.ERROR_CODE ) AND
+        ( BI.ONLY_ERRORS = ' ' OR ES.ERROR_CODE != 0) AND
+        UPPER(TO_VARCHAR(SUBSTR(ES.STATEMENT_STRING, 1, 5000))) LIKE UPPER(BI.SQL_PATTERN) LEFT OUTER JOIN
+      M_SQL_CLIENT_NETWORK_IO N ON
+        N.HOST = ES.HOST AND
+        N.PORT = ES.PORT AND
+        N.MESSAGE_ID = ES.NETWORK_MESSAGE_ID AND
+        N.CONNECTION_ID = ES.CONNECTION_ID LEFT OUTER JOIN
+      ( SELECT
+          STATEMENT_EXECUTION_ID,
+          STRING_AGG(TO_DECIMAL(ROUND(MEMORY_SIZE / 1024 / 1024), 10, 0) || CHAR(32) || 'MB (' || EXECUTION_HOST || ':' || EXECUTION_PORT || ')', ';' ORDER BY MEMORY_SIZE DESC) LOCATION_STATISTICS
+        FROM
+        ( SELECT
+            STATEMENT_EXECUTION_ID,
+            EXECUTION_HOST,
+            EXECUTION_PORT,
+            MAX(MEMORY_SIZE) MEMORY_SIZE
+          FROM
+            M_EXPENSIVE_STATEMENT_EXECUTION_LOCATION_STATISTICS
+          GROUP BY
+            STATEMENT_EXECUTION_ID,
+            EXECUTION_HOST,
+            EXECUTION_PORT
+        )
+        WHERE
+          STATEMENT_EXECUTION_ID != 0
+        GROUP BY
+          STATEMENT_EXECUTION_ID
+      ) ESL ON
+        ESL.STATEMENT_EXECUTION_ID = ES.STATEMENT_EXECUTION_ID
+    GROUP BY
+      CASE
+        WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+          CASE 
+            WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+              TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+              'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(ES.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE ES.START_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+            ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(ES.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE ES.START_TIME END, BI.TIME_AGGREGATE_BY)
+          END
+        ELSE 'any' 
+      END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')      != 0 THEN ES.HOST                                             ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                     END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')      != 0 THEN TO_VARCHAR(ES.PORT)                                 ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                     END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HASH')      != 0 THEN ES.STATEMENT_HASH                                   ELSE MAP(BI.STATEMENT_HASH, '%', 'any', BI.STATEMENT_HASH) END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CONN_ID')   != 0 THEN TO_VARCHAR(ES.CONNECTION_ID)                        ELSE MAP(BI.CONN_ID, -1, 'any', TO_VARCHAR(BI.CONN_ID))    END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OPERATION') != 0 THEN ES.OPERATION                                        ELSE MAP(BI.OPERATIONS, '%', 'any', BI.OPERATIONS)         END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'APP_USER')  != 0 THEN ES.APP_USER                                         ELSE MAP(BI.APP_USER, '%', 'any', BI.APP_USER)             END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'DB_USER')   != 0 THEN ES.DB_USER                                          ELSE MAP(BI.DB_USER, '%', 'any', BI.DB_USER)               END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SOURCE')    != 0 THEN ES.APPLICATION_SOURCE                               ELSE MAP(BI.APP_SOURCE, '%', 'any', BI.APP_SOURCE)         END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'ERROR')     != 0 THEN ES.ERROR_CODE || MAP(ES.ERROR_TEXT, '', '', ' (' || ES.ERROR_TEXT || ')') ELSE 'any'                           END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'BINDS')     != 0 THEN ES.PARAMETERS                                       ELSE 'any'                                                 END,
+      BI.RESULT_ROWS,
+      BI.SQL_TEXT_OUTPUT_LENGTH,
+      BI.ORDER_BY,
+      BI.MIN_SQL_TEXT_LENGTH
+  )
+  WHERE
+    (MIN_SQL_TEXT_LENGTH = -1 OR SQL_TEXT_LENGTH >= MIN_SQL_TEXT_LENGTH )
+)
+WHERE
+  ( RESULT_ROWS = -1 OR ROW_NUM <= RESULT_ROWS )
+ORDER BY
+  ROW_NUM

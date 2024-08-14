@@ -1,0 +1,593 @@
+WITH 
+
+/* 
+
+[NAME]
+
+- HANA_Tables_LargestTables_SHC
+
+[DESCRIPTION]
+
+- Overview of largest tables (including indexes and LOBs)
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- M_TABLE_LOB_STATISTICS available with Rev. 1.00.120
+- WITH clause does not work with older DBACOCKPIT transactions before SAP BASIS 7.02 SP16 / 7.30 SP12 / 7.31 SP12 / SAP_BASIS 7.40 SP07 (empty result returned) 
+- Tables < 1 MB are not considered to avoid high name mapping overhead
+- Persistent memory columns available with Rev. 2.00.030
+- M_TABLE_LOB_STATISTICS.MEMORY_SIZE available with Rev. 2.00.040
+- May run significantly longer than previous versions because on-the-fly calculation of
+  M_TABLE_LOB_STATISTICS.MEMORY_SIZE is quite expensive
+- LOB_DISK_GB and LOB_MEM_GB may show too small values with SAP HANA 2.00.043 - 2.00.046 (bug 238070)
+- TABLE_COLUMNS.CS_DATA_TYPE_NAME and M_CS_PARTITIONS no longer available with SHC
+
+[VALID FOR]
+
+- Revisions:              cloud
+- Environment:            SAP HANA Cloud
+
+[SQL COMMAND VERSION]
+
+- 2014/03/06:  1.0 (initial version)
+- 2014/05/01:  1.1 (L and MAX_MEM_GB output columns included)
+- 2016/12/06:  1.2 (dedicated Rev. 1.00.120+ version)
+- 2017/05/24:  1.3 (ORDER_BY = 'RECORDS' included)
+- 2017/12/19:  1.4 (complete redesign)
+- 2018/01/29:  1.5 (concat attributes and implicit indexes considered in INDEXES output column)
+- 2018/11/05:  1.6 (Output column P for paged attributes included)
+- 2019/03/16:  1.7 (dedicated 2.00.030+ version including persistent memory)
+- 2019/04/13:  1.8 (dedicated 2.00.040+ version including LOB memory consideration based on M_TABLE_LOB_STATISTICS.MEMORY_SIZE)
+- 2019/10/20:  1.9 (adjustments to output columns and persistent memory considerations)
+- 2020/08/19:  2.0 (ONLY_PAGED_TABLES added)
+- 2021/01/29:  2.1 (dedicated SAP HANA Cloud version)
+- 2021/05/06:  2.2 (paged memory added)
+- 2023/04/30:  2.3 (ONLY_TABLES_WITH_NSE_RECOMMENDATION included)
+
+[INVOLVED TABLES]
+
+- M_CS_ALL_COLUMNS
+- M_CS_TABLES
+- M_INDEXES
+- M_RS_INDEXES
+- M_RS_TABLES
+- M_TABLE_LOB_STATISTICS
+- M_TABLE_PERSISTENCE_STATISTICS
+- TABLE_COLUMNS
+- TABLE_PARTITIONS
+
+[INPUT PARAMETERS]
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- STORE
+
+  Restriction to row and / or column store
+
+  'ROW'           --> Only row store information
+  'COLUMN'        --> Only column store information
+  '%'             --> No store restriction
+
+- ONLY_PAGED_TABLES
+
+  Restriction to tables with paged attributes
+
+  'X'             --> Display tables with paged attributes
+  ' '             --> No restriction related to paged attributes
+
+- ONLY_TECHNICAL_TABLES
+
+  Possibility to restrict output to technical tables from SAP Note 2388483
+
+  'X'             --> Display only tables mentioned in SAP Note 2388483
+  ' '             --> No restriction to technical tables
+
+- ONLY_TABLES_WITH_NSE_RECOMMENDATION
+
+  Possibility to restrict output to tables with NSE recommendation according to SAP Note 2973243
+
+  'X'             --> Only display tables with NSE recommendation in SAP Note 2973243
+  ' '             --> No restriction related to tables with NSE recommendation
+
+- MIN_TABLE_DISK_SIZE_MB
+
+  Minimum threshold for table disk size (MB)
+
+  1024            --> Only display tables with at least 1024 MB disk skze
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'TOTAL_DISK'    --> Sorting by total size on disk
+  'CURRENT_MEM'   --> Sorting by total size in memory
+  'MAX_MEM',      --> Sorting by maximum total size in memory
+  'PAGE_MEM'      --> Sorting by paged memory (paged attributes, NSE)
+  'TABLE_MEM'     --> Sorting by table size in memory
+  'INDEX_MEM'     --> Sorting by index size in memory
+  'RECORDS'       --> Sorting by number of table records
+
+- RESULT_ROWS
+
+  Number of records to be returned by the query
+
+  100             --> Return a maximum number of 100 records
+  -1              --> Return all records
+
+[OUTPUT PARAMETERS]
+
+- SCHEMA_NAME: Schema name
+- TABLE_NAME:  Table name
+- S:           Table store ('R' for row store, 'C' for column store)
+- L:           Load state ('Y' -> loaded, 'P' -> partially loaded, 'N' -> not loaded)
+- T:           'X' if table belongs to the class of technical tables described in SAP Note 2388483
+- U:           'X' if at least one unique index exists for the table
+- P:           'X' if paged attributes are used
+- COLS:        Number of table columns
+- RECORDS:     Number of table records
+- DISK_GB:     Total size on disk (GB, table + indexes + LOBs)
+- MEM_GB:      Total current size in memory (GB, table + indexes + cached LOBs)
+- PARTS:       Number of table partitions (0 if table is not partitioned)
+- TAB_MEM_GB:  Memory size of table (GB)
+- INDEXES:     Number of indexes on the table (<explicit indexes>/<additional concat attributes>/<implicit indexes>)
+- IND_MEM_GB:  Memory size of indexes (GB)
+- LOBS:        Type and number of LOB columns of the table ('M' for in memory LOBs, 'H' for hybrid LOBs)
+- LOB_DISK_GB: Total disk size of all table LOB segments (GB)
+- LOB_MEM_GB:  Total LOB page cache size of all table LOB segments (GB)
+- SHAR_GB:     Shared memory size (GB)
+- HEAP_GB:     Heap memory size (GB)
+- PERS_GB:     Persistent memory size (GB)
+- PAGE_GB:     Paged attribute memory, e.g. NSE buffer cache content (GB)
+- POS:         Position of table in top list
+- HOST:        Host name ('various' in case of partitions on multiple hosts)
+- MAX_MEM_GB:  Total potential maximum size in memory (GB, table + indexes + cached LOBs), LOB caching is considered as static
+- MEM_PCT:     Total current size in memory (% of overall memory size)
+- CUM_PCT:     Cumulated total current size in memory percentage of the largest tables
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+|SCHEMA_NAME|TABLE_NAME      |S|L|HOST    |T|U|POS|COLS|RECORDS     |DISK_GB|MAX_MEM_GB|CUR_MEM_GB|MEM_PCT|CUM_PCT|PARTS|TAB_MEM_GB|IND.|IND_MEM_GB|LOBS|LOB_GB|
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+|SAPERP     |KONV            |C|P|saphana1| |X|  1|  68| 81064180097|2272.79|   2305.67|   2307.95|  12.49|  12.49|  136|   1429.99|   2|    877.96|    |  0.00|
+|SAPERP     |CDPOS           |C|P|saphana2| |X|  2|  16| 22567985786|1061.47|   1111.22|   1136.48|   6.15|  18.65|   40|    366.15|   1|    770.32|    |  0.00|
+|SAPERP     |SOFFCONT1       |C|Y|saphana2|X|X|  3|   7|    33090538| 729.97|      3.90|      3.90|   0.02|  18.67|    1|      3.26|   1|      0.64|  H1|726.09|
+|SAPERP     |EDID4           |C|Y|saphana1|X|X|  4|  10| 11636068780| 654.66|    663.60|    674.63|   3.65|  22.32|   24|    534.53|   1|    140.10|    |  0.00|
+|SAPERP     |GLPCA           |C|Y|saphana2| |X|  5| 102|  5536083586| 421.62|    482.73|    482.79|   2.61|  24.94|    5|    283.03|   6|    199.76|    |  0.00|
+|SAPERP     |GLFUNCA         |C|Y|saphana2| |X|  6|  45|  7228445018| 420.97|    472.15|    468.73|   2.53|  27.47|   20|    255.75|   4|    212.97|    |  0.00|
+|SAPERP     |BALDAT          |C|Y|saphana2|X|X|  7|   8|  1042626150| 419.78|    422.56|    422.56|   2.28|  29.76|    4|    400.94|   1|     21.62|    |  0.00|
+|SAPERP     |ACDOCA          |C|Y|saphana1| | |  8| 296|  7933749831| 415.23|    403.94|    405.30|   2.19|  31.96|   12|    380.21|   5|     25.09|    |  0.00|
+|SAPERP     |BSEG            |C|Y|saphana1| |X|  9| 359|  4804922586| 379.02|    383.46|    384.05|   2.07|  34.04|    9|    230.10|   4|    153.94|    |  0.00|
+|SAPERP     |CE10042         |C|Y|saphana2| |X| 10| 255|  2384570024| 311.78|    313.50|    313.49|   1.69|  35.73|    4|    106.08|   8|    207.41|    |  0.00|
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+BASIS_INFO AS
+( SELECT                                       /* Modification section */
+    '%' SCHEMA_NAME,
+    '%' TABLE_NAME,
+    '%' STORE,                             /* ROW, COLUMN, % */
+    ' ' ONLY_PAGED_TABLES,
+    ' ' ONLY_TECHNICAL_TABLES,
+    ' ' ONLY_TABLES_WITH_NSE_RECOMMENDATION,
+    1024 MIN_TABLE_DISK_SIZE_MB,
+    'TOTAL_DISK' ORDER_BY,                    /* CURRENT_MEM, INDEX_MEM, LOB_DISK, LOB_MEM, MAX_MEM, PAGE_MEM, RECORDS, TABLE_MEM, TOTAL_DISK  */
+    50 RESULT_ROWS
+  FROM
+    DUMMY
+),
+TECHNICAL_TABLES AS
+( SELECT
+    CASE WHEN LOCATE(SCHEMA_TABLE_NAME, '.') = 0 THEN '%'               ELSE SUBSTR(SCHEMA_TABLE_NAME, 1, LOCATE(SCHEMA_TABLE_NAME, '.') - 1) END SCHEMA_NAME,
+    CASE WHEN LOCATE(SCHEMA_TABLE_NAME, '.') = 0 THEN SCHEMA_TABLE_NAME ELSE SUBSTR(SCHEMA_TABLE_NAME, LOCATE(SCHEMA_TABLE_NAME, '.') + 1) END TABLE_NAME
+  FROM
+  ( SELECT
+      SUBSTR(B.TECHNICAL_TABLES, LOCATE(B.TECHNICAL_TABLES, ',', 1, O.ROWNO) + 1, LOCATE(B.TECHNICAL_TABLES, ',', 1, O.ROWNO + 1) - LOCATE(B.TECHNICAL_TABLES, ',', 1, O.ROWNO) - 1) SCHEMA_TABLE_NAME
+    FROM
+    ( SELECT TOP 1000 ROW_NUMBER() OVER () ROWNO FROM OBJECTS ) O,
+    ( SELECT
+        '%~~OLD,$BPC$HC$%,$BPC$TMP%,/1CPMB/%,/AIF/ALERT_IDX,/AIF/CDATA,/AIF/CDATAF,/AIF/MMSG_VARS,/AIF/PERS_QMSG,/AIF/REP_MSG_CNT,' ||
+        '/AIF/T_MMSG_IDX,/AIF/PERS_XML,/BI0/0%,/BIC/000APR%,/BI_/A%00,/BI_/A%1,/BI_/A%2,/BI_/A%3,/BI_/B%,/BI_/E%,/BI_/F%,/BI0/E0CCM%,' ||
+        '/BI_/H%,/BI_/I%,/BI_/J%,/BI_/K%,' ||
+        '/IWBEP/SU_ERRLOG,/IWFND/L_MET_COL,/IWFND/L_MET_DAT,/IWFND/SU_ERRLOG,/IWFND/SU_STATS,/IWFND/SU_TPLOAD,' ||
+        '/SAPAPO/LISLOG,/SAPAPO/LISMAP,/SAPTRX/AOTREF,/SAPTRX/APPTALOG,/SAPTRX/EH_TASK,/SCMTMS/D_MSGREG,/SCMTMS/RES_POS,' ||
+        '/SDF/CSSIZING,/SDF/HDBSIZING,/SDF/HDBTABSIZES,/SDF/IFR_TRFCQIN,/SDF/IFR_TRFCQOU,/SDF/INDX,/SDF/MON,/SDF/RSSIZING,/SDF/SMON_CLUST,/SDF/SMON_WPINFO,' ||
+        '/SDF/ZQLMD,/SSF/ATAB,/SLO/BCKNEW_CLU,/SLO/MYBACKUP_CL,/SSF/PTAB,/TXINTF/TRACE,/UIF/LREP%,/UIM/UILOG,/UISM/FAT,0BW:BIA:%,' ||
+        '0BW:CRM:%,APQD,AQLDB,ARDB_STAT0,ARDB_STAT1,ARDB_STAT2,ARFCRSTATE,ARFCSDATA,' ||
+        'ARFCSSTATE,BALC,BALDAT,BALHDR,BALHDRP,BALM,BALMP,BAL_INDX,BBPCONT,BBP_TRANSXSTRING,BCST_CAM,BCST_SR,BC_MSG,' ||
+        'BC_BPEM_BL_%,BC_BPEM_EL_%,BC_MSG_AUDIT,BC_MSG_DUP_CHECK,BC_MSG_LOG,BC_MSG_VERSION,' ||
+        'BC_SLD_CHANGELOG,BDCP,BDCP2,BDCPS,BTCEVTHISTORY,BTCJOBEPP,BTCJSTAT,CCMLOG,CCMLOGD,CCMOBJKEYS,CCMOBJLST,CCMSESSION,CCQUEUE,CCQUEUESLICE,CCTABCONTSLDATA,CE_SCENARIOS_,' ||
+        'CNV_PE_TPM_CLU,CNV_PE_TPM_CLU_T,COIX_DATA40,COUNT_CA_DETAIL,COUNT_CA_ERR_MSG,COUNT_CA_HEADER,COUNT_CA_ITEM,COUNT_CA_PRODUCT,' ||
+        'CRM_ICI_TRACES,CROSS,CS_AUDIT_LOG_,D010TAB,D010INC,DB2DB02TBSIZE,DB2DB02TSSIZE,DB6CONV_,DBMSGORA,DBTABLOG,DBTABPRT,DDLOG,DDPRS,DFKKDOUBTD_RET_W,' ||
+        'DFKKDOUBTD_W,DOKCLU,DRFD_OBJ_REP_STA,DRFD_SERVOUT_LOG,DRVLOG_HEADER,DRVLOG_ITEM,DRVLOG_FIELDVAL,DRVLOG_TRAIL,' ||
+        'DSVASREPODOCS,DSVASRESULTSATTR,DSVASRESULTSCHK,DSVASRESULTSGEN,DSVASRESULTSSEL,DSVASREPODOCS,' ||
+        'DSVASSESSADMIN,DYNPLOAD,DYNPSOURCE,E2EREP_MAPPING,ECLOG_CALL,ECLOG_DATA,ECLOG_EXEC,ECLOG_EXT,ECLOG_HEAD,ECLOG_RESTAB,' ||
+        'ECLOG_SCNT,ECLOG_SCR,ECLOG_SEL,ECLOG_XDAT,EDI30C,EDI40,EDID4,EDIDC,EDIDOC,EDIDS,' ||
+        'ENHLOG,ESH_EX_CPOINTER,FSBP_CNS_IMAGE,GRACSODREPDATA,GRACSODREPINDEX,GRACSODREPSTATUS,GVD_BGPROCESS,' ||
+        'GVD_BUFF_POOL_ST,GVD_CURR_BLKSRV,GVD_DATABASE,GVD_DATAFILE,GVD_DATAGUARD_ST,GVD_DB_CACHE_ADV,' ||
+        'GVD_ENQUEUE_STAT,GVD_FILESTAT,GVD_INSTANCE,GVD_LATCH,GVD_LATCHCHILDS,GVD_LATCHHOLDER,GVD_LATCHNAME,' ||
+        'GVD_LATCH_MISSES,GVD_LATCH_PARENT,GVD_LIBRARYCACHE,GVD_LOCK,GVD_LOCKED_OBJEC,GVD_LOCK_ACTIVTY,' ||
+        'GVD_LOGFILE,GVD_MANGD_STANBY,GVD_OBJECT_DEPEN,GVD_PARAMETER,GVD_PARAMETER2,GVD_PGASTAT,GVD_PGA_TARGET_A,' ||
+        'GVD_PGA_TARGET_H,GVD_PROCESS,GVD_PX_SESSION,GVD_ROWCACHE,GVD_SEGMENT_STAT,GVD_SEGSTAT,GVD_SERVERLIST,' ||
+        'GVD_SESSION,GVD_SESSION_EVT,GVD_SESSION_WAIT,GVD_SESSTAT,GVD_SESS_IO,GVD_SGA,GVD_SGACURRRESIZ,' ||
+        'GVD_SGADYNCOMP,GVD_SGADYNFREE,GVD_SGARESIZEOPS,GVD_SGASTAT,GVD_SHAR_P_ADV,GVD_SPPARAMETER,GVD_SQL,' ||
+        'GVD_SQLAREA,GVD_SQLTEXT,GVD_SQL_WA_ACTIV,GVD_SQL_WA_HISTO,GVD_SQL_WORKAREA,GVD_SYSSTAT,GVD_SYSTEM_EVENT,' ||
+        'GVD_TEMPFILE,GVD_UNDOSTAT,GVD_WAITSTAT,GVD_WPTOTALINFO,IDOCREL,INDX,INIFILE_CONTENT_HISTORY_,JBDCPHDR2,JBDCPPOS2,JOB_LOG,MATCH_TRACING_,MCT_STORAGE,MCT_STORAGE_BCK,' ||
+        'MDMFDBEVENT,MDMFDBID,MDMFDBPR,MERGED_TRACES_FOR_COCKPIT,NRIVSHADOW,OBJECT_HISTORY,ODQDATA,ODQDATA_F,ODTD_ER, ODTD_ER_ATT_BIN,ORA_SNAPSHOT,ORA_SQLC_DATA,ORA_SQLC_HEAD,' ||
+        'PERF_%_PERF_ANALYSIS%,P_EXPLAIN_CALL_PLANS_,POC_D_EVTQ,POC_D_EVTQ_PREBO,POC_D_EVTQ_CNTXT,POWL_RESULT,' ||
+        'QRFC_I_EXE_STATE,QRFC_I_QIN,QRFC_I_QIN_LOCK,QRFC_I_SDATA,QRFC_I_QIN_TOP,QRFC_I_UNIT,QRFC_I_UNIT_LOCK,' ||
+        'QRFCLOG,QRFCTRACE,REMOTE_SOURCE_OBJECTS_,REMOTE_SOURCE_OBJECT_DESCRIPTIONS_,REPOLOAD,' ||
+        'REPOSRC,RSAU_BUF_DATA,RSAU_LOG,RSBATCHCTRL,RSBATCHCTRL_PAR,RSBATCHDATA,RSBATCHHEADER,RSBATCHPROT,' ||
+        'RSBATCHSTACK,RSBERRORLOG,RSBKDATA,RSBKDATAINFO,RSBKDATAPAKID,RSBKDATAPAKSEL,RSBKSELECT,RSBMLOGPAR,' ||
+        'RSBMLOGPAR_DTP,RSBMNODES,RSBMONMESS,RSBMONMESS_DTP,RSBMREQ_DTP,RSBTERRORLOG,RSBTERRORCHANGED,RSCRTDONE,RSDDSTATAGGR,RSDDSTATAGGRDEF,' ||
+        'RSDDSTATCOND,RSDDSTATDELE,RSDDSTATDM,RSDDSTATDTP,RSDDSTATEVDATA,RSDDSTATHEADER,RSDDSTATINFO,RSDDSTATLOGGING,' ||
+        'RSDELDONE,RSDRDLOGHEADER,RSDRDLOGPOSITION,RSECHIE_CL,RSECLOG,RSECSESSION_CL,' ||
+        'RSECTXT_CL,RSECUSERAUTH_CL,RSECVAL_CL,RSERRORHEAD,RSERRORLOG,' ||
+        'RSHIEDONE,RSICPROT,RSIXWWW,RSLDTDONE,RSMONFACT,RSMONICTAB,RSMONIPTAB,RSMONMESS,RSMONRQTAB,RSODSACTUPDTYPE,' ||
+        'RSOTLOGOHISTORY,RSPCINSTANCE,RSPCINSTANCET,RSPCPROCESSLOG,' ||
+        'RSPMADMIN,RSPMDATAPID,RSPMDATATARGET,RSPMDTASELECTION,RSPMFILTERCMD,' ||
+        'RSPMHKDATAPID,RSPMHKLOG,RSPMHKPROCESS,RSPMHKREQUEST,RSPMHKREQUESTPRP,RSPMHKREQSTATHST,RSPMHKSELECTION,RSPMHKXREF,' ||
+        'RSPMLOG,RSPMPROCESS,RSPMPROCESSDTAV,RSPMPROCESSTYPE,' ||
+        'RSPMPROCESSTYPET,RSPMREQSTATHIST,RSPMREQUEST,RSPMREQUESTPROP,RSPMSTATICEVENT,RSPMSTORAGESTAT,RSPMTRACE,RSPMVARIANT,RSPMXREF,' ||
+        'RSR_CACHE_DATA_B,RSR_CACHE_DATA_C,RSR_CACHE_DBS_BL,RSR_CACHE_FFB,RSR_CACHE_QUERY,RSR_CACHE_STATS,' ||
+        'RSR_CACHE_VARSHB,RSSELDONE,RSSTATMANREQMAP,RSSTATMANREQMDEL,RSTCPDONE,RSTT_CALLSTACK,RSUICDONE,RSWR_DATA,' ||
+        'RSZCALC,RSZCEL,RSZCOMPIC,RSZELTATTR,RSZELTDIR,RSZELTPRIO,RSZELTPROP,RSZELTTXT,RSZELTXREF,RSZGLOBV,RSZRANGE,' ||
+        'RSZWBOOKMARK,RSZWITEM,RSZWOBJ,RSZWVIEW,SALRT,SALRTCNT,sap.bc.ina.fileloader.db::INA_FILELOADER.LOG,SACONT01,SASACONT1,' ||
+        'SBOI_DTRC_DETAIL,SBOI_DTRC_HEADER,SBCMCONT1,SCMON_DATA,SCR_ABAP_AST,SCR_ABAP_SCAN,SCR_ABAP_SYMB,SCR_ABAP_SYMB_SL,' ||
+        'SDBAD,SDBAH,SE16N_CD_DATA,SE16N_CD_KEY,SEC_CONTEXT_BLKD,SICFRECORDER,SMD_HASH_TABLE,SMO8FTCFG,' ||
+        'SMO8FTSTP,SMO8_DLIST,SMO8_TMDAT,SMO8_TMSG,SMW0REL,SMW3_BDOC,SMW3_BDOC1,SMW3_BDOC2,SMW3_BDOC4,SMW3_BDOC5,' ||
+        'SMW3_BDOC6,SMW3_BDOC7,SMW3_BDOCQ,SMWT_TRC,SNAP,SOC3,SOC3N,SOFFCONT1,SOOD,SOOS,SPAF_ERR_LOG_MSG,SPAF_ERR_MSGSQLMD,SRRELROLES,SRRELROLES,' ||
+        'SRTM_SUB,SRT_CDTC,SRT_MMASTER,SRT_MONILOG_DATA,SRT_MVERSIONS,SRT_RTC_DATA,SRT_RTC_DATA_RT,SRT_RTC_DT_RT,SRT_SEQ_HDR_STAT,' ||
+        'SRT_SEQ_REORG,SRT_UTIL_ERRLOG,SRT_UTIL_TRCFUNC,SRT_UTIL_TRCPERF,SRT_UTIL_TRCPLOA,SSCOOKIE,STATISTICS_ALERTS,' ||
+        'STATISTICS_ALERTS_BASE,SUAUTHVALTRC,SWELOG,SWELTS,SWFGPROLEINST,' ||
+        'SWFRCNTXML,SWFREVTLOG,SWFREVTPOQ,SWFRXICNT,SWFRXIHDR,SWFRXIPRC,SWF_TRC_CONT,SWNCM%,SWN_NOTIF,SWN_NOTIFTSTMP,SWN_SENDLOG,SWPNODE,SWPNODELOG,' ||
+        'SWPSTEPLOG,SWP_HEADER,SWP_NODEWI,SWWCNTP0,SWWCNTPADD,SWWEI,SWWLOGHIST,SWWLOGPARA,SWWUSERWI,SWWWIDEADL,' ||
+        'SWWWIHEAD,SWWWIRET,SWW_CONT,SWW_CONTOB,SWW_WI2OBJ,SWW_WIREGISTRY,SWZAI,SWZAIENTRY,SWZAIRET,SXMSCLUP,SXMSCLUP2,SXMSCLUR,SXMSCLUR2,' || 
+        'SXMSPFRAWD,SXMSPFRAWH,SXMSPHIST,SXMSPHIST2,SXMSPEMAST,SXMSPEMAS2,SXMSPMAST,SXMSPMAST2,' ||
+        'SXMSPVERS,SXMSPVERS2,SXMSPERROR,SXMSPERRO2,T811E,T811ED,T811ED2,TAAN_DATA,' ||
+        'TAAN_FLDS,TAAN_HEAD,TABLE_GROUPS_,TASK_EXECUTIONS,TBTCO,TBTCJOBLOG%,TBTCP,TBTCS,TBTC_TASK,TPRI_PAR,' ||
+        'TRANS_TOKEN_HISTORY,TRFCQDATA,TRFCQIN,TRFCQOUT,TRFCQSTATE,TRFC_I_DEST,' ||
+        'TRFC_I_ERR_STATE,TRFC_I_EXE_STATE,TRFC_I_SDATA,TRFC_I_UNIT,TRFC_I_UNIT_LOCK,/TRP/RES_TRKLOG,TSPEVDEV,TSPEVJOB,TST01,' ||
+        'TST03,TXMILOGRAW,UASE16N_CD_DATA,UASE16N_CD_KEY,UJ0_STAT_DTL,UJ0_STAT_HDR,UJF_DOC,UJF_DOC_CLUSTER,UPC_STATISTIC,UPC_STATISTIC2,' ||
+        'UPC_STATISTIC3,USOB_AUTHVALTRC,VBDATA,VBERROR,VBHDR,VBMOD,VDCHGPTR,WBCROSSGT,WBCROSSI,WRH$_ACTIVE_SESSION_HISTORY,' ||
+        'WRI$_OPTSTAT_HISTGRM_HISTORY,WRI$_OPTSTAT_HISTHEAD_HISTORY,WRI$_OPTSTAT_IND_HISTORY,WRI$_OPTSTAT_TAB_HISTORY,WWWDATA,' ||
+        'XI_AF_MSG,XI_AF_MSG_AUDIT,ZARIX%,ZBI_Z%,_SYS_STATISTICS.GLOBAL%,_SYS_STATISTICS.HOST%,' TECHNICAL_TABLES
+     FROM
+       DUMMY
+    ) B
+  )
+  WHERE
+    SCHEMA_TABLE_NAME != ''
+),
+TABLES_HELPER AS
+( SELECT
+    T.SCHEMA_NAME,
+    T.TABLE_NAME,
+    T.HOST,
+    T.STORE,
+    T.RECORD_COUNT RECORDS,
+    T.TABLE_MEM_MB,
+    T.LOADED,
+    T.HEAP_MEM_MB,
+    T.PERS_MEM_MB,
+    T.MAX_MEM_MB,
+    T.PAGE_MEM_MB,
+    TP.TOTAL_DISK_MB,
+    TC.NUM_COLUMNS,
+    TC.PAGED_COLUMNS,
+    IFNULL( ( SELECT MAX(MAP(LOAD_UNIT, 'PAGE', 1, 0)) PAGED_PARTITIONS FROM M_TABLE_PARTITIONS TP WHERE TP.SCHEMA_NAME = T.SCHEMA_NAME AND TP.TABLE_NAME = T.TABLE_NAME ), 0 ) PAGED_PARTITIONS,
+    GREATEST(0, IFNULL(I.UNIQUE_INDEXES, 0)) UNIQUE_INDEXES,
+    GREATEST(0, IFNULL(I.INDEXES, 0)) INDEXES,
+    GREATEST(0, IFNULL(IM.CONCATS, 0)) CONCATS,
+    GREATEST(0, IFNULL(IM.IMPLICIT_INDEXES, 0)) IMPLICIT_INDEXES,
+    GREATEST(0, IFNULL(IC.MULTI_COLUMN_INDEXES, 0)) MULTI_COLUMN_INDEXES,
+    ( SELECT COUNT(*) FROM FULLTEXT_INDEXES F WHERE F.SCHEMA_NAME = T.SCHEMA_NAME AND F.TABLE_NAME = T.TABLE_NAME ) FULLTEXT_INDEXES,
+    IFNULL(IM.INDEX_MEM_MB, 0) INDEX_MEM_MB,
+    IFNULL(IM.RS_INDEX_MEM_MB, 0) RS_INDEX_MEM_MB,
+    IFNULL(L.LOB_INFO, '') LOB_INFO,
+    IFNULL(LS.LOB_DISK_MB, 0) LOB_DISK_MB,
+    IFNULL(LS.LOB_MEM_MB, 0) LOB_MEM_MB,
+    IFNULL(P.PARTITIONS, 1) PARTITIONS,
+    IFNULL(TT.TECHNICAL_TABLE, '') TECHNICAL_TABLE
+  FROM
+    BASIS_INFO BI INNER JOIN
+    ( SELECT
+        'COLUMN' STORE,
+        SCHEMA_NAME, 
+        TABLE_NAME, 
+        MAP(MIN(HOST), MAX(HOST), MIN(HOST), 'various') HOST, 
+        MAP(MAX(LOADED), 'NO', 'N', 'FULL', 'Y', 'PARTIALLY', 'P') LOADED,
+        SUM(RECORD_COUNT) RECORD_COUNT,
+        SUM(MEMORY_SIZE_IN_TOTAL + PERSISTENT_MEMORY_SIZE_IN_TOTAL) / 1024 / 1024 TABLE_MEM_MB,
+        SUM(MEMORY_SIZE_IN_TOTAL) / 1024 / 1024 HEAP_MEM_MB,
+        SUM(PERSISTENT_MEMORY_SIZE_IN_TOTAL) / 1024 / 1024 PERS_MEM_MB,
+        SUM(ESTIMATED_MAX_MEMORY_SIZE_IN_TOTAL) / 1024 / 1024 MAX_MEM_MB,
+        SUM(MEMORY_SIZE_IN_PAGE_LOADABLE_MAIN) / 1024 / 1024 PAGE_MEM_MB
+      FROM
+        M_CS_TABLES
+      GROUP BY 
+        SCHEMA_NAME, 
+        TABLE_NAME
+      HAVING
+        SUM(RECORD_COUNT) >= 100
+      UNION
+      ( SELECT
+          'ROW' STORE,
+          SCHEMA_NAME, 
+          TABLE_NAME, 
+          MAP(MIN(HOST), MAX(HOST), MIN(HOST), 'various') HOST, 
+          'Y' LOADED,
+          SUM(RECORD_COUNT) RECORD_COUNT,
+          SUM(USED_FIXED_PART_SIZE + USED_VARIABLE_PART_SIZE) / 1024 / 1024 TABLE_MEM_MB,
+          0 HEAP_MEM_MB,
+          0 PERS_MEM_MB,
+          0 MAX_MEM_MB,
+          0 PAGE_MEM_MB
+        FROM
+          M_RS_TABLES 
+        GROUP BY 
+          SCHEMA_NAME, 
+          TABLE_NAME
+        HAVING
+          SUM(USED_FIXED_PART_SIZE + USED_VARIABLE_PART_SIZE) >= 1024 * 1024
+      )
+    ) T ON
+      T.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+      T.TABLE_NAME LIKE BI.TABLE_NAME AND
+      T.STORE LIKE BI.STORE INNER JOIN
+    ( SELECT
+        TC.SCHEMA_NAME,
+        TC.TABLE_NAME,
+        COUNT(*) NUM_COLUMNS,
+        SUM(MAP(T.LOAD_UNIT, 'PAGE', 1, MAP(TC.LOAD_UNIT, 'PAGE', 1, 0))) PAGED_COLUMNS
+      FROM
+        TABLES T,
+        TABLE_COLUMNS TC
+      WHERE
+        T.SCHEMA_NAME = TC.SCHEMA_NAME AND
+        T.TABLE_NAME = TC.TABLE_NAME
+      GROUP BY
+        TC.SCHEMA_NAME,
+        TC.TABLE_NAME
+    ) TC ON
+    TC.SCHEMA_NAME = T.SCHEMA_NAME AND
+    TC.TABLE_NAME = T.TABLE_NAME INNER JOIN
+    ( SELECT
+        TP.SCHEMA_NAME,
+        TP.TABLE_NAME,
+        SUM(TP.DISK_SIZE) / 1024 / 1024 TOTAL_DISK_MB
+      FROM
+        BASIS_INFO BI,
+        M_TABLE_PERSISTENCE_STATISTICS TP
+      WHERE
+        ( BI.MIN_TABLE_DISK_SIZE_MB = -1 OR TP.DISK_SIZE / 1024 / 1024 >= BI.MIN_TABLE_DISK_SIZE_MB )
+      GROUP BY
+        TP.SCHEMA_NAME,
+        TP.TABLE_NAME
+      HAVING
+        SUM(TP.DISK_SIZE) >= 1024 * 1024
+    ) TP ON
+      TP.SCHEMA_NAME = T.SCHEMA_NAME AND
+      TP.TABLE_NAME = T.TABLE_NAME LEFT OUTER JOIN
+    ( SELECT
+        SCHEMA_NAME,
+        TABLE_NAME,
+        IFNULL(SUM
+        ( CASE INTERNAL_ATTRIBUTE_TYPE
+            WHEN 'TREX_UDIV'         THEN 0                                                                    /* technical necessity, completely treated as "table" */
+            WHEN 'ROWID'             THEN 0                                                                    /* technical necessity, completely treated as "table" */
+            WHEN 'VALID_FROM'        THEN 0                                                                    /* technical necessity, completely treated as "table" */
+            WHEN 'VALID_TO'          THEN 0                                                                    /* technical necessity, completely treated as "table" */
+            WHEN 'TEXT'              THEN MEMORY_SIZE_IN_TOTAL + PERSISTENT_MEMORY_SIZE_IN_TOTAL               /* both concat attribute and index on it treated as "index" */
+            WHEN 'TREX_EXTERNAL_KEY' THEN MEMORY_SIZE_IN_TOTAL + PERSISTENT_MEMORY_SIZE_IN_TOTAL               /* both concat attribute and index on it treated as "index" */
+            WHEN 'UNKNOWN'           THEN MEMORY_SIZE_IN_TOTAL + PERSISTENT_MEMORY_SIZE_IN_TOTAL               /* both concat attribute and index on it treated as "index" */
+            WHEN 'CONCAT_ATTRIBUTE'  THEN MEMORY_SIZE_IN_TOTAL + PERSISTENT_MEMORY_SIZE_IN_TOTAL               /* both concat attribute and index on it treated as "index" */
+            ELSE MAIN_MEMORY_SIZE_IN_INDEX + MAIN_PERSISTENT_MEMORY_SIZE_IN_INDEX + DELTA_MEMORY_SIZE_IN_INDEX /* index structures on single columns treated as "index" */
+          END
+        ), 0) / 1024 / 1024 INDEX_MEM_MB,
+        SUM(CASE WHEN PART_ID <= 1 AND INTERNAL_ATTRIBUTE_TYPE IN ( 'CONCAT_ATTRIBUTE', 'TREX_EXTERNAL_KEY') THEN 1 ELSE 0 END) CONCATS,
+        COUNT(DISTINCT(CASE WHEN INDEX_TYPE != 'NONE' AND INTERNAL_ATTRIBUTE_TYPE IS NULL THEN COLUMN_NAME ELSE NULL END)) IMPLICIT_INDEXES,
+        0 RS_INDEX_MEM_MB
+      FROM
+        M_CS_ALL_COLUMNS
+      GROUP BY
+        SCHEMA_NAME,
+        TABLE_NAME
+      UNION ALL
+      SELECT
+        SCHEMA_NAME,
+        TABLE_NAME,
+        SUM(INDEX_SIZE) / 1024 / 1024 INDEX_MEM_MB,
+        0 CONCATS,
+        0 IMPLICIT_INDEXES,
+        SUM(INDEX_SIZE) / 1024 / 1024 RS_INDEX_MEM_MB
+      FROM
+        M_RS_INDEXES
+      GROUP BY
+        SCHEMA_NAME,
+        TABLE_NAME
+    ) IM ON
+      IM.SCHEMA_NAME = TP.SCHEMA_NAME AND
+      IM.TABLE_NAME = TP.TABLE_NAME LEFT OUTER JOIN
+    ( SELECT
+        SCHEMA_NAME,
+        TABLE_NAME,
+        'H' || COUNT(*) LOB_INFO
+      FROM 
+        TABLE_COLUMNS
+      WHERE 
+        DATA_TYPE_NAME IN ( 'BLOB', 'CLOB', 'NCLOB', 'TEXT' )
+      GROUP BY
+        SCHEMA_NAME,
+        TABLE_NAME
+    ) L ON
+      L.SCHEMA_NAME = TP.SCHEMA_NAME AND
+      L.TABLE_NAME = TP.TABLE_NAME LEFT OUTER JOIN
+    ( SELECT
+        SCHEMA_NAME,
+        TABLE_NAME,
+        SUM(CASE WHEN INDEX_TYPE LIKE '%UNIQUE%' OR CONSTRAINT LIKE '%UNIQUE%' OR CONSTRAINT = 'PRIMARY KEY' THEN 1 ELSE 0 END) UNIQUE_INDEXES,
+        COUNT(*) INDEXES
+      FROM
+        INDEXES
+      GROUP BY
+        SCHEMA_NAME,
+        TABLE_NAME
+    ) I ON
+      I.SCHEMA_NAME = TP.SCHEMA_NAME AND
+      I.TABLE_NAME = TP.TABLE_NAME LEFT OUTER JOIN
+    ( SELECT
+        SCHEMA_NAME,
+        TABLE_NAME,
+        COUNT(*) MULTI_COLUMN_INDEXES
+      FROM
+        INDEX_COLUMNS
+      WHERE
+        POSITION = 2
+      GROUP BY
+        SCHEMA_NAME,
+        TABLE_NAME
+    ) IC ON
+      IC.SCHEMA_NAME = TP.SCHEMA_NAME AND
+      IC.TABLE_NAME = TP.TABLE_NAME LEFT OUTER JOIN
+    ( SELECT
+        SCHEMA_NAME,
+        TABLE_NAME,
+        COUNT(*) PARTITIONS
+      FROM
+        TABLE_PARTITIONS
+      GROUP BY
+        SCHEMA_NAME,
+        TABLE_NAME
+    ) P ON
+      P.SCHEMA_NAME = TP.SCHEMA_NAME AND
+      P.TABLE_NAME = TP.TABLE_NAME LEFT OUTER JOIN
+    ( SELECT
+        SCHEMA_NAME,
+        TABLE_NAME,
+        SUM(DISK_SIZE) / 1024 / 1024 LOB_DISK_MB,
+        SUM(MEMORY_SIZE) / 1024 / 1024 LOB_MEM_MB
+      FROM
+        M_TABLE_LOB_STATISTICS
+      GROUP BY
+        SCHEMA_NAME,
+        TABLE_NAME
+    ) LS ON
+      LS.SCHEMA_NAME = TP.SCHEMA_NAME AND
+      LS.TABLE_NAME = TP.TABLE_NAME LEFT OUTER JOIN
+    ( SELECT
+        SCHEMA_NAME,
+        TABLE_NAME,
+        'X' TECHNICAL_TABLE
+      FROM
+        TECHNICAL_TABLES
+      GROUP BY
+        SCHEMA_NAME,
+        TABLE_NAME
+    ) TT ON
+      TP.SCHEMA_NAME LIKE TT.SCHEMA_NAME AND
+      TP.TABLE_NAME LIKE TT.TABLE_NAME
+)
+SELECT
+  SCHEMA_NAME,
+  TABLE_NAME,
+  S,                                        /* 'C' --> column store, 'R' --> row store */
+  LOADED L,                                 /* 'Y' --> fully loaded, 'P' --> partially loaded, 'N' --> not loaded */
+  TECHNICAL_TABLE T,                        /* 'X' if table belongs to list of technical tables (SAP Note 2388483) */
+  U,                                        /* 'X' if unique index exists for table */
+  MAP(PAGED, 0, ' ', 'X') P,        /* 'X' if paged attributes exist (SAP Note 1871386) */
+  LPAD(NUM_COLUMNS, 4) COLS,
+  LPAD(RECORDS, 12) RECORDS,
+  LPAD(TO_DECIMAL(TOTAL_DISK_MB / 1024, 10, 2), 7) DISK_GB,
+  LPAD(TO_DECIMAL(TOTAL_MEM_MB / 1024, 10, 2), 7) MEM_GB,
+  LPAD(PARTITIONS, 5) "PARTS",
+  LPAD(TO_DECIMAL(TABLE_MEM_MB / 1024, 10, 2), 10) TAB_MEM_GB,
+  INDEXES,
+  LPAD(TO_DECIMAL(INDEX_MEM_MB / 1024, 10, 2), 10) IND_MEM_GB,
+  LPAD(LOB_INFO, 4) LOBS,
+  LPAD(TO_DECIMAL(LOB_DISK_MB / 1024, 10, 2), 11) LOB_DISK_GB,
+  LPAD(TO_DECIMAL(LOB_MEM_MB / 1024, 10, 2), 10) LOB_MEM_GB,
+  LPAD(TO_DECIMAL(SHARED_MEM_MB / 1024, 10, 2), 7) SHAR_GB,
+  LPAD(TO_DECIMAL(HEAP_MEM_MB / 1024, 10, 2), 7) HEAP_GB,
+  LPAD(TO_DECIMAL(PERS_MEM_MB / 1024, 10, 2), 7) PERS_GB,
+  LPAD(TO_DECIMAL(PAGE_MEM_MB / 1024, 10, 2), 7) PAGE_GB,
+  LPAD(ROW_NUM, 3) POS,
+  HOST,
+  LPAD(TO_DECIMAL(MAX_TOTAL_MEM_MB / 1024, 10, 2), 10) MAX_MEM_GB,
+  LPAD(TO_DECIMAL(MEM_PCT, 9, 2), 7) MEM_PCT,
+  LPAD(TO_DECIMAL(SUM(MEM_PCT) OVER (ORDER BY ROW_NUM), 5, 2), 7) CUM_PCT
+FROM
+( SELECT
+    T.SCHEMA_NAME,
+    T.TABLE_NAME,
+    T.HOST,
+    T.TECHNICAL_TABLE,
+    CASE WHEN UNIQUE_INDEXES = 0 THEN ' ' ELSE 'X' END U,
+    MAP(T.STORE, 'COLUMN', 'C', 'ROW', 'R') S,
+    MAP(T.STORE, 'COLUMN', 0, T.TABLE_MEM_MB) SHARED_MEM_MB,
+    MAP(T.STORE, 'COLUMN', T.HEAP_MEM_MB, T.RS_INDEX_MEM_MB) + T.LOB_MEM_MB HEAP_MEM_MB,
+    T.PERS_MEM_MB,
+    T.NUM_COLUMNS,
+    MAP(T.PAGED_COLUMNS, 0, T.PAGED_PARTITIONS, T.PAGED_COLUMNS) PAGED,
+    T.RECORDS,
+    T.TABLE_MEM_MB + T.RS_INDEX_MEM_MB + T.LOB_MEM_MB TOTAL_MEM_MB,
+    IFNULL(T.MAX_MEM_MB, T.TABLE_MEM_MB + T.RS_INDEX_MEM_MB) + T.LOB_MEM_MB MAX_TOTAL_MEM_MB,
+    T.TABLE_MEM_MB - T.INDEX_MEM_MB + T.RS_INDEX_MEM_MB TABLE_MEM_MB,
+    T.PAGE_MEM_MB,
+    T.LOADED,
+    T.TOTAL_DISK_MB,
+    CASE 
+      WHEN SUM(T.TABLE_MEM_MB + T.RS_INDEX_MEM_MB) OVER () * 100 = 0 THEN 0 
+      ELSE (T.TABLE_MEM_MB + T.RS_INDEX_MEM_MB) / SUM(T.TABLE_MEM_MB + T.RS_INDEX_MEM_MB) OVER () * 100
+    END MEM_PCT,
+    T.PARTITIONS,
+    T.INDEXES || '/' || MAP(T.STORE, 'ROW', 0, GREATEST(0, T.CONCATS - T.MULTI_COLUMN_INDEXES)) || '/' || MAP(T.STORE, 'ROW', 0, T.IMPLICIT_INDEXES - (T.INDEXES - T.MULTI_COLUMN_INDEXES - T.FULLTEXT_INDEXES)) INDEXES,
+    T.INDEX_MEM_MB,
+    T.LOB_INFO,
+    T.LOB_MEM_MB,
+    T.LOB_DISK_MB,
+    ROW_NUMBER () OVER ( ORDER BY MAP ( BI.ORDER_BY,
+      'TOTAL_DISK',  T.TOTAL_DISK_MB, 
+      'CURRENT_MEM', T.TABLE_MEM_MB + T.RS_INDEX_MEM_MB, 
+      'MAX_MEM',     IFNULL(T.MAX_MEM_MB, T.TABLE_MEM_MB + T.RS_INDEX_MEM_MB),
+      'TABLE_MEM',   T.TABLE_MEM_MB - T.INDEX_MEM_MB + T.RS_INDEX_MEM_MB, 
+      'INDEX_MEM',   T.INDEX_MEM_MB,
+      'LOB_DISK',    T.LOB_DISK_MB,
+      'LOB_MEM',     T.LOB_MEM_MB,
+      'PAGE_MEM',    T.PAGE_MEM_MB,
+      'RECORDS',     T.RECORDS ) 
+      DESC, T.SCHEMA_NAME, T.TABLE_NAME ) ROW_NUM,
+    BI.RESULT_ROWS,
+    BI.ORDER_BY
+  FROM
+    BASIS_INFO BI,
+    TABLES_HELPER T
+  WHERE
+    ( BI.ONLY_TECHNICAL_TABLES = ' ' OR T.TECHNICAL_TABLE = 'X' ) AND
+    ( BI.ONLY_TABLES_WITH_NSE_RECOMMENDATION = ' ' OR T.TABLE_NAME IN ( 'BALDAT', 'CDPOS', 'EDID4' ) ) AND
+    ( BI.ONLY_PAGED_TABLES = ' ' OR MAP(T.PAGED_COLUMNS, 0, T.PAGED_PARTITIONS, T.PAGED_COLUMNS) > 0 )
+)
+WHERE
+  ( RESULT_ROWS = -1 OR ROW_NUM <= RESULT_ROWS )
+ORDER BY
+  ROW_NUM
+WITH HINT ( IGNORE_PLAN_CACHE )

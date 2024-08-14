@@ -1,0 +1,379 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Services_Memory_2.00.040+
+
+[DESCRIPTION]
+
+- Service memory information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- FRAGMENTED_MEMORY_SIZE and VIRTUAL_ADDRESS_SPACE_USED_SIZE available with SAP HANA >= 2.00.040
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.040
+
+[SQL COMMAND VERSION]
+
+- 2015/03/11:  1.0 (initial version)
+- 2015/05/21:  1.1 (EFFECTIVE_ALLOCATION_LIMIT included)
+- 2015/05/22:  1.2 (HOST_SERVICE_MEMORY added)
+- 2016/01/22:  1.3 (BEGIN_TIME and END_TIME restriction added)
+- 2016/12/31:  1.4 (TIME_AGGREGATE_BY = 'TS<seconds>' included)
+- 2018/12/04:  1.5 (shortcuts for BEGIN_TIME and END_TIME like 'C', 'E-S900' or 'MAX')
+- 2019/06/07:  1.6 (dedicated 2.00.040+ version including FRAGMENTED_MEMORY_SIZE)
+- 2020/05/28:  1.7 (VIRTUAL_ADDRESS_SPACE_USED_SIZE added)
+- 2020/12/07:  1.8 (PERSMEM_GB included)
+
+[INVOLVED TABLES]
+
+- HOST_SERVICE_MEMORY
+- M_SERVICE_MEMORY
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOST'          --> Aggregation by host
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+- MIN_MEMORY_UTILIZATION_PCT
+
+  Restrict output to times with memory utilization of at least the defined percentate
+
+  90              --> Restrict the output to snapshots with a memory utilization of more than 90 %
+  -1              --> No restriction based on memory utilization
+
+[OUTPUT PARAMETERS]
+
+- SNAPSHOT_TIME:      Snapshot time (current timestamp in case of DATA_SOURCE = 'CURRENT')
+- HOST:               Host name
+- PORT:               Port
+- SERVICE:            Service name
+- ALLOC_LIMIT_GB:     Process allocation limit (GB)
+- EFF_ALLOC_LIMIT_GB: Effective process allocation limit (GB)
+                      - Can be lower than allocation limit because memory consumption of other services is also taken into account
+                      - Can be higher than allocation limit because code and shared memory are additionally taken into account
+- MEM_USED_GB:        Used memory (GB)
+- USED_PCT:           Used memory compared to allocation limit (%)
+- CODE_GB:            Code size (GB), shared with other services to a high extent
+- STACK_GB:           Stack size (GB)
+- HEAP_ALLOC_GB:      Heap memory allocated (GB)
+- HEAP_USED_GB:       Heap memory used (GB)
+- FRAGMENT_GB:        Heap memory fragmentation (GB)
+- SHARED_ALLOC_GB:    Allocated shared memory (GB), can be treated as used memory as reduction of shared memory is not possible online
+- PERSMEM_GB:         Persistent memory (GB)
+- NON_FREEABLE_GB:    Memory which cannot be freed in case of a memory shortage (GB)
+- ADDR_USED_GB:       Used address space (GB)
+- ADDR_TOT_GB:        Total available address space (GB)
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------------------------------------
+|HOST      |PORT |ALLOC_LIMIT_GB|MEM_USED_GB|USED_PCT|CODE_GB|STACK_GB|HEAP_ALLOC_GB|HEAP_USED_GB|SHARED_ALLOC_GB|NON_FREEABLE_GB|
+----------------------------------------------------------------------------------------------------------------------------------
+|saphana156|30001|       3635.78|      10.16|    0.27|   6.12|    0.33|         5.34|        3.81|           0.22|           5.30|
+|saphana156|30002|       3635.78|       6.60|    0.18|   5.87|    0.01|         1.95|        0.73|           0.00|           1.95|
+|saphana156|30003|       3635.78|    1570.41|   43.19|   7.49|    0.81|      1583.65|     1459.79|         103.13|          94.68|
+|saphana156|30005|        201.98|      17.10|    8.46|   6.67|    0.37|        13.78|       10.10|           0.32|          12.98|
+|saphana156|30007|       3635.78|      11.59|    0.31|   7.31|    0.36|         6.38|        3.95|           0.32|           6.37|
+|saphana156|30010|       3635.78|       6.58|    0.18|   5.73|    0.01|         2.04|        0.85|           0.00|           2.04|
+----------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  SNAPSHOT_TIME,
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SERVICE_NAME SERVICE,
+  LPAD(TO_DECIMAL(ALLOC_LIMIT_GB, 10, 2), 14) ALLOC_LIMIT_GB,
+  LPAD(TO_DECIMAL(EFF_ALLOC_LIMIT_GB, 10, 2), 18) EFF_ALLOC_LIMIT_GB,
+  LPAD(TO_DECIMAL(MEM_USED_GB, 10, 2), 11) MEM_USED_GB,
+  LPAD(TO_DECIMAL(MAP(EFF_ALLOC_LIMIT_GB, 0, 0, MEM_USED_GB / EFF_ALLOC_LIMIT_GB * 100), 10, 2), 8) USED_PCT,
+  LPAD(TO_DECIMAL(CODE_GB, 10, 2), 7) CODE_GB,
+  LPAD(TO_DECIMAL(STACK_GB, 10, 2), 8) STACK_GB,
+  LPAD(TO_DECIMAL(HEAP_ALLOC_GB, 10, 2), 13) HEAP_ALLOC_GB,
+  LPAD(TO_DECIMAL(HEAP_USED_GB, 10, 2), 12) HEAP_USED_GB,
+  LPAD(TO_DECIMAL(FRAGMENT_GB, 10, 2), 11) FRAGMENT_GB,
+  LPAD(TO_DECIMAL(SHARED_ALLOC_GB, 10, 2), 15) SHARED_ALLOC_GB,
+  LPAD(TO_DECIMAL(PERSMEM_GB, 10, 2), 10) PERSMEM_GB,
+  LPAD(TO_DECIMAL(GREATEST(0, HEAP_ALLOC_GB - FREEABLE_GB), 10, 2), 15) NON_FREEABLE_GB,
+  LPAD(TO_DECIMAL(ADDR_USED_GB, 10, 2), 12) ADDR_USED_GB,
+  LPAD(TO_DECIMAL(ADDR_TOT_GB, 10, 2), 11) ADDR_TOT_GB
+FROM
+( SELECT
+    SNAPSHOT_TIME,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')    != 0 THEN HOST             ELSE MAP(BI_HOST, '%', 'any', BI_HOST)                 END HOST,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(PORT) ELSE MAP(BI_PORT, '%', 'any', BI_PORT)                 END PORT,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SERVICE') != 0 THEN SERVICE_NAME     ELSE MAP(BI_SERVICE_NAME, '%', 'any', BI_SERVICE_NAME) END SERVICE_NAME,
+    SUM(ALLOCATION_LIMIT) / 1024 / 1024 / 1024 ALLOC_LIMIT_GB,
+    SUM(EFFECTIVE_ALLOCATION_LIMIT) / 1024 / 1024 / 1024 EFF_ALLOC_LIMIT_GB,
+    SUM(TOTAL_MEMORY_USED_SIZE) / 1024 / 1024 / 1024 MEM_USED_GB,
+    SUM(CODE_SIZE) / 1024 / 1024 / 1024 CODE_GB,
+    SUM(STACK_SIZE) / 1024 / 1024 / 1024 STACK_GB,
+    SUM(HEAP_MEMORY_ALLOCATED_SIZE) / 1024 / 1024 / 1024 HEAP_ALLOC_GB,
+    SUM(HEAP_MEMORY_USED_SIZE) / 1024 / 1024 / 1024 HEAP_USED_GB,
+    SUM(SHARED_MEMORY_ALLOCATED_SIZE) / 1024 / 1024 / 1024 SHARED_ALLOC_GB,
+    SUM(COMPACTORS_FREEABLE_SIZE) / 1024 / 1024 / 1024 FREEABLE_GB,
+    SUM(FRAGMENTED_MEMORY_SIZE) / 1024 / 1024 / 1024 FRAGMENT_GB,
+    SUM(VIRTUAL_ADDRESS_SPACE_USED_SIZE) / 1024 / 1024 / 1024 ADDR_USED_GB,
+    AVG(VIRTUAL_ADDRESS_SPACE_TOTAL_SIZE) / 1024 / 1024 / 1024 ADDR_TOT_GB,
+    AVG(PERSISTENT_MEMORY_SIZE) / 1024 / 1024 / 1024 PERSMEM_GB,
+    MIN_MEM_UTILIZATION_PCT
+  FROM
+  ( SELECT
+      CASE 
+        WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+          CASE 
+            WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+              TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+              'YYYY/MM/DD HH24:MI:SS'), M.SNAPSHOT_TIME) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+            ELSE TO_VARCHAR(M.SNAPSHOT_TIME, BI.TIME_AGGREGATE_BY)
+          END
+        ELSE 'any' 
+      END SNAPSHOT_TIME,
+      M.HOST,
+      M.PORT,
+      S.SERVICE_NAME,
+      AVG(M.ALLOCATION_LIMIT) ALLOCATION_LIMIT,
+      AVG(M.EFFECTIVE_ALLOCATION_LIMIT) EFFECTIVE_ALLOCATION_LIMIT,
+      AVG(M.TOTAL_MEMORY_USED_SIZE) TOTAL_MEMORY_USED_SIZE,
+      AVG(M.CODE_SIZE) CODE_SIZE,
+      AVG(M.STACK_SIZE) STACK_SIZE,
+      AVG(M.HEAP_MEMORY_ALLOCATED_SIZE) HEAP_MEMORY_ALLOCATED_SIZE,
+      AVG(M.HEAP_MEMORY_USED_SIZE) HEAP_MEMORY_USED_SIZE,
+      AVG(M.SHARED_MEMORY_ALLOCATED_SIZE) SHARED_MEMORY_ALLOCATED_SIZE,
+      AVG(M.COMPACTORS_FREEABLE_SIZE) COMPACTORS_FREEABLE_SIZE,
+      AVG(M.FRAGMENTED_MEMORY_SIZE) FRAGMENTED_MEMORY_SIZE,
+      AVG(M.VIRTUAL_ADDRESS_SPACE_USED_SIZE) VIRTUAL_ADDRESS_SPACE_USED_SIZE,
+      AVG(M.VIRTUAL_ADDRESS_SPACE_TOTAL_SIZE) VIRTUAL_ADDRESS_SPACE_TOTAL_SIZE,
+      IFNULL(AVG(M.PERSISTENT_MEMORY_SIZE), 0) PERSISTENT_MEMORY_SIZE,
+      BI.MIN_MEM_UTILIZATION_PCT,
+      BI.AGGREGATE_BY,
+      BI.HOST BI_HOST,
+      BI.PORT BI_PORT,
+      BI.SERVICE_NAME BI_SERVICE_NAME
+    FROM
+    ( SELECT
+        CASE
+          WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+          WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+          WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+          WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+          WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+          WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+          WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+          WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+          WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+          WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+          WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+          WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+          WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+        END BEGIN_TIME,
+        CASE
+          WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+          WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+          WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+          WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+          WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+          WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+          WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+          WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+          WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+          WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+          WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+          WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+          WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+        END END_TIME,
+        HOST,
+        PORT,
+        SERVICE_NAME,
+        MIN_MEM_UTILIZATION_PCT,
+        DATA_SOURCE,
+        AGGREGATE_BY,
+        MAP(TIME_AGGREGATE_BY,
+          'NONE',        'YYYY/MM/DD HH24:MI:SS',
+          'HOUR',        'YYYY/MM/DD HH24',
+          'DAY',         'YYYY/MM/DD (DY)',
+          'HOUR_OF_DAY', 'HH24',
+          TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY
+      FROM
+      ( SELECT                       /* Modification section */
+          '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+          '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+          '%' HOST,
+          '%' PORT,
+          '%' SERVICE_NAME,
+          -1 MIN_MEM_UTILIZATION_PCT,
+          'CURRENT' DATA_SOURCE,        /* CURRENT, HISTORY */
+          'NONE' AGGREGATE_BY,        /* HOST, PORT, SERVICE, TIME or comma separated combinations, NONE for no aggregation */
+          'NONE' TIME_AGGREGATE_BY     /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+        FROM
+          DUMMY
+      ) 
+    ) BI,
+      M_SERVICES S,
+    ( SELECT
+        'CURRENT' DATA_SOURCE,
+        CURRENT_TIMESTAMP SNAPSHOT_TIME,
+        HOST,
+        PORT,
+        ALLOCATION_LIMIT,
+        EFFECTIVE_ALLOCATION_LIMIT,
+        TOTAL_MEMORY_USED_SIZE,
+        CODE_SIZE,
+        STACK_SIZE,
+        HEAP_MEMORY_ALLOCATED_SIZE,
+        HEAP_MEMORY_USED_SIZE,
+        SHARED_MEMORY_ALLOCATED_SIZE,
+        COMPACTORS_FREEABLE_SIZE,
+        FRAGMENTED_MEMORY_SIZE,
+        VIRTUAL_ADDRESS_SPACE_USED_SIZE,
+        VIRTUAL_ADDRESS_SPACE_TOTAL_SIZE,
+        ( SELECT SUM(TOTAL_ACTIVE_SIZE) FROM M_PERSISTENT_MEMORY_VOLUME_STATISTICS P WHERE P.PORT = S.PORT AND P.HOST = S.HOST ) PERSISTENT_MEMORY_SIZE
+      FROM
+        M_SERVICE_MEMORY S
+      UNION ALL
+      SELECT
+        'HISTORY' DATA_SOURCE,
+        SERVER_TIMESTAMP SNAPSHOT_TIME,
+        HOST,
+        PORT,
+        ALLOCATION_LIMIT,
+        EFFECTIVE_ALLOCATION_LIMIT,
+        TOTAL_MEMORY_USED_SIZE,
+        CODE_SIZE,
+        STACK_SIZE,
+        HEAP_MEMORY_ALLOCATED_SIZE,
+        HEAP_MEMORY_USED_SIZE,
+        SHARED_MEMORY_ALLOCATED_SIZE,
+        COMPACTORS_FREEABLE_SIZE,
+        FRAGMENTED_MEMORY_SIZE,
+        VIRTUAL_ADDRESS_SPACE_USED_SIZE,
+        VIRTUAL_ADDRESS_SPACE_TOTAL_SIZE,
+        0 PERSISTENT_MEMORY_SIZE
+      FROM
+        _SYS_STATISTICS.HOST_SERVICE_MEMORY
+    ) M
+    WHERE
+      M.SNAPSHOT_TIME BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+      S.HOST LIKE BI.HOST AND
+      TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+      S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+      M.HOST = S.HOST AND
+      M.PORT = S.PORT AND
+      M.DATA_SOURCE = BI.DATA_SOURCE
+    GROUP BY
+      CASE 
+        WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+          CASE 
+            WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+              TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+              'YYYY/MM/DD HH24:MI:SS'), M.SNAPSHOT_TIME) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+            ELSE TO_VARCHAR(M.SNAPSHOT_TIME, BI.TIME_AGGREGATE_BY)
+          END
+        ELSE 'any' 
+      END,
+      M.HOST,
+      M.PORT,
+      S.SERVICE_NAME,
+      BI.MIN_MEM_UTILIZATION_PCT,
+      BI.AGGREGATE_BY,
+      BI.HOST,
+      BI.PORT,
+      BI.SERVICE_NAME
+  )
+  GROUP BY
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')    != 0 THEN HOST             ELSE MAP(BI_HOST, '%', 'any', BI_HOST)                 END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')    != 0 THEN TO_VARCHAR(PORT) ELSE MAP(BI_PORT, '%', 'any', BI_PORT)                 END,
+    CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SERVICE') != 0 THEN SERVICE_NAME     ELSE MAP(BI_SERVICE_NAME, '%', 'any', BI_SERVICE_NAME) END,
+    SNAPSHOT_TIME,
+    MIN_MEM_UTILIZATION_PCT
+)
+WHERE
+  ( MIN_MEM_UTILIZATION_PCT = -1 OR MEM_USED_GB / EFF_ALLOC_LIMIT_GB * 100 >= MIN_MEM_UTILIZATION_PCT )
+ORDER BY
+  SNAPSHOT_TIME DESC,
+  HOST,
+  PORT

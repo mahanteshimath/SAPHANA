@@ -1,0 +1,464 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Network_Services_2.00.060+
+
+[DESCRIPTION]
+
+- Service network communication
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- HOST_SERVICE_NETWORK_IO available starting SAP HANA 2.0 SPS 03
+- RESET can be performed via:
+
+  ALTER SYSTEM RESET MONITORING VIEW M_SERVICE_NETWORK_IO_RESET
+
+- SITE_ID in history tables available with SAP HANA >= 2.0 SPS 06
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.060
+
+[SQL COMMAND VERSION]
+
+- 2014/07/10:  1.0 (initial version)
+- 2014/09/01:  1.1 (INTRA_HOST_COMMUNICATION and INTER_HOST_COMMUNICATION restrictions included, AGGREGATE_BY included)
+- 2014/10/07:  1.2 (SEND_KB_PER_REQ and REC_KB_PER_REQ included)
+- 2015/05/12:  1.3 (M_SERVICE_NETWORK_IO_RESET included)
+- 2016/12/10:  1.4 (SEND_VOL_MBPS and REC_VOL_MBPS included)
+- 2018/10/19:  1.5 (HOST_SERVICE_NETWORK_IO included)
+- 2018/12/04:  1.6 (shortcuts for BEGIN_TIME and END_TIME like 'C', 'E-S900' or 'MAX')
+- 2019/07/12:  1.7 (adjustments to output columns, AVG_SEND_KB and AVG_REC_KB included)
+- 2022/05/26:  1.8 (dedicated 2.00.060+ version including SITE_ID for data source HISTORY)
+
+[INVOLVED TABLES]
+
+- M_SERVICE_NETWORK_IO
+- M_SERVICE_NETWORK_IO_RESET
+- HOST_SERVICE_NETWORK_IO
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- SITE_ID
+
+  System replication site ID (may only work for DATA_SOURCE = 'HISTORY')
+
+  -1             --> No restriction related to site ID
+  1              --> Site id 1
+
+- SENDER_HOST
+
+  Sender host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- SENDER_PORT
+
+  Sender port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- RECEIVER_HOST
+
+  Receiver host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- RECEIVER_PORT
+
+  Receiver port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports- CONN_ID
+
+- INTER_HOST_COMMUNICATION
+
+  Controls if communication between different hosts is displayed
+
+  'X'             --> Include communication between different hosts
+  ' '             --> Exclude communication between different hosts
+
+- INTRA_HOST_COMMUNICATION
+
+  Controls if communication within one host is displayed
+
+  'X'             --> Include communication within one host
+  ' '             --> Exclude communication within one host
+
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_ tables)
+  'RESET'         --> Data from reset information (*_RESET tables)
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'SENDER_HOST'                  --> Aggregation by sender host
+  'RECEIVER_HOST, RECEIVER_PORT' --> Aggregation by receiver host and receiver port
+  'NONE'                         --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+[OUTPUT PARAMETERS]
+
+- SNAPSHOT_TIME:   Snapshot time (current timestamp for DATA_SOURCE = 'CURRENT' or 'RESET')
+- ST:              System replication site ID
+- SEND_HOST:       Sender host
+- SEND_PORT:       Sender port
+- RECEIVE_HOST:    Receiver host
+- RECEIVE_PORT:    Receiver port
+- REQUESTS:        Total number of requests
+- SEND_GB:         Amount of data sent (GB)
+- AVG_SEND_KB:     Average size of sent request (KB)
+- SEND_S:          Total send time (s)
+- AVG_SEND_MS:     Average send time (ms)
+- SEND_TP_MBPS:    Send throughput (MB / s), based on active time
+- SEND_VOL_MBPS:   Send volume (MB / s), based on overall time
+- REC_GB:          Amount of data received (GB)
+- AVG_REC_KB:      Average size of received data (KB)
+- REC_S:           Total receive time (s) related to own requests
+- AVG_REC_MS:      Average receive time (ms)
+- REC_TP_MBPS:     Receive throughput (MB / s), based on active time
+- REC_VOL_MBPS:    Receive volume (MB / s), based on overall time
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------------------------------------------
+|SEND_HOST|SEND_PORT|RECEIVE_HOST|RECEIVE_PORT|SEND_GB   |RECEIVE_GB|SEND_TIME_S|RECEIVE_TIME_S|SEND_MB_PER_S|RECEIVE_MB_PER_S|REQUESTS|
+----------------------------------------------------------------------------------------------------------------------------------------
+|any      |    31103|any         |       31101|      0.20|      5.79|         10|         76349|        21.81|            0.07|  488209|
+|any      |    31103|any         |       31103|  26365.75|  11296.77|     319737|      13938354|        84.43|            0.82|11616349|
+|any      |    31103|any         |       31105|     48.24|      3.72|       2607|         46208|        18.94|            0.08|11528511|
+|any      |    31103|any         |       31107|      5.24|      0.27|         54|          3510|        99.61|            0.08|  479825|
+|any      |    31103|any         |       31102|      0.03|      1.21|          3|           866|        12.33|            1.43|  159830|
+|any      |    31103|any         |       31110|      0.03|      1.19|          3|           828|        12.80|            1.47|  159830|
+|any      |    31105|any         |       31102|      0.03|      0.07|          3|           741|        13.56|            0.10|  166353|
+|any      |    31105|any         |       31110|      0.03|      0.07|          3|           703|        14.45|            0.11|  166444|
+|any      |    31105|any         |       31103|    266.06|      3.92|       4070|         18220|        66.94|            0.22| 2733647|
+|any      |    31105|any         |       31101|      0.17|      0.22|          8|          7614|        24.09|            0.02|  501821|
+|any      |    31105|any         |       31105|      0.00|      0.03|          0|           445|         8.92|            0.06|   13500|
+|any      |    31105|any         |       31107|     24.55|      0.01|        102|           207|       247.04|            0.09|   86095|
+|any      |    31107|any         |       31101|      0.00|      0.00|          0|           462|         7.45|            0.00|     569|
+|any      |    31107|any         |       31103|      0.58|      0.16|         11|          1259|        54.56|            0.13|  293606|
+|any      |    31107|any         |       31105|      0.00|      0.00|          1|            23|         8.26|            0.23|   35873|
+----------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  SNAPSHOT_TIME,
+  IFNULL(LPAD(SITE_ID, 2), '') ST,
+  SEND_HOST,
+  SEND_PORT,
+  RECEIVE_HOST,
+  RECEIVE_PORT,
+  LPAD(TO_DECIMAL(REQUESTS, 10, 0), 11) REQUESTS,
+  LPAD(TO_DECIMAL(SEND_GB, 10, 2), 10) SEND_GB,
+  LPAD(TO_DECIMAL(MAP(TO_BIGINT(REQUESTS), 0, 0, SEND_GB * 1024 * 1024 / REQUESTS), 10, 2), 11) AVG_SEND_KB,
+  LPAD(TO_DECIMAL(ROUND(SEND_TIME_S), 11, 0), 9) SEND_S,
+  LPAD(TO_DECIMAL(MAP(TO_BIGINT(REQUESTS), 0, 0, SEND_TIME_S * 1000 / REQUESTS), 10, 2), 11) AVG_SEND_MS,
+  LPAD(TO_DECIMAL(SEND_TP_MBPS, 10, 2), 12) SEND_TP_MBPS,
+  LPAD(TO_DECIMAL(SEND_VOL_MBPS, 10, 2), 13) SEND_VOL_MBPS,
+  LPAD(TO_DECIMAL(REC_GB, 10, 2), 8) REC_GB,
+  LPAD(TO_DECIMAL(MAP(TO_BIGINT(REQUESTS), 0, 0, REC_GB * 1024 * 1024 / REQUESTS), 10, 2), 10) AVG_REC_KB,
+  LPAD(TO_DECIMAL(ROUND(REC_TIME_S), 11, 0), 8) REC_S,
+  LPAD(TO_DECIMAL(MAP(TO_BIGINT(REQUESTS), 0, 0, REC_TIME_S * 1000 / REQUESTS), 10, 2), 11) AVG_REC_MS,
+  LPAD(TO_DECIMAL(REC_TP_MBPS, 10, 2), 11) REC_TP_MBPS,
+  LPAD(TO_DECIMAL(REC_VOL_MBPS, 10, 2), 12) REC_VOL_MBPS
+FROM
+( SELECT
+    CASE 
+      WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(SNAPSHOT_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE SNAPSHOT_TIME END) / SUBSTR(TIME_AGGREGATE_BY, 3)) * SUBSTR(TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(SNAPSHOT_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE SNAPSHOT_TIME END, TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END SNAPSHOT_TIME,
+    SITE_ID,
+    SEND_HOST,
+    SEND_PORT,
+    RECEIVE_HOST,
+    RECEIVE_PORT,
+    SUM(SEND_SIZE) / 1024 / 1024 / 1024 SEND_GB,
+    SUM(RECEIVE_SIZE) / 1024 / 1024 / 1024 REC_GB,
+    MAP(SUM(SEND_DURATION), 0, 0, SUM(SEND_SIZE) / 1024 / 1024 / ( SUM(SEND_DURATION) / 1000 / 1000)) SEND_TP_MBPS,
+    LPAD(TO_DECIMAL(MAP(SUM(RECEIVE_DURATION), 0, 0, SUM(RECEIVE_SIZE) / 1024 / 1024 / ( SUM(RECEIVE_DURATION) / 1000 / 1000)), 10, 2), 11) REC_TP_MBPS,
+    LPAD(TO_DECIMAL(MAP(SUM(SECONDS), 0, 0, SUM(SEND_SIZE) / 1024 / 1024 / SUM(SECONDS)), 10, 2), 13) SEND_VOL_MBPS,
+    LPAD(TO_DECIMAL(MAP(SUM(SECONDS), 0, 0, SUM(RECEIVE_SIZE) / 1024 / 1024 / SUM(SECONDS)), 10, 2), 12) REC_VOL_MBPS,
+    SUM(SEND_DURATION / 1000 / 1000) SEND_TIME_S,
+    SUM(RECEIVE_DURATION / 1000 / 1000) REC_TIME_S,
+    LPAD(SUM(REQUEST_COUNT), 10) REQUESTS,
+    LPAD(TO_DECIMAL(MAP(SUM(REQUEST_COUNT), 0, 0, SUM(SEND_SIZE) / 1024 / ( SUM(REQUEST_COUNT))), 10, 2), 15) SEND_KB_PER_REQ,
+    LPAD(TO_DECIMAL(MAP(SUM(REQUEST_COUNT), 0, 0, SUM(RECEIVE_SIZE) / 1024 / ( SUM(REQUEST_COUNT))), 10, 2), 14) REC_KB_PER_REQ
+  FROM
+  ( SELECT
+      SNAPSHOT_TIME,
+      MAX(SECONDS) SECONDS,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'SITE_ID')       != 0 THEN TO_VARCHAR(SN.SITE_ID)     ELSE MAP(BI.SITE_ID,        -1, 'any', TO_VARCHAR(BI.SITE_ID)) END SITE_ID,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'SENDER_HOST')   != 0 THEN SN.SENDER_HOST             ELSE MAP(BI.SENDER_HOST,   '%', 'any', BI.SENDER_HOST)         END SEND_HOST,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'SENDER_PORT')   != 0 THEN LPAD(SN.SENDER_PORT, 9)    ELSE MAP(BI.SENDER_PORT,   '%', 'any', BI.SENDER_PORT)         END SEND_PORT,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'RECEIVER_HOST') != 0 THEN SN.RECEIVER_HOST           ELSE MAP(BI.RECEIVER_HOST, '%', 'any', BI.RECEIVER_HOST)       END RECEIVE_HOST,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'RECEIVER_PORT') != 0 THEN LPAD(SN.RECEIVER_PORT, 12) ELSE MAP(BI.RECEIVER_PORT, '%', 'any', BI.RECEIVER_PORT)       END RECEIVE_PORT,
+      SUM(SN.SEND_SIZE) SEND_SIZE,
+      SUM(SN.RECEIVE_SIZE) RECEIVE_SIZE,
+      SUM(SN.SEND_DURATION) SEND_DURATION,
+      SUM(SN.RECEIVE_DURATION) RECEIVE_DURATION,
+      SUM(SN.REQUEST_COUNT) REQUEST_COUNT,
+      BI.AGGREGATE_BY,
+      BI.TIME_AGGREGATE_BY,
+      BI.TIMEZONE
+    FROM
+    ( SELECT
+        CASE
+          WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+          WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+          WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+          WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+          WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+          WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+          WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+          WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+          WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+          WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+          WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+          WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+          WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+        END BEGIN_TIME,
+        CASE
+          WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+          WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+          WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+          WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+          WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+          WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+          WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+          WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+          WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+          WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+          WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+          WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+          WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+        END END_TIME,
+        TIMEZONE,
+        SITE_ID,
+        SENDER_HOST,
+        SENDER_PORT,
+        RECEIVER_HOST,
+        RECEIVER_PORT,
+        INTRA_HOST_COMMUNICATION,
+        INTER_HOST_COMMUNICATION,
+        DATA_SOURCE,
+        AGGREGATE_BY,
+        MAP(TIME_AGGREGATE_BY,
+          'NONE',        'YYYY/MM/DD HH24:MI:SS',
+          'HOUR',        'YYYY/MM/DD HH24',
+          'DAY',         'YYYY/MM/DD (DY)',
+          'HOUR_OF_DAY', 'HH24',
+           TIME_AGGREGATE_BY 
+        ) TIME_AGGREGATE_BY
+      FROM
+      ( SELECT                            /* Modification section */
+          '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+          '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+          'SERVER' TIMEZONE,                              /* SERVER, UTC */
+          -1 SITE_ID,
+          '%' SENDER_HOST,
+          '%' SENDER_PORT,
+          '%' RECEIVER_HOST,
+          '%' RECEIVER_PORT,
+          'X' INTER_HOST_COMMUNICATION,
+          'X' INTRA_HOST_COMMUNICATION,
+          'HISTORY' DATA_SOURCE,          /* CURRENT, RESET, HISTORY */
+          'TIME, SENDER_HOST, SENDER_PORT' AGGREGATE_BY,            /* SITE_ID, SENDER_HOST, SENDER_PORT, RECEIVER_HOST, RECEIVER_PORT or comma-separated combination, NONE for no aggregation */
+          'DAY' TIME_AGGREGATE_BY     /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+        FROM
+          DUMMY
+      )
+    ) BI,
+    ( SELECT
+        'CURRENT' DATA_SOURCE,
+        CURRENT_TIMESTAMP SNAPSHOT_TIME,
+        SECONDS_BETWEEN(START_TIME, CURRENT_TIMESTAMP) SECONDS,
+        CURRENT_SITE_ID() SITE_ID,
+        SENDER_HOST,
+        SENDER_PORT,
+        RECEIVER_HOST,
+        RECEIVER_PORT,
+        SEND_SIZE,
+        RECEIVE_SIZE,
+        SEND_DURATION,
+        RECEIVE_DURATION,
+        REQUEST_COUNT
+      FROM
+        M_SERVICE_NETWORK_IO N,
+        M_SERVICE_STATISTICS S
+      WHERE
+        S.HOST = N.SENDER_HOST AND
+        S.PORT = N.SENDER_PORT
+      UNION ALL
+      SELECT
+        'RESET' DATA_SOURCE,
+        CURRENT_TIMESTAMP SNAPSHOT_TIME,
+        SECONDS_BETWEEN(RESET_TIME, CURRENT_TIMESTAMP) SECONDS,
+        CURRENT_SITE_ID() SITE_ID,
+        SENDER_HOST,
+        SENDER_PORT,
+        RECEIVER_HOST,
+        RECEIVER_PORT,
+        SEND_SIZE,
+        RECEIVE_SIZE,
+        SEND_DURATION,
+        RECEIVE_DURATION,
+        REQUEST_COUNT
+      FROM
+        M_SERVICE_NETWORK_IO_RESET
+      UNION ALL
+      SELECT
+        'HISTORY' DATA_SOURCE,
+        SERVER_TIMESTAMP SNAPSHOT_TIME,
+        SECONDS_BETWEEN(LAG(SERVER_TIMESTAMP) OVER (PARTITION BY SITE_ID, SENDER_HOST, SENDER_PORT, RECEIVER_HOST, RECEIVER_PORT ORDER BY SERVER_TIMESTAMP), SERVER_TIMESTAMP) SECONDS,
+        SITE_ID,
+        SENDER_HOST,
+        SENDER_PORT,
+        RECEIVER_HOST,
+        RECEIVER_PORT,
+        CASE
+          WHEN SEND_SIZE - LAG(SEND_SIZE) OVER (PARTITION BY SITE_ID, SENDER_HOST, SENDER_PORT, RECEIVER_HOST, RECEIVER_PORT ORDER BY SERVER_TIMESTAMP) < 0 THEN SEND_SIZE
+          ELSE SEND_SIZE - LAG(SEND_SIZE) OVER (PARTITION BY SITE_ID, SENDER_HOST, SENDER_PORT, RECEIVER_HOST, RECEIVER_PORT ORDER BY SERVER_TIMESTAMP)
+        END SEND_SIZE,
+        CASE
+          WHEN RECEIVE_SIZE - LAG(RECEIVE_SIZE) OVER (PARTITION BY SITE_ID, SENDER_HOST, SENDER_PORT, RECEIVER_HOST, RECEIVER_PORT ORDER BY SERVER_TIMESTAMP) < 0 THEN SEND_SIZE
+          ELSE RECEIVE_SIZE - LAG(RECEIVE_SIZE) OVER (PARTITION BY SITE_ID, SENDER_HOST, SENDER_PORT, RECEIVER_HOST, RECEIVER_PORT ORDER BY SERVER_TIMESTAMP)
+        END RECEIVE_SIZE,
+        CASE
+          WHEN SEND_DURATION - LAG(SEND_DURATION) OVER (PARTITION BY SITE_ID, SENDER_HOST, SENDER_PORT, RECEIVER_HOST, RECEIVER_PORT ORDER BY SERVER_TIMESTAMP) < 0 THEN SEND_SIZE
+          ELSE SEND_DURATION - LAG(SEND_DURATION) OVER (PARTITION BY SITE_ID, SENDER_HOST, SENDER_PORT, RECEIVER_HOST, RECEIVER_PORT ORDER BY SERVER_TIMESTAMP)
+        END SEND_DURATION,
+        CASE
+          WHEN RECEIVE_DURATION - LAG(RECEIVE_DURATION) OVER (PARTITION BY SITE_ID, SENDER_HOST, SENDER_PORT, RECEIVER_HOST, RECEIVER_PORT ORDER BY SERVER_TIMESTAMP) < 0 THEN SEND_SIZE
+          ELSE RECEIVE_DURATION - LAG(RECEIVE_DURATION) OVER (PARTITION BY SITE_ID, SENDER_HOST, SENDER_PORT, RECEIVER_HOST, RECEIVER_PORT ORDER BY SERVER_TIMESTAMP)
+        END RECEIVE_DURATION,
+        CASE
+          WHEN REQUEST_COUNT - LAG(REQUEST_COUNT) OVER (PARTITION BY SITE_ID, SENDER_HOST, SENDER_PORT, RECEIVER_HOST, RECEIVER_PORT ORDER BY SERVER_TIMESTAMP) < 0 THEN SEND_SIZE
+          ELSE REQUEST_COUNT - LAG(REQUEST_COUNT) OVER (PARTITION BY SITE_ID, SENDER_HOST, SENDER_PORT, RECEIVER_HOST, RECEIVER_PORT ORDER BY SERVER_TIMESTAMP)
+        END REQUEST_COUNT
+      FROM
+        _SYS_STATISTICS.HOST_SERVICE_NETWORK_IO
+    ) SN
+    WHERE
+      ( BI.DATA_SOURCE != 'HISTORY' OR
+        CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(SN.SNAPSHOT_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE SN.SNAPSHOT_TIME END BETWEEN BI.BEGIN_TIME AND BI.END_TIME
+      ) AND
+      ( BI.SITE_ID = -1 OR ( BI.SITE_ID = 0 AND SN.SITE_ID IN (-1, 0) ) OR SN.SITE_ID = BI.SITE_ID ) AND
+      SN.SENDER_HOST LIKE BI.SENDER_HOST AND
+      TO_VARCHAR(SN.SENDER_PORT) LIKE BI.SENDER_PORT AND
+      SN.RECEIVER_HOST LIKE BI.RECEIVER_HOST AND
+      TO_VARCHAR(SN.RECEIVER_PORT) LIKE BI.RECEIVER_PORT AND
+      SN.DATA_SOURCE = BI.DATA_SOURCE AND
+      ( BI.INTER_HOST_COMMUNICATION = 'X' AND SN.SENDER_HOST != SN.RECEIVER_HOST OR
+        BI.INTRA_HOST_COMMUNICATION = 'X' AND SN.SENDER_HOST = SN.RECEIVER_HOST
+      )
+    GROUP BY
+      SNAPSHOT_TIME,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'SITE_ID')       != 0 THEN TO_VARCHAR(SN.SITE_ID)     ELSE MAP(BI.SITE_ID,        -1, 'any', TO_VARCHAR(BI.SITE_ID)) END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'SENDER_HOST')   != 0 THEN SN.SENDER_HOST             ELSE MAP(BI.SENDER_HOST,   '%', 'any', BI.SENDER_HOST)         END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'SENDER_PORT')   != 0 THEN LPAD(SN.SENDER_PORT, 9)    ELSE MAP(BI.SENDER_PORT,   '%', 'any', BI.SENDER_PORT)         END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'RECEIVER_HOST') != 0 THEN SN.RECEIVER_HOST           ELSE MAP(BI.RECEIVER_HOST, '%', 'any', BI.RECEIVER_HOST)       END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'RECEIVER_PORT') != 0 THEN LPAD(SN.RECEIVER_PORT, 12) ELSE MAP(BI.RECEIVER_PORT, '%', 'any', BI.RECEIVER_PORT)       END,
+      BI.AGGREGATE_BY,
+      BI.TIME_AGGREGATE_BY,
+      BI.TIMEZONE
+  )
+  GROUP BY
+    CASE 
+      WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(SNAPSHOT_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE SNAPSHOT_TIME END) / SUBSTR(TIME_AGGREGATE_BY, 3)) * SUBSTR(TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(SNAPSHOT_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE SNAPSHOT_TIME END, TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    SITE_ID,
+    SEND_HOST,
+    SEND_PORT,
+    RECEIVE_HOST,
+    RECEIVE_PORT
+)
+ORDER BY
+  SNAPSHOT_TIME DESC,
+  SITE_ID,
+  SEND_HOST,
+  SEND_PORT,
+  RECEIVE_HOST,
+  RECEIVE_PORT

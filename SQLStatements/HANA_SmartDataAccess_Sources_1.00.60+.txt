@@ -1,0 +1,150 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_SmartDataAccess_Sources_1.00.60+
+
+[DESCRIPTION]
+
+- Overview of Smart Data Access (SDA) sources
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Smart Data Access was introduced with SAP HANA Rev. 60
+- USER_NAME not generally available, only if M_REMOTE_CONNECTIONS entries exist,
+  CREDENTIALS view may provide more information, but user is typically not visible there
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.60
+
+[SQL COMMAND VERSION]
+
+- 2016/03/03:  1.0 (initial version)
+- 2017/06/19:  1.1 (PROP_NO included)
+
+[INVOLVED TABLES]
+
+- REMOTE_SOURCES
+- M_REMOTE_CONNECTIONS
+
+[INPUT PARAMETERS]
+
+- REMOTE_SOURCE_NAME
+
+  Name of SDA remote source
+
+  'ABC123'        --> SDA remote source ABC123
+  '0CRM%'         --> SDA remote sources starting with '0CRM'
+  '%'             --> No restriction related to SDA remote source
+
+- ADAPTER_NAME
+
+  Adapter name
+
+  'aseodbc'       --> Adapter aseodbc
+  '%odbc%'        --> Adapters with names containing 'odbc'
+  '%'             --> No restriction related to adapter names
+
+- USER_NAME
+
+  Remote source user name
+
+  'BC_BW'         --> User name BW
+  '%'             --> No restriction related to user name
+
+- PROPERTY_NAME
+
+  Property name
+
+  'server'        --> Display properties with name server
+  '%'             --> No restriction related to property name
+
+- CONNECTION_INFO
+
+  Connection information
+
+  '%libodbc%'     --> Connection information containing 'libodbc'
+  '%'             --> No restriction related to connection information
+
+[OUTPUT PARAMETERS]
+ 
+- REMOTE_SOURCE_NAME: SDA remote source name
+- ADAPTER_NAME:       Adapter name
+- USER_NAME:          User name
+- PROP_NO:            Property number
+- CONNECTION_INFO:    Connection information
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------------------------------------------------
+|REMOTE_SOURCE_NAME|ADAPTER_NAME|USER_NAME     |PROP_NO|NAME                  |VALUE                          |
+---------------------------------------------------------------------------------------------------------------
+|XYZbeS            |hanaodbc    |BC_BW_ON_CRM  |      1|adapterversion        |1.0                            |
+|                  |            |              |      2|connectionmode        |Adapter Properties             |
+|                  |            |              |      3|driver                |libodbcHDB.so                  |
+|                  |            |              |      4|server                |host01.sapglobal.customer.com  |
+|                  |            |              |      5|port                  |30015                          |
+|                  |            |              |      6|dml_mode              |readonly                       |
+|                  |            |              |      7|extraadapterproperties|                               |
+|SAPIQDB           |iqodbc      |BWNLS         |      1|adapterversion        |15.4 ESD#3 or 16.0             |
+|                  |            |              |      2|connectionmode        |Adapter Properties             |
+|                  |            |              |      3|driver                |libdbodbc16_r.so               |
+|                  |            |              |      4|dml_mode              |readonly                       |
+|                  |            |              |      5|extraadapterproperties|EngineName=P3N                 |
+---------------------------------------------------------------------------------------------------------------
+
+*/
+
+  MAP(LINE_NO, 1, REMOTE_SOURCE_NAME, '') REMOTE_SOURCE_NAME,
+  MAP(LINE_NO, 1, ADAPTER_NAME, '') ADAPTER_NAME,
+  MAP(LINE_NO, 1, IFNULL(USER_NAME, 'n/a'), '') USER_NAME,
+  LPAD(PROP_NO, 7) PROP_NO,
+  SUBSTR(CONNECTION_INFO, PROPERTY_POS + 21, LOCATE(CONNECTION_INFO, CHAR(34), PROPERTY_POS, 2) - PROPERTY_POS - 21) NAME,
+  SUBSTR(CONNECTION_INFO, LOCATE(CONNECTION_INFO, '>', PROPERTY_POS, 1) + 1, LOCATE(CONNECTION_INFO, '<', PROPERTY_POS, 2) - LOCATE(CONNECTION_INFO, '>', PROPERTY_POS, 1) - 1) VALUE
+FROM
+( SELECT
+    *,
+    ROW_NUMBER() OVER (PARTITION BY REMOTE_SOURCE_NAME ORDER BY PROP_NO) LINE_NO
+  FROM
+  ( SELECT
+      S.REMOTE_SOURCE_NAME,
+      S.ADAPTER_NAME,
+      ( SELECT MIN(REMOTE_SOURCE_USER_NAME) USER_NAME FROM M_REMOTE_CONNECTIONS C WHERE C.REMOTE_SOURCE_NAME = S.REMOTE_SOURCE_NAME AND C.ADAPTER_NAME = S.ADAPTER_NAME ) USER_NAME,
+      R.PROP_NO,
+      TO_VARCHAR(S.CONNECTION_INFO) CONNECTION_INFO,
+      LOCATE(TO_VARCHAR(S.CONNECTION_INFO), '<PropertyEntry name="', 1, R.PROP_NO) PROPERTY_POS,
+      BI.PROPERTY_NAME BI_PROP_NAME,
+      BI.USER_NAME BI_USER_NAME
+    FROM
+    ( SELECT                   /* Modification section */
+        '%' SOURCE_NAME,
+        '%' ADAPTER_NAME,
+        '%' USER_NAME,
+        '%' PROPERTY_NAME,
+        '%' CONNECTION_INFO
+      FROM
+        DUMMY
+    ) BI,
+      REMOTE_SOURCES S,
+      ( SELECT TOP 100 ROW_NUMBER () OVER () PROP_NO FROM OBJECTS ) R
+    WHERE
+      UPPER(S.REMOTE_SOURCE_NAME) LIKE UPPER(BI.SOURCE_NAME) AND
+      UPPER(S.ADAPTER_NAME) LIKE UPPER(BI.ADAPTER_NAME) AND
+      UPPER(IFNULL(S.CONNECTION_INFO, '')) LIKE UPPER (BI.CONNECTION_INFO)
+  ) S
+  WHERE
+    ( LOCATE(CONNECTION_INFO, '<PropertyEntry name="', 1, PROP_NO) = 0 AND PROP_NO = 1 OR
+      LOCATE(CONNECTION_INFO, '<PropertyEntry name="', 1, PROP_NO) > 0 AND SUBSTR(CONNECTION_INFO, PROPERTY_POS + 21, LOCATE(CONNECTION_INFO, CHAR(34), PROPERTY_POS, 2) - PROPERTY_POS - 21) LIKE BI_PROP_NAME
+    ) AND
+    ( IFNULL(USER_NAME, '') LIKE BI_USER_NAME )
+) S
+ORDER BY
+  S.REMOTE_SOURCE_NAME,
+  S.ADAPTER_NAME,
+  S.PROP_NO

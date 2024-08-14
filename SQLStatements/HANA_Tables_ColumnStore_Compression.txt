@@ -1,0 +1,252 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Tables_ColumnStore_Compression
+
+[DESCRIPTION]
+
+- Column store compression information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Running this command on SAP HANA <= 2.0 SPS 00 can result in a crash in 
+  AttributeEngine::JobMergeCountsParallel::run when accessing compression related columns (bug 213170)
+- The UNCOMPRESSED_SIZE information is not generally reliable and so reported savings or overhead may be wrong
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2014/12/16:  1.0 (initial version)
+- 2016/06/29:  1.1 (MIN_MEM_SIZE_MB and MIN_CURRENT_VS_UNCOMPRESSED_SIZE_RATIO added)
+
+[INVOLVED TABLES]
+
+- M_CS_ALL_COLUMNS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- COLUMN_NAME
+
+  Column name
+
+  'MATNR'         --> Column MATNR
+  'Z%'            --> Columns starting with "Z"
+  '%'             --> No restriction related to columns
+
+- COMPRESSION_TYPE
+
+  Type of compression
+
+  'PREFIXED'      --> Prefix based compression
+  'CLUSTERED'     --> Cluster based compression
+  '%'             --> No restriction related to compression
+
+- MIN_MEM_SIZE_MB
+
+  Minimum column memory size (MB)
+
+  1024            --> Only consider columns with a memory size of at least 1024 MB
+  -1              --> No restriction related to column memory size
+
+- MIN_CURRENT_VS_UNCOMPRESSED_SIZE_RATIO
+
+  Minimum ratio of current to uncompressed size
+
+  2               --> Only consider columns with a current size at least twice as large as the uncompressd size
+  -1              --> No restriction related to curren vs. uncompressed size ratio
+
+- OBJECT_LEVEL
+
+  Controls display of partitions
+
+  'PARTITION'     --> Result is shown on partition level
+  'TABLE'         --> Result is shown on table level
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TABLE'         --> Aggregation by table
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'SIZE'          --> Sorting by memory size
+  'NAME'          --> Sorting by name
+  
+- RESULT_ROWS
+
+  Number of records to be returned by the query
+
+  100             --> Return a maximum number of 100 records
+  -1              --> Return all records
+
+[OUTPUT PARAMETERS]
+
+- HOST:             Host name
+- PORT:             Port
+- SERVICE:          Service name
+- SCHEMA_NAME:      Schema name
+- TABLE_NAME:       Table name
+- COLUMN_NAME:      Column name
+- COMPRESSION_TYPE: Type of compression
+- NOCOMP_MB:        Size without compression (MB)
+- MEMORY_MB:        Current size in memory
+- SAVED_MB:         Difference between NOCOMP_MB and MEMORY_MB
+- SAVED_PCT:        Space saved by compression (%)
+
+[EXAMPLE OUTPUT]
+
+------------------------------------------------------------------------------------------------------------------------------------
+|HOST|PORT |SCHEMA_NAME|TABLE_NAME                           |COLUMN_NAME|COMPRESSION_TYPE|NOCOMP_MB|MEMORY_MB|COMP_RATIO|SAVED_MB |
+------------------------------------------------------------------------------------------------------------------------------------
+|any |  any|any        |/BIC/ACLGDSOZA                       |any        |any             | 66613.75| 21394.18|      3.11| 45219.56|
+|any |  any|any        |/B28/SA9POO31                        |any        |any             | 20976.74| 14394.10|      1.45|  6582.64|
+|any |  any|any        |/BIC/AADI1NONP00                     |any        |any             | 24038.16| 10541.82|      2.28| 13496.33|
+|any |  any|any        |/BIC/ACLGDSOZA_TST                   |any        |any             | 13536.93|  3575.13|      3.78|  9961.80|
+------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SERVICE_NAME SERVICE,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  COLUMN_NAME,
+  COMPRESSION_TYPE,
+  LPAD(TO_DECIMAL(NOCOMP_MB, 10, 2), 9) NOCOMP_MB,
+  LPAD(TO_DECIMAL(MEMORY_MB, 10, 2), 9) MEMORY_MB,
+  LPAD(TO_DECIMAL(SAVED_MB, 10, 2), 9) SAVED_MB,
+  LPAD(TO_DECIMAL(MAP(MEMORY_MB, 0, 0, MAP(NOCOMP_MB, 0, 0, SAVED_MB / NOCOMP_MB) * 100), 10, 2), 9) SAVED_PCT
+FROM
+( SELECT
+    HOST,
+    PORT,
+    SERVICE_NAME,
+    SCHEMA_NAME,
+    TABLE_NAME,
+    COLUMN_NAME,
+    COMPRESSION_TYPE,
+    NOCOMP_MB,
+    MEMORY_MB,
+    SAVED_MB,
+    RESULT_ROWS,
+    ROW_NUMBER () OVER (ORDER BY MAP(ORDER_BY, 'NAME', SCHEMA_NAME || TABLE_NAME || COLUMN_NAME), MAP(ORDER_BY, 'NOCOMP', NOCOMP_MB, 'SIZE', MEMORY_MB, 'SAVED', SAVED_MB) DESC) ROW_NUM
+  FROM
+  ( SELECT
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'HOST')        != 0 THEN C.HOST              ELSE MAP(BI.HOST,             '%', 'any', BI.HOST)             END HOST,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'PORT')        != 0 THEN TO_VARCHAR(C.PORT)     ELSE MAP(BI.PORT,             '%', 'any', BI.PORT)             END PORT,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'SERVICE')     != 0 THEN S.SERVICE_NAME      ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME)         END SERVICE_NAME,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'SCHEMA')      != 0 THEN C.SCHEMA_NAME       ELSE MAP(BI.SCHEMA_NAME,      '%', 'any', BI.SCHEMA_NAME)      END SCHEMA_NAME,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'TABLE')       != 0 THEN C.TABLE_NAME  || 
+        CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND C.PART_ID > 0 THEN ' (' || C.PART_ID || ')' ELSE '' END ELSE MAP(BI.TABLE_NAME,            '%', 'any', BI.TABLE_NAME)       END TABLE_NAME,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'COLUMN')      != 0 THEN C.COLUMN_NAME       ELSE MAP(BI.COLUMN_NAME,      '%', 'any', BI.COLUMN_NAME)      END COLUMN_NAME,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'COMPRESSION') != 0 THEN C.COMPRESSION_TYPE  ELSE MAP(BI.COMPRESSION_TYPE, '%', 'any', BI.COMPRESSION_TYPE) END COMPRESSION_TYPE,
+      SUM(IFNULL(C.UNCOMPRESSED_SIZE, C.MEMORY_SIZE_IN_TOTAL)) / 1024 / 1024 NOCOMP_MB,
+      SUM(IFNULL(C.MEMORY_SIZE_IN_TOTAL, 0)) / 1024 / 1024 MEMORY_MB,
+      ( SUM(IFNULL(C.UNCOMPRESSED_SIZE, C.MEMORY_SIZE_IN_TOTAL) - IFNULL(C.MEMORY_SIZE_IN_TOTAL, 0)) / 1024 / 1024) SAVED_MB,
+      BI.ORDER_BY,
+      BI.RESULT_ROWS
+    FROM
+    ( SELECT                 /* Modification section */
+        '%' HOST,
+        '%' PORT,
+        '%' SERVICE_NAME,
+        '%' SCHEMA_NAME,
+        '%' TABLE_NAME,
+        '%' COLUMN_NAME,
+        '%' COMPRESSION_TYPE,
+        1024 MIN_MEM_SIZE_MB,
+        2 MIN_CURRENT_VS_UNCOMPRESSED_SIZE_RATIO,
+        'TABLE' OBJECT_LEVEL,   /* TABLE, PARTITION */
+        'NONE' AGGREGATE_BY,    /* HOST, PORT, SERVICE, SCHEMA, TABLE, COLUMN, COMPRESSION or comma separated combination, NONE for no aggregation */
+        'SIZE' ORDER_BY,        /* NAME, NOCOMP, SIZE, SAVED */
+        100 RESULT_ROWS
+      FROM
+        DUMMY
+    ) BI,
+      M_SERVICES S,
+      M_CS_ALL_COLUMNS C
+    WHERE
+      S.HOST LIKE BI.HOST AND
+      TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+      S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+      C.HOST = S.HOST AND
+      C.PORT = S.PORT AND
+      C.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+      C.TABLE_NAME LIKE BI.TABLE_NAME AND
+      C.COLUMN_NAME LIKE BI.COLUMN_NAME AND
+      C.COMPRESSION_TYPE LIKE BI.COMPRESSION_TYPE AND
+      ( BI.MIN_MEM_SIZE_MB = -1 OR C.MEMORY_SIZE_IN_TOTAL / 1024 / 1024 >= BI.MIN_MEM_SIZE_MB ) AND
+      ( BI.MIN_CURRENT_VS_UNCOMPRESSED_SIZE_RATIO = -1 OR C.MEMORY_SIZE_IN_TOTAL >= C.UNCOMPRESSED_SIZE * BI.MIN_CURRENT_VS_UNCOMPRESSED_SIZE_RATIO AND C.UNCOMPRESSED_SIZE > 0 )
+    GROUP BY
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'HOST')        != 0 THEN C.HOST              ELSE MAP(BI.HOST,             '%', 'any', BI.HOST)             END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'PORT')        != 0 THEN TO_VARCHAR(C.PORT)     ELSE MAP(BI.PORT,             '%', 'any', BI.PORT)             END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'SERVICE')     != 0 THEN S.SERVICE_NAME      ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME)         END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'SCHEMA')      != 0 THEN C.SCHEMA_NAME       ELSE MAP(BI.SCHEMA_NAME,      '%', 'any', BI.SCHEMA_NAME)      END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'TABLE')       != 0 THEN C.TABLE_NAME  || 
+        CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND C.PART_ID > 0 THEN ' (' || C.PART_ID || ')' ELSE '' END ELSE MAP(BI.TABLE_NAME,            '%', 'any', BI.TABLE_NAME)       END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'COLUMN')      != 0 THEN C.COLUMN_NAME       ELSE MAP(BI.COLUMN_NAME,      '%', 'any', BI.COLUMN_NAME)      END,
+      CASE WHEN BI.AGGREGATE_BY = 'NONE' OR LOCATE(BI.AGGREGATE_BY, 'COMPRESSION') != 0 THEN C.COMPRESSION_TYPE  ELSE MAP(BI.COMPRESSION_TYPE, '%', 'any', BI.COMPRESSION_TYPE) END,
+      BI.ORDER_BY,
+      BI.RESULT_ROWS
+  )
+)
+WHERE
+  ( RESULT_ROWS = -1 OR ROW_NUM <= RESULT_ROWS )
+ORDER BY
+  ROW_NUM
+

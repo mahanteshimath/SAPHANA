@@ -1,0 +1,116 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_Hosts_Disks_1.00.90+
+
+[DESCRIPTION]
+
+- Disk information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- M_DISK_USAGE only available as of Rev. 90
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.90
+
+[SQL COMMAND VERSION]
+
+- 2014/05/30:  1.0 (initial version)
+- 2015/08/25:  1.1 (M_DISK_USAGE included)
+- 2022/04/06:  1.2 (USAGE_TYPE filter included)
+
+[INVOLVED TABLES]
+
+- M_DISKS
+- M_DISK_USAGE
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- USAGE_TYPE
+
+  Usage type
+
+  'LOG'           --> Display only file systems used for LOG
+  '%'             --> No restriction related to usage type
+
+- MIN_USED_PCT
+
+  Minimum amount of used disk space (%)
+
+  90              --> Only show disks with at least 90 % usage
+  -1              --> No limitation related to used disk space
+
+[OUTPUT PARAMETERS]
+
+- HOST:         Host name
+- DEVICE_ID:    Device ID
+- PATH:         Directory path
+- USAGE_TYPE:   Usage type (e.g. DATA, LOG)
+- FILESYSTEM:   Filesystem type
+- AVAIL_GB:     Total available disk size (GB)
+- TOT_USED_GB:  Total used disk size (GB)
+- TOT_USED_PCT: Percentage of total used disk size compared to total available disk size (i.e. file system filling level)
+- USED_GB:      Disk size used by specific USAGE_TYPE (GB)
+- USED_PCT:     Percentage of disk size used by specific USAGE_TYPE compared to total available disk size
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------------------------------
+|HOST   |DEVICE_ID|PATH                       |USAGE_TYPE |FILESYSTEM|AVAIL_GB|TOT_USED_GB|TOT_USED_PCT|USED_GB|USED_PCT|
+-------------------------------------------------------------------------------------------------------------------------
+|saphana|   691053|/backup/OQL/fullbackup/    |DATA_BACKUP|nfs       | 3069.74|    2593.34|       84.48|n/a    |n/a     |
+|saphana|   691053|/backup/OQL/logbackup/     |LOG_BACKUP |nfs       | 3069.74|    2593.34|       84.48|n/a    |n/a     |
+|saphana|   714294|/hana/data/OQL/            |DATA       |ext3      | 1309.24|     837.74|       63.98| 259.62|   19.82|
+|saphana|   714294|/hana/log/OQL/             |LOG        |ext3      | 1309.24|     837.74|       63.98|  31.02|    2.36|
+|saphana|   714294|/usr/sap/OQL/HDB00/saphana/|TRACE      |ext3      | 1309.24|     837.74|       63.98|   1.63|    0.12|
+-------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  D.HOST,
+  LPAD(D.DEVICE_ID, 9) DEVICE_ID,
+  D.PATH,
+  D.USAGE_TYPE,
+  D.FILESYSTEM_TYPE FILESYSTEM,
+  LPAD(TO_DECIMAL(D.TOTAL_SIZE / 1024 / 1024 / 1024, 10, 2), 8) AVAIL_GB,
+  LPAD(TO_DECIMAL(D.USED_SIZE / 1024 / 1024 / 1024, 10, 2), 11) TOT_USED_GB,
+  LPAD(TO_DECIMAL(MAP(D.TOTAL_SIZE, 0, 0, D.USED_SIZE / D.TOTAL_SIZE * 100), 10, 2), 12) TOT_USED_PCT,
+  MAP(DU.USED_SIZE, -1, 'n/a', LPAD(TO_DECIMAL(DU.USED_SIZE / 1024 / 1024 / 1024, 10, 2), 7)) USED_GB,
+  MAP(DU.USED_SIZE, -1, 'n/a', LPAD(TO_DECIMAL(MAP(D.TOTAL_SIZE, 0, 0, DU.USED_SIZE / D.TOTAL_SIZE * 100), 10, 2), 8)) USED_PCT
+FROM
+( SELECT                       /* Modification section */
+    '%' HOST,
+    'LOG' USAGE_TYPE,
+    -1 MIN_USED_PCT
+  FROM
+    DUMMY
+) BI,
+  M_DISKS D,
+  M_DISK_USAGE DU
+WHERE
+  D.HOST LIKE BI.HOST AND
+  D.USAGE_TYPE LIKE BI.USAGE_TYPE AND
+  ( D.HOST = '<all>' OR D.HOST = DU.HOST ) AND
+  D.USAGE_TYPE = DU.USAGE_TYPE AND
+  ( BI.MIN_USED_PCT = -1 OR MAP(D.TOTAL_SIZE, 0, 0, D.USED_SIZE / D.TOTAL_SIZE * 100) >= BI.MIN_USED_PCT )
+ORDER BY
+  D.HOST,
+  D.DEVICE_ID, 
+  D.PATH,
+  D.USAGE_TYPE

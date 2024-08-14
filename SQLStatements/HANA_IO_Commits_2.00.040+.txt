@@ -1,0 +1,363 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_IO_Commits_2.00.040+
+
+[DESCRIPTION]
+
+- Overview of commit I/O information
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Commit information not availabe before SAP HANA 1.0 SPS 07
+- RESET can be performed via:
+
+  ALTER SYSTEM RESET MONITORING VIEW M_LOG_PARTITIONS_RESET
+
+- Can be used for monitoring remote system replication sites, see SAP Note 1999880 
+  ("Is it possible to monitor remote system replication sites on the primary system") for details.
+
+- HOST_LOG_PARTITIONS available starting with SAP HANA 2.00.040
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.40
+
+[SQL COMMAND VERSION]
+
+- 2016/01/31:  1.0 (initial version)
+- 2019/07/28:  1.1 (dedicated 2.00.040+ version including HOST_LOG_PARTITIONS)
+
+[INVOLVED TABLES]
+
+- HOST_LOG_PARTITIONS
+- M_LOG_PARTITIONS
+- M_LOG_PARTITIONS_RESET
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- PATH
+
+  Path on disk
+
+  '/hdb/ERP/backup/log/' --> Path /hdb/HAL/backup/log/
+  '/usr/sap/ERP%'        --> Paths starting with '/usr/sap/ERP'
+  '%'                    --> No restriction of path
+
+- MIN_AVG_COMMIT_MS
+
+  Minimum average log I/O write / commit time
+
+  10              --> Only display entriew with an average write time of at least 10 ms
+  -1              --> No restriction related to I/O write time
+
+- ONLY_NEW_MAX_LATENCIES
+
+  Possibility to restrict the historic evaluations to times when the maximum latency was increased compared to the last snapshot
+
+  'X'             --> Only display times with increased maximum latency
+  ' '             --> No restriction related to maximum latency changes
+
+- DATA_SOURCE
+
+  Source of analysis data
+
+  'CURRENT'       --> Data from memory information (M_ tables)
+  'HISTORY'       --> Data from persisted history information (HOST_ tables)
+  '%'             --> All data sources
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Time aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+[OUTPUT PARAMETERS]
+
+- SNAPSHOT_TIME: Snapshot timestamp
+- HOST:          Host name
+- PORT:          Port
+- PATH:          Disk path
+- LOG_SIZE_MB:   Total log size (MB)
+- AVG_BUFF_KB:   Average I/O buffer size (KB)
+- COMMITS:       Number of commit operations
+- IO_TIME_S:     Total log I/O time (s)
+- AVG_COMMIT_MS: Average commit time (ms)
+- MAX_COMMIT_MS: Maximum commit time (ms)
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------------------------------------
+|HOST      |PORT |SERVICE    |PATH                                 |LOG_SIZE_MB|AVG_BUFF_KB |COMMITS     |IO_TIME_S|AVG_COMMIT_MS|
+----------------------------------------------------------------------------------------------------------------------------------
+|hananode01|30103|indexserver|/sapmntext/log/SR3/mnt00001/hdb00004/|    4395.67|        4.85|      931496|     1797|         1.92|
+|hananode01|30107|xsengine   |/sapmntext/log/SR3/mnt00001/hdb00003/|      33.41|        4.00|        8417|       60|         7.16|
+|hananode02|30103|indexserver|/sapmntext/log/SR3/mnt00004/hdb00007/|     946.80|       68.80|       13627|      221|        16.18|
+|hananode03|30103|indexserver|/sapmntext/log/SR3/mnt00003/hdb00006/|    2394.52|      104.29|       21987|      205|         9.33|
+|hananode04|30103|indexserver|/sapmntext/log/SR3/mnt00002/hdb00005/|    2995.78|      182.89|       14661|      124|         8.46|
+----------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  SNAPSHOT_TIME,
+  HOST,
+  PORT,
+  PATH,
+  LPAD(TO_DECIMAL(LOG_SIZE_KB / 1024, 10, 2), 11) LOG_SIZE_MB,
+  LPAD(TO_DECIMAL(MAP(PREP_BUFFERS, 0, 0, LOG_SIZE_KB / PREP_BUFFERS), 10, 2), 12) AVG_BUFF_KB,
+  LPAD(COMMITS, 12) COMMITS,
+  LPAD(TO_DECIMAL(ROUND(IO_TIME_MS / 1000), 10, 0), 9) IO_TIME_S,
+  LPAD(TO_DECIMAL(MAP(COMMITS, 0, 0, IO_TIME_MS / COMMITS), 10, 2), 13) AVG_COMMIT_MS,
+  LPAD(TO_DECIMAL(MAX_COMMIT_MS, 10, 2), 13) MAX_COMMIT_MS
+FROM
+( SELECT
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(L.SNAPSHOT_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE L.SNAPSHOT_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(L.SNAPSHOT_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE L.SNAPSHOT_TIME END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END SNAPSHOT_TIME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST') != 0 THEN L.HOST             ELSE MAP(BI.HOST, '%', 'any', BI.HOST) END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT') != 0 THEN TO_VARCHAR(L.PORT) ELSE MAP(BI.PORT, '%', 'any', BI.PORT) END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PATH') != 0 THEN L.PATH             ELSE MAP(BI.PATH, '%', 'any', BI.PATH) END PATH,
+    SUM(SUM_BUFFER_IO_SIZE) / 1024 LOG_SIZE_KB,
+    SUM(PREPARED_BUFFERS) PREP_BUFFERS,
+    SUM(COMMIT_COUNT) COMMITS,
+    SUM(SUM_COMMIT_IO_LATENCY) / 1000 IO_TIME_MS,
+    MAX(MAX_COMMIT_IO_LATENCY) / 1000 MAX_COMMIT_MS,
+    BI.MIN_AVG_COMMIT_MS
+  FROM
+  ( SELECT
+      CASE
+        WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+        WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+        WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+        WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+        WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+        WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+        WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END BEGIN_TIME,
+      CASE
+        WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+        WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+        WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+        WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+        WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+        WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+        WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+        WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+        WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+        WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+        WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END END_TIME,
+      HOST,
+      PORT,
+      TIMEZONE,
+      PATH,
+      MIN_AVG_COMMIT_MS,
+      ONLY_NEW_MAX_LATENCIES,
+      DATA_SOURCE,
+      AGGREGATE_BY,
+      MAP(TIME_AGGREGATE_BY,
+        'NONE',        'YYYY/MM/DD HH24:MI:SS',
+        'HOUR',        'YYYY/MM/DD HH24',
+        'DAY',         'YYYY/MM/DD (DY)',
+        'HOUR_OF_DAY', 'HH24',
+        TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY
+    FROM
+    ( SELECT            /* Modification section */
+        '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+        '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+        'SERVER' TIMEZONE,                              /* SERVER, UTC */
+        '%' HOST,
+        '%' PORT,
+        '%' PATH,
+        -1 MIN_AVG_COMMIT_MS,
+        'X' ONLY_NEW_MAX_LATENCIES,
+        'HISTORY' DATA_SOURCE,      /* CURRENT, RESET, HISTORY */
+        'NONE' AGGREGATE_BY,         /* TIME, HOST, PORT, PATH or comma separated combinations, NONE for no aggregation */
+        'NONE' TIME_AGGREGATE_BY      /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+      FROM
+        DUMMY
+    )
+  ) BI,
+  ( SELECT
+      'CURRENT' DATA_SOURCE,
+      CURRENT_TIMESTAMP SNAPSHOT_TIME,
+      HOST,
+      PORT,
+      PATH,
+      SUM_BUFFER_IO_SIZE,
+      PREPARED_BUFFERS,
+      COMMIT_COUNT,
+      SUM_COMMIT_IO_LATENCY,
+      MAX_COMMIT_IO_LATENCY,
+      ' ' NEW_MAX_LATENCY
+    FROM
+      M_LOG_PARTITIONS
+    UNION ALL
+    SELECT
+      'RESET' DATA_SOURCE,
+      CURRENT_TIMESTAMP SNAPSHOT_TIME,
+      HOST,
+      PORT,
+      PATH,
+      SUM_BUFFER_IO_SIZE,
+      PREPARED_BUFFERS,
+      COMMIT_COUNT,
+      SUM_COMMIT_IO_LATENCY,
+      MAX_COMMIT_IO_LATENCY,
+      ' ' NEW_MAX_LATENCY
+    FROM
+      M_LOG_PARTITIONS_RESET
+    UNION ALL
+    SELECT
+      'HISTORY' DATA_SOURCE,
+      SERVER_TIMESTAMP SNAPSHOT_TIME,
+      HOST,
+      PORT,
+      PATH,
+      CASE
+        WHEN SUM_BUFFER_IO_SIZE - LAG(SUM_BUFFER_IO_SIZE) OVER (PARTITION BY HOST, PORT, PATH ORDER BY SERVER_TIMESTAMP) >= 0 THEN 
+          SUM_BUFFER_IO_SIZE - LAG(SUM_BUFFER_IO_SIZE) OVER (PARTITION BY HOST, PORT, PATH ORDER BY SERVER_TIMESTAMP)
+        ELSE SUM_BUFFER_IO_SIZE
+      END SUM_BUFFER_IO_SIZE,
+      CASE
+        WHEN PREPARED_BUFFERS - LAG(PREPARED_BUFFERS) OVER (PARTITION BY HOST, PORT, PATH ORDER BY SERVER_TIMESTAMP) >= 0 THEN 
+          PREPARED_BUFFERS - LAG(PREPARED_BUFFERS) OVER (PARTITION BY HOST, PORT, PATH ORDER BY SERVER_TIMESTAMP)
+        ELSE PREPARED_BUFFERS
+      END PREPARED_BUFFERS,
+      CASE
+        WHEN COMMIT_COUNT - LAG(COMMIT_COUNT) OVER (PARTITION BY HOST, PORT, PATH ORDER BY SERVER_TIMESTAMP) >= 0 THEN 
+          COMMIT_COUNT - LAG(COMMIT_COUNT) OVER (PARTITION BY HOST, PORT, PATH ORDER BY SERVER_TIMESTAMP)
+        ELSE COMMIT_COUNT
+      END COMMIT_COUNT,
+      CASE
+        WHEN SUM_COMMIT_IO_LATENCY - LAG(SUM_COMMIT_IO_LATENCY) OVER (PARTITION BY HOST, PORT, PATH ORDER BY SERVER_TIMESTAMP) >= 0 THEN 
+          SUM_COMMIT_IO_LATENCY - LAG(SUM_COMMIT_IO_LATENCY) OVER (PARTITION BY HOST, PORT, PATH ORDER BY SERVER_TIMESTAMP)
+        ELSE SUM_COMMIT_IO_LATENCY
+      END SUM_COMMIT_IO_LATENCY,
+      MAX_COMMIT_IO_LATENCY,
+      CASE WHEN MAX_COMMIT_IO_LATENCY - LAG(MAX_COMMIT_IO_LATENCY, 1) OVER (PARTITION BY HOST, PORT, PATH ORDER BY SERVER_TIMESTAMP) > 0 THEN 'X' ELSE '' END NEW_MAX_LATENCY
+    FROM
+      _SYS_STATISTICS.HOST_LOG_PARTITIONS
+  ) L
+  WHERE
+    L.HOST LIKE BI.HOST AND
+    TO_VARCHAR(L.PORT) LIKE BI.PORT AND
+    ( L.DATA_SOURCE IN ( 'CURRENT', 'RESET' ) OR
+      CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(L.SNAPSHOT_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE L.SNAPSHOT_TIME END BETWEEN BI.BEGIN_TIME AND BI.END_TIME
+    ) AND
+    L.PATH LIKE BI.PATH AND
+    L.DATA_SOURCE = BI.DATA_SOURCE AND
+    ( BI.ONLY_NEW_MAX_LATENCIES = ' ' OR NEW_MAX_LATENCY = 'X' )
+  GROUP BY
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(L.SNAPSHOT_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE L.SNAPSHOT_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(L.SNAPSHOT_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE L.SNAPSHOT_TIME END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST') != 0 THEN L.HOST             ELSE MAP(BI.HOST, '%', 'any', BI.HOST) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT') != 0 THEN TO_VARCHAR(L.PORT) ELSE MAP(BI.PORT, '%', 'any', BI.PORT) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PATH') != 0 THEN L.PATH             ELSE MAP(BI.PATH, '%', 'any', BI.PATH) END,
+    BI.MIN_AVG_COMMIT_MS
+)
+WHERE
+( MIN_AVG_COMMIT_MS = -1 OR MAP(COMMITS, 0, 0, IO_TIME_MS / COMMITS) >= MIN_AVG_COMMIT_MS )
+ORDER BY
+  SNAPSHOT_TIME DESC,
+  HOST,
+  PORT,
+  PATH

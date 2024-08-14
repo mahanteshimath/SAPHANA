@@ -1,0 +1,250 @@
+WITH 
+
+/* 
+
+[NAME]
+
+- HANA_Security_GrantedRolesAndPrivileges_SHC
+
+[DESCRIPTION]
+
+- Display roles (set of privileges) and individual privileges granted to users and roles
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- ROLE_SCHEMA_NAME available starting with SAP HANA 2.00.000
+- GRANTED_PRIVILEGES.COLUMN_NAME no longer available in SAP HANA Cloud
+
+[VALID FOR]
+
+- Revisions:              cloud
+- Environment:            SAP HANA Cloud
+
+[SQL COMMAND VERSION]
+
+- 2014/09/30:  1.0 (initial version)
+- 2015/03/01:  1.1 (ROLE_NAME input parameter added)
+- 2015/04/13:  1.2 (EXCLUDE_SYSTEM_USERS added)
+- 2017/06/28:  1.3 (EXCLUDE_DEACTIVATED_USERS, OBJECT_NAME and OBJECT_TYPE filter included)
+- 2017/06/29:  1.4 (dedicated 1.00.120+ version including GRANTEE_SCHEMA_NAME)
+- 2018/06/11:  1.5 (dedicated 2.00.000+ version including ROLE_SCHEMA_NAME)
+- 2021/02/07:  1.6 (dedicated SAP HANA Cloud version)
+- 2022/10/03:  1.7 (redesign based on SQL hierarchies)
+
+[INVOLVED TABLES]
+
+- GRANTED_PRIVILEGES
+- GRANTED_ROLES
+- USERS
+
+[INPUT PARAMETERS]
+
+- GRANTEE_SCHEMA_NAME
+
+  Grantee schema name
+
+  'MYSCHEME'      --> Schema MYSCHEME
+  '%'             --> No restriction related to grantee schemas
+
+- GRANTEE
+
+  User or role to which a role or privilege is granted
+
+  'SAPSR3'        --> Grantee SAPSR3
+  'SAP%'          --> All grantees starting with 'SAP%'
+  '%'             --> No restriction related to grantees
+
+- GRANTEE_TYPE
+
+  Type of grantee
+
+  'USER'          --> User grantees
+  'ROLE'          --> Role grantees
+  '%'             --> No restriction related to grantee type
+
+- ROLE_SCHEMA_NAME
+
+  Role schema name
+
+  '_SYS_BI'       --> Role schema name _SYS_BI
+  '%'             --> Any role schema name
+
+- ROLE_NAME
+
+  Role name
+
+  'ABAP_READ'     --> Role name ABAP_READ
+  '%'             --> Any role
+
+- PRIVILEGE
+
+  Privilege
+
+  'CATALOG READ'  --> Privilege CATALOG READ
+  'AUDIT%'        --> All privileges starting with 'AUDIT'
+  '%'             --> No restriction related to privilege
+
+- PRIVILEGE_DETAILS
+
+  Privilege details (<owner>.<object>)
+
+  'SAP%'          --> All privilege details starting with 'SAP'
+  '%'             --> No restriction related to privilege details
+
+- OBJECT_TYPE
+
+  Type of object (e.g. 'TABLE', 'SYNONYM', 'VIEW' or 'INDEX')
+
+  'TABLE'         --> Specific object type TABLE
+  '%'             --> All object types
+
+- EXCLUDE_SYSTEM_USERS
+
+  Possibility to exclude system users as grantees of privileges
+
+  'X'             --> Ignore grants of privileges to system users (SYS, SYSTEM, _SYS_*)
+  ' '             --> No restriction related to system users
+
+- EXCLUDE_DEACTIVATED_USERS
+
+  Possibility to exclude deactivated users as grantees of privileges
+
+  'X'             --> Ignore grants of privileges to deactivated users
+  ' '             --> No restriction related to deactivated users
+
+- ONLY_CURRENT_USER
+
+  Possibility to restrict output to user executing the query
+
+  'X'             --> Only show information for user executing the query
+  ' '             --> No restriction to current user
+
+[OUTPUT PARAMETERS]
+
+- GRANTEE:           Grantee name
+- GRANTED:           Granted role or privilege
+- OBJECT_TYPE:       Object type
+- PRIVILEGE_DETAILS: Privilege details (<owner>.<object>)
+- ROLE_PATH:         Role assignment hierarchy (<user> -> <role1> -> ... -> <roleN> -> <privileges>)
+- ROLE_SCHEMA_NAME:  Role schema name
+- GRANTEE_SCHEMA:    Grantee schema name
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------------------------------------------------------------
+|GRANTEE   |GRANTEE_TYPE|ROLE_NAME    |PRIVILEGE                     |OBJECT_TYPE        |PRIVILEGE_DETAILS               |
+---------------------------------------------------------------------------------------------------------------------------
+|ABAP_ADMIN|ROLE        |             |CATALOG READ                  |SYSTEMPRIVILEGE    |                                |
+|ABAP_ADMIN|ROLE        |             |EXECUTE                       |PROCEDURE          |_SYS_REPO#GRANT_ACTIVATED_ROLE# |
+|ABAP_ADMIN|ROLE        |             |EXECUTE                       |PROCEDURE          |_SYS_REPO#REVOKE_ACTIVATED_ROLE#|
+|ABAP_ADMIN|ROLE        |             |ROLE ADMIN                    |SYSTEMPRIVILEGE    |                                |
+|ABAP_ADMIN|ROLE        |             |SELECT                        |SCHEMA             |SAPA9B##                        |
+|ABAP_ADMIN|ROLE        |             |USER ADMIN                    |SYSTEMPRIVILEGE    |                                |
+|ABAP_DEV  |ROLE        |             |CATALOG READ                  |SYSTEMPRIVILEGE    |                                |
+|ABAP_DEV  |ROLE        |             |DEVELOPMENT                   |SYSTEMPRIVILEGE    |                                |
+|ABAP_DEV  |ROLE        |             |SELECT                        |SCHEMA             |SAPA9B##                        |
+|ABAP_DEV  |ROLE        |CONTENT_ADMIN|ALTER                         |SCHEMA             |_SYS_BIC##                      |
+|ABAP_DEV  |ROLE        |CONTENT_ADMIN|CREATE ANY                    |SCHEMA             |_SYS_BIC##                      |
+|ABAP_DEV  |ROLE        |CONTENT_ADMIN|CREATE SCENARIO               |SYSTEMPRIVILEGE    |                                |
+|ABAP_DEV  |ROLE        |CONTENT_ADMIN|CREATE STRUCTURED PRIVILEGE   |SYSTEMPRIVILEGE    |                                |
+|ABAP_DEV  |ROLE        |CONTENT_ADMIN|DELETE                        |SCHEMA             |_SYS_BI##                       |
+|ABAP_DEV  |ROLE        |CONTENT_ADMIN|DELETE                        |SCHEMA             |_SYS_BIC##                      |
+---------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+BASIS_INFO AS
+( SELECT                /* Modification section */
+    '%' GRANTEE_SCHEMA_NAME,
+    '%' GRANTEE,
+    '%' GRANTEE_TYPE,              /* ROLE, USER, % */
+    '%' ROLE_SCHEMA_NAME,
+    '%' ROLE_NAME,
+    '%' PRIVILEGE,
+    '%' PRIVILEGE_DETAILS,
+    '%' OBJECT_TYPE,
+    'X' EXCLUDE_SYSTEM_USERS,
+    'X' EXCLUDE_DEACTIVATED_USERS,
+    ' ' ONLY_CURRENT_USER
+  FROM
+    DUMMY
+),
+RAW_HIERARCHY_INPUT AS
+( SELECT GRANTEE, GRANTEE_TYPE, IFNULL(GRANTEE_SCHEMA_NAME, '') GRANTEE_SCHEMA_NAME, ROLE_NAME GRANTED, IFNULL(ROLE_SCHEMA_NAME, '') ROLE_SCHEMA_NAME, '' OBJECT_TYPE, '' SCHEMA_NAME, '' OBJECT_NAME, 'R' NODE_TYPE FROM GRANTED_ROLES
+  UNION ALL
+  SELECT '', '', '', USER_NAME, '', '', '', '', 'U' FROM USERS
+  UNION ALL
+  SELECT '', '', '', ROLE_NAME, IFNULL(ROLE_SCHEMA_NAME, ''), '', '', '', 'R' FROM ROLES WHERE ROLE_NAME NOT IN ( SELECT ROLE_NAME FROM GRANTED_ROLES )
+  UNION ALL
+  SELECT GRANTEE, GRANTEE_TYPE, IFNULL(GRANTEE_SCHEMA_NAME, ''), PRIVILEGE, '', IFNULL(OBJECT_TYPE, '') OBJECT_TYPE, IFNULL(SCHEMA_NAME, '') SCHEMA_NAME, IFNULL(OBJECT_NAME, '') OBJECT_NAME, 'P' FROM GRANTED_PRIVILEGES
+),
+ROLES_HIERARCHY AS
+( SELECT 
+    * 
+  FROM 
+    HIERARCHY
+    ( SOURCE ( SELECT *, GRANTEE PARENT_ID, GRANTED NODE_ID FROM RAW_HIERARCHY_INPUT )
+      START WHERE GRANTEE = ''
+      NO CACHE
+    )
+),
+EFFECTIVE_ROLES_AND_PRIVILEGES_HELPER AS
+( SELECT 
+    *,
+    '-> ' || ROLE_PATH || ' ->' ROLE_PATH_WRAPPED,
+    RTRIM(LTRIM(SCHEMA_NAME || '.' || OBJECT_NAME, '.'), '.') PRIVILEGE_DETAILS
+  FROM 
+    HIERARCHY_ANCESTORS_AGGREGATE
+  ( SOURCE ROLES_HIERARCHY
+    MEASURES ( STRING_AGG(NODE_ID, ' -> ') ROLE_PATH )
+  )
+),
+EFFECTIVE_ROLES_AND_PRIVILEGES AS
+( SELECT
+    D.*,
+    R.GRANTED FINAL_GRANTEE,
+    R.NODE_TYPE FINAL_GRANTEE_TYPE
+  FROM
+    EFFECTIVE_ROLES_AND_PRIVILEGES_HELPER R,
+    EFFECTIVE_ROLES_AND_PRIVILEGES_HELPER D
+  WHERE
+    R.HIERARCHY_RANK = D.HIERARCHY_ROOT_RANK
+)
+SELECT
+  P.FINAL_GRANTEE GRANTEE,
+  P.GRANTED,
+  P.OBJECT_TYPE,
+  P.PRIVILEGE_DETAILS,
+  P.ROLE_PATH,
+  P.ROLE_SCHEMA_NAME,
+  P.GRANTEE_SCHEMA_NAME GRANTEE_SCHEMA
+FROM
+  BASIS_INFO BI,
+  EFFECTIVE_ROLES_AND_PRIVILEGES P LEFT OUTER JOIN
+  USERS U ON
+    P.FINAL_GRANTEE_TYPE = 'U' AND
+    P.FINAL_GRANTEE = U.USER_NAME
+WHERE
+  P.GRANTEE_SCHEMA_NAME LIKE BI.GRANTEE_SCHEMA_NAME AND
+  P.FINAL_GRANTEE LIKE BI.GRANTEE AND
+  P.FINAL_GRANTEE_TYPE LIKE BI.GRANTEE_TYPE AND
+  P.ROLE_PATH_WRAPPED LIKE '%-> ' || BI.ROLE_NAME || ' ->%' AND
+  ( BI.PRIVILEGE = '%' OR P.NODE_TYPE = 'P' AND P.GRANTED LIKE BI.PRIVILEGE ) AND
+  P.PRIVILEGE_DETAILS LIKE BI.PRIVILEGE_DETAILS AND
+  P.OBJECT_TYPE LIKE BI.OBJECT_TYPE AND
+  ( BI.ONLY_CURRENT_USER = ' ' OR P.FINAL_GRANTEE = CURRENT_USER ) AND
+  ( BI.EXCLUDE_SYSTEM_USERS = ' ' OR ( P.FINAL_GRANTEE NOT IN ('SYS', 'SYSTEM') AND SUBSTR(P.FINAL_GRANTEE, 1, 5) != '_SYS_' ) ) AND
+  ( BI.EXCLUDE_DEACTIVATED_USERS = ' ' OR P.FINAL_GRANTEE_TYPE != 'U' OR
+    U.USER_DEACTIVATED = 'FALSE' AND VALID_FROM <= CURRENT_TIMESTAMP AND ( VALID_UNTIL >= CURRENT_TIMESTAMP OR VALID_UNTIL IS NULL ) ) AND
+  P.HIERARCHY_LEVEL > 1
+ORDER BY
+  P.FINAL_GRANTEE,
+  P.GRANTED,
+  P.ROLE_PATH,
+  P.OBJECT_TYPE,
+  P.PRIVILEGE_DETAILS,
+  P.GRANTEE_SCHEMA_NAME

@@ -1,0 +1,356 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_ABAP_SQLM_Overview
+
+[DESCRIPTION]
+
+- Analysis of SQLM monitoring data
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- SQLMZVDISZ only available in SAP ABAP environments
+- Data only available if SQLM is activated
+- See SAP Note 1885926 for more information related to SQLM.
+- You have to be connected to the SAP<sid> schema otherwise the following error is issued:
+
+  [259]: invalid table name: Could not find table/view SQLMZVDISZ in schema
+
+- If access to ABAP objects is possible but you cannot log on as ABAP user, you can switch the default schema before executing the command:
+
+  SET SCHEMA SAP<sid>
+
+[VALID FOR]
+
+- Revisions:              all
+- Client application:     ABAP
+
+[SQL COMMAND VERSION]
+
+- 2023/06/03:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- SQLMZVDISZ
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TABLE_NAMES
+
+  Comma-separated list of table names
+
+  'TBTCO'               --> Statements only accessing table TBTCO
+  'EKPO,EKKO'           --> Statements accessing both table EKPO and EKKO
+  '%'                   --> No limitation related to table names
+
+- SQL_OPERATION
+
+  SQL operation type
+
+  'Commit'              --> Commit operations
+  'SELECT (Exec SQL)'   --> Selections via exec SQL
+  'SELECT%'             --> All kinds of selections
+  '%'                   --> No limitation related to SQL operation type
+
+- PROGRAM_NAME
+
+  ABAP program name
+
+  'SAPLV70A'            --> Database requests originating from ABAP program SAPLV70A
+  'RS%'                 --> Database requests originating from ABAP programs with names starting with 'RS'
+  '%'                   --> No limitation related to ABAP program name
+
+- ROOT_NAME
+
+  ABAP root name, i.e. global context of executed request
+
+  'SD70AV2A'            --> Database requests related to root SD70AV2A
+  'TRFC%'               --> Database requests related to root names starting with 'TRFC'
+  '%'                   --> No limitation related to ABAP root name
+
+- ABAP_SOURCE
+
+  ABAP source text (fragment)
+
+  'SELECT * FROM%'      --> ABAP sources starting with 'SELECT * FROM'
+  '%FOR UPDATE%'        --> ABAP sources containing 'FOR UPDATE'
+  '%'                   --> No limitation related to ABAP sources
+
+- REQUEST_TYPE
+
+  ABAP request type
+
+  'Batch Job'            --> Display statements related to batch jobs
+  'Remote Function Call' --> Display statements related to remote function calls (RFCs)
+  '%'                    --> No limitation related to ABAP request type
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'PROGRAM, ROOT' --> Aggregation by program name and root name
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'DURATION'       --> Sorting by runtime
+  'TABLES'         --> Sorting by table names
+  
+[OUTPUT PARAMETERS]
+
+- START_TIME:       Start time of considered time interval
+- EXECUTIONS:       Number of executions
+- EXEC_TIME_MS:     Total execution time (ms)
+- TIME_PER_EXEC_MS: Time per execution (ms)
+- REC_PER_EXEC:     Records per execution
+- TABLE_NAMES:      List of accessed table names
+- PROGRAM_NAME:     ABAP program name
+- ROOT_NAME:        ABAP root name
+- SQL_OPERATION:    SQL operation type
+- REQUEST_TYPE:     ABAP request type
+- ABAP_SOURCE:      ABAP source code (fragment)
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|EXECUTIONS|EXEC_TIME_MS|TIME_PER_EXEC_MS|REC_PER_EXEC|TABLE_NAMES|PROGRAM_NAME                  |ROOT_NAME                     |SQL_OPERATION                     |REQUEST_TYPE        |ABAP_SOURCE                                                                                                        |
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|  43016208| 49165415983|         1142.95|        9.11|LIPS       |SAPLV50U                      |SAPMSSY4                      |UPDATE (Open SQL)                 |Submit Report       |UPDATE LIPS FROM TABLE LV_XLIPSU.                                                                                  |
+|   1658706| 22180414638|        13372.11|        1.00|WAKH       |SAPLWAK1                      |WRF_DATA_FOR_REORGANISATION_VB|UPDATE (Open SQL)                 |Remote Function Call|UPDATE WAKH FROM L_WAKH.                                                                                           |
+|  49892184| 20593275529|          412.75|        1.00|DFKKSUMC   |SAPLFKB1                      |FKK_FIKEY_TOTALS_UPDATE_UTASK |SELECT (Open SQL)                 |Update Task         |SELECT SINGLE FOR UPDATE * FROM DFKKSUMC WHERE FIKEY = I_SUM-FIKEY.                                                |
+|  48690712| 16704135423|          343.06|       26.62|VBUP       |SAPLLE_SHP_DB_DELIVERY_BUF_EXE|TRFC_QIN_DEST_SHIP            |SELECT, FOR ALL ENTRIES (Open SQL)|Remote Function Call|SELECT * FROM VBUP INTO TABLE CT_VBUP FOR ALL ENTRIES IN IT_VBUP_KEY_01 WHERE VBELN = IT_VBUP_KEY_01-VBELN.        |
+| 312271020| 12238341058|           39.19|        0.99|MARD       |SAPLMBMM                      |SAPMSSY4                      |UPDATE (Open SQL)                 |Submit Report       |UPDATE MARD SET LABST = LABST + LABST_DIF UMLME = UMLME + UMLME_DIF INSME = INSME + INSME_DIF EINME = EINME + EINME|
+|1136811727|  9202838164|            8.09|        0.16|REPOSRC    |                              |NO ROOTID                     |System (Kernel)                   |Unknown             |                                                                                                                   |
+|9863171925|  8560269853|            0.86|        0.99|TBTCO      |SAPLBTCH                      |WRF_DATA_FOR_REORGANISATION_VB|SELECT (Open SQL)                 |Remote Function Call|SELECT SINGLE * FROM TBTCO INTO JOB_READ_JOBHEAD WHERE JOBNAME = JOB_READ_JOBNAME AND JOBCOUNT = JOB_READ_JOBCOUNT.|
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  START_TIME,
+  LPAD(EXECUTIONS, 11) EXECUTIONS,
+  LPAD(TO_DECIMAL(EXEC_TIME_MS, 12, 0), 12) EXEC_TIME_MS,
+  LPAD(TO_DECIMAL(MAP(EXECUTIONS, 0, 0, EXEC_TIME_MS / EXECUTIONS), 16, 2), 16) TIME_PER_EXEC_MS,
+  LPAD(TO_DECIMAL(MAP(EXECUTIONS, 0, 0, RECORDS / EXECUTIONS), 12, 2), 12) REC_PER_EXEC,
+  TABLE_NAMES,
+  PROGRAM_NAME,
+  ROOT_NAME,
+  SQL_OPERATION,
+  REQUEST_TYPE,
+  ABAP_SOURCE
+FROM
+( SELECT
+    CASE 
+      WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), START_TIME) / SUBSTR(TIME_AGGREGATE_BY, 3)) * SUBSTR(TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(START_TIME, TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END START_TIME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLES')    != 0 THEN S.TABLENAMES    ELSE MAP(BI.TABLE_NAMES,   '%', 'any', BI.TABLE_NAMES)   END TABLE_NAMES,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OPERATION') != 0 THEN S.SQL_OPERATION ELSE MAP(BI.SQL_OPERATION, '%', 'any', BI.SQL_OPERATION) END SQL_OPERATION,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PROGRAM')   != 0 THEN S.PROGNAME      ELSE MAP(BI.PROGRAM_NAME,  '%', 'any', BI.PROGRAM_NAME)  END PROGRAM_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'ROOT')      != 0 THEN S.ROOTNAME      ELSE MAP(BI.ROOT_NAME,     '%', 'any', BI.ROOT_NAME)     END ROOT_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SOURCE')    != 0 THEN S.FRAGMENT      ELSE MAP(BI.ABAP_SOURCE,   '%', 'any', BI.ABAP_SOURCE)   END ABAP_SOURCE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'REQ_TYPE')  != 0 THEN S.REQUEST_TYPE  ELSE MAP(BI.REQUEST_TYPE,  '%', 'any', BI.REQUEST_TYPE)  END REQUEST_TYPE,
+    SUM(S.XCNT) EXECUTIONS,
+    SUM(S.RTSUM) EXEC_TIME_MS,
+    SUM(S.DBSUM) RECORDS,
+    BI.ORDER_BY
+  FROM
+  ( SELECT
+      CASE
+        WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+        WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+        WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+        WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+        WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+        WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+        WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END BEGIN_TIME,
+      CASE
+        WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+        WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+        WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+        WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+        WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+        WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+        WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+        WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+        WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+        WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+        WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END END_TIME,
+      TABLE_NAMES,
+      SQL_OPERATION,
+      PROGRAM_NAME,
+      ROOT_NAME,
+      REQUEST_TYPE,
+      ABAP_SOURCE,
+      AGGREGATE_BY,
+      MAP(TIME_AGGREGATE_BY,
+        'NONE',        'YYYY/MM/DD HH24:MI:SS',
+        'HOUR',        'YYYY/MM/DD HH24',
+        'DAY',         'YYYY/MM/DD (DY)',
+        'HOUR_OF_DAY', 'HH24',
+        TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+      ORDER_BY
+    FROM
+    ( SELECT              /* Modification section */
+        'MIN' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+        '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+        '%' TABLE_NAMES,
+        '%' SQL_OPERATION,
+        '%' PROGRAM_NAME,
+        '%' ROOT_NAME,
+        '%' ABAP_SOURCE,
+        '%' REQUEST_TYPE,
+        'TABLES, PROGRAM, ROOT' AGGREGATE_BY,             /* TIME, TABLES, OPERATION, PROGRAM, ROOT, SOURCE, REQ_TYPE or comma separated combinations, NONE for no aggregation */
+        'NONE' TIME_AGGREGATE_BY,         /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+        'DURATION' ORDER_BY                          /* EXECUTIONS, TIME, DURATION, RECORDS, TABLES, OPERATION, PROGRAM, ROOT, SOURCE, REQ_TYPE */
+      FROM
+        DUMMY
+    )
+  ) BI,
+  ( SELECT
+      ADD_SECONDS(TO_TIMESTAMP('1970/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), UNIXTIMEFROM) START_TIME,
+      MAP(STMTKIND, 
+        '#', 'Prepare',
+        'A', 'CALL (Open SQL)',
+        'B', 'Load Buffer (Open SQL)', 
+        'C', 'Commit',
+        'D', 'DELETE (Open SQL)',
+        'E', 'SELECT, FOR ALL ENTRIES (Open SQL)',
+        'F', 'FETCH (Open SQL)',
+        'H', 'FETCH, FOR ALL ENTRIES (Open SQL)',
+        'I', 'INSERT (Open SQL)',
+        'M', 'MODIFY (Open SQL)',
+        'O', 'Other (ABAP SQL)',
+        'R', 'Rollback',
+        'S', 'SELECT (Open SQL)',
+        'U', 'UPDATE (Open SQL)',
+        'Y', 'System (Kernel)',
+        'a', 'CALL (ADBC)',
+        'd', 'DELETE (Exec SQL)',
+        'e', 'EXPORT TO DB',
+        'f', 'FETCH (Exec SQL)',
+        'i', 'INSERT (Exec SQL)',
+        'o', 'OPEN CURSOR (Exec SQL)',
+        'p', 'EXECUTE PROCEDURE (Exec SQL)',
+        's', 'SELECT (Exec SQL)',
+        't', 'IMPORT FROM DB',
+        'u', 'UPDTAE (Exec SQL)',
+        'x', 'DELETE FROM DB',
+        STMTKIND) SQL_OPERATION,
+      MAP(ROOTTYPE,
+        '-', 'Unknown',
+        'T', 'Transaction',
+        'C', 'Remote Function Call',
+        'U', 'URL',
+        'S', 'Submit Report',
+        'B', 'Batch Job',
+        'V', 'Update Task',
+        'I', 'Unknown',
+        ROOTTYPE) REQUEST_TYPE,
+      *
+    FROM
+      SQLMZVDISZ 
+  ) S
+  WHERE
+    S.START_TIME BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+    S.TABLENAMES LIKE BI.TABLE_NAMES AND
+    S.SQL_OPERATION LIKE BI.SQL_OPERATION AND
+    S.PROGNAME LIKE BI.PROGRAM_NAME AND
+    S.ROOTNAME LIKE BI.ROOT_NAME AND
+    S.FRAGMENT LIKE BI.ABAP_SOURCE AND
+    S.REQUEST_TYPE LIKE BI.REQUEST_TYPE
+  GROUP BY
+    CASE 
+      WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), START_TIME) / SUBSTR(TIME_AGGREGATE_BY, 3)) * SUBSTR(TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(START_TIME, TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLES')    != 0 THEN S.TABLENAMES    ELSE MAP(BI.TABLE_NAMES,   '%', 'any', BI.TABLE_NAMES)   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'OPERATION') != 0 THEN S.SQL_OPERATION ELSE MAP(BI.SQL_OPERATION, '%', 'any', BI.SQL_OPERATION) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PROGRAM')   != 0 THEN S.PROGNAME      ELSE MAP(BI.PROGRAM_NAME,  '%', 'any', BI.PROGRAM_NAME)  END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'ROOT')      != 0 THEN S.ROOTNAME      ELSE MAP(BI.ROOT_NAME,     '%', 'any', BI.ROOT_NAME)     END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SOURCE')    != 0 THEN S.FRAGMENT      ELSE MAP(BI.ABAP_SOURCE,   '%', 'any', BI.ABAP_SOURCE)   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'REQ_TYPE')  != 0 THEN S.REQUEST_TYPE  ELSE MAP(BI.REQUEST_TYPE,  '%', 'any', BI.REQUEST_TYPE)  END,
+    BI.ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'EXECUTIONS', EXECUTIONS, 'DURATION', EXEC_TIME_MS, 'RECORDS', RECORDS) DESC,
+  MAP(ORDER_BY, 'TABLES', TABLE_NAMES, 'OPERATION', SQL_OPERATION, 'PROGRAM', PROGRAM_NAME, 'SOURCE', ABAP_SOURCE, 'REQ_TYPE', REQUEST_TYPE),
+  START_TIME DESC,
+  TABLE_NAMES,
+  SQL_OPERATION

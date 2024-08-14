@@ -1,0 +1,447 @@
+WITH
+
+/* 
+
+[NAME]
+
+- HANA_Connections_Overview_1.00.100+
+
+[DESCRIPTION]
+
+- Overview of current connections
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- NO_JOIN_REMOVAL hint required as workaround for bug 110097 (Rev. 112.02, "Execution flow must not reach here", "scalar subquery is not allowed")
+
+[VALID FOR]
+
+- Revisions:              >= 1.00.100
+
+[SQL COMMAND VERSION]
+
+- 2015/07/15:  1.0 (initial version)
+- 2016/02/19:  1.1 (CLOSE_REASON included)
+- 2016/06/18:  1.2 (TIME_AGGREGATE_BY and BEGIN_TIME included)
+- 2016/06/23:  1.3 (CLIENT_PID included)
+- 2016/08/07:  1.4 (CONNECTION_STATUS included)
+- 2016/11/07:  1.5 (APP information from M_SESSION_CONTEXT included)
+- 2016/12/31:  1.6 (TIME_AGGREGATE_BY = 'TS<seconds>' included)
+- 2017/10/24:  1.7 (TIMEZONE included)
+- 2018/12/04:  1.8 (shortcuts for BEGIN_TIME and END_TIME like 'C', 'E-S900' or 'MAX')
+- 2019/01/21:  1.9 (APP information transformed into more generic SESSION_VARIABLES information)
+- 2019/02/08:  2.0 (ONLY_CONNECTIONS_WITHOUT_APPLICATION_INFO included)
+- 2020/12/14:  2.1 (ONLY_CONNECTIONS_WITH_OUTDATED_CLIENT_VERSION included)
+
+[INVOLVED TABLES]
+
+- M_CONNECTIONS
+- M_SESSION_CONTEXT
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- TIMEZONE
+
+  Used timezone (both for input and output parameters)
+
+  'SERVER'       --> Display times in SAP HANA server time
+  'UTC'          --> Display times in UTC time
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- CLIENT_HOST
+
+  Host name
+
+  'sapclnt01'     --> Specific host sapclnt01
+  'sapclnt%'      --> All hosts starting with sapclnt
+  '%'             --> All hosts
+
+- CONN_ID
+
+  Connection ID
+
+  330655          --> Connection ID 330655
+  -1              --> No connection ID restriction
+
+- CONNECTION_TYPE
+
+  Connection type
+
+  'Remote'        --> Remote connections
+  '%'             --> No restriction related to connection type
+
+- CONNECTION_STATUS
+
+  Connection status
+
+  'IDLE'          --> Connections with status IDLE
+  '%CANCEL%'      --> Connections with status containing 'CANCEL'
+
+- CLOSE_REASON
+
+  Reason for connection close
+
+  'by peer'       --> Only display (history) connections with close reason 'by peer'
+  '%'             --> No restriction related to close reason
+
+- SESSION_VARIABLES
+
+  Session variables ('<name>=<value>')
+
+  '%ABAP:C11%'    --> Session variables containing 'ABAP:C11'
+  '%'             --> No application name restriction
+
+- ONLY_CONNECTIONS_WITHOUT_APPLICATION_INFO
+
+  Possibility to display only sessions without APPLICATION session variable
+
+  'X'             --> Only show sessions without APPLICATION session variable
+  ' '             --> No restriction related to APPLICATION session variable
+
+- ONLY_CONNECTIONS_WITH_OUTDATED_CLIENT_VERSION
+
+  Possibility to display only sessions with a client version older than the current server SPS level
+
+  'X'             --> Only display sessions with a client version older than the current server SPS level
+  ' '             --> No restriction related to client version
+
+- EXCLUDE_HISTORY_CONNECTIONS
+
+  Possibility to exclude information about previously existing connections
+
+  'X'             --> Only show current connections
+  ' '             --> No limitation related to current connections
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'CONNS'         --> Sorting by number of connections
+  'TIME'          --> Sorting by (start) time of connection
+
+[OUTPUT PARAMETERS]
+
+- BEGIN_TIME:        Connection start time
+- HOST:              Host name
+- PORT:              Port
+- SERVICE:           Service name
+- CONN_ID:           Connection ID
+- CONNECTION_TYPE:   Connection type
+- CONNECTION_STATUS: Connection status
+- CLIENT_HOST:       Client host name
+- CLIENT_PID:        Client process ID
+- CONNS:             Total connections
+- CUR_CONNS:         Current connections
+- CLOSE_REASON:      Connection close reason (e.g. 'by peer' or 'due to idle connection timeout')
+- CREATED_BY:        Session creator
+- SESSION_VARIABLES: Session variables (e.g. APPLICATION, APPLICATIONSOURCE or APPLICATIONUSER)
+
+[EXAMPLE OUTPUT]
+
+----------------------------------------------------------------------------------------------------
+|HOST        |PORT |CLIENT_HOST          |CONNECTION_TYPE |NUM_CONNECTIONS|MAX_CONNECTIONS|USED_PCT|
+----------------------------------------------------------------------------------------------------
+|saphana00001|32503|sapr3_c11ap11        |History (remote)|            366|          65536|    0.55|
+|saphana00001|32503|sapr3_c11ap9         |History (remote)|            353|          65536|    0.53|
+|saphana00001|32503|sapr3_c11ap12        |History (remote)|            311|          65536|    0.47|
+|saphana00001|32503|sapr3_c11ap10        |History (remote)|            300|          65536|    0.45|
+|saphana00001|32503|sapr3_c11ap5         |History (remote)|            297|          65536|    0.45|
+|saphana00001|32503|sapr3_c11ap7         |History (remote)|            284|          65536|    0.43|
+|saphana00001|32503|sapr3_c11ap7         |Remote          |            134|          65536|    0.20|
+|saphana00001|32503|sapr3_c11ap5         |Remote          |            133|          65536|    0.20|
+|saphana00001|32503|sapr3_c11ap9         |Remote          |            133|          65536|    0.20|
+|saphana00001|32503|                     |Local           |            132|          65536|    0.20|
+|saphana00001|32503|sapr3_c11ap11        |Remote          |            132|          65536|    0.20|
+|saphana00001|32503|sapr3_c11ap10        |Remote          |            131|          65536|    0.19|
+|saphana00001|32503|sapr3_c11ap12        |Remote          |            129|          65536|    0.19|
+----------------------------------------------------------------------------------------------------
+
+*/
+
+BASIS_INFO AS
+( SELECT
+    CASE
+      WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+      WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+      WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+      WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+      WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+      WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+      WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+      WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+      WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+      WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+      WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+      WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+      WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+    END BEGIN_TIME,
+    CASE
+      WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+      WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+      WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+      WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+      WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+      WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+      WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+      WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+      WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+      WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+      WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+      WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+      WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+    END END_TIME,
+    TIMEZONE,
+    HOST,
+    PORT,
+    SERVICE_NAME,
+    CONN_ID,
+    CONNECTION_TYPE,
+    CONNECTION_STATUS,
+    CLIENT_HOST,
+    CLIENT_PID,
+    CLOSE_REASON,
+    CREATED_BY,
+    SESSION_VARIABLES,
+    ONLY_CONNECTIONS_WITHOUT_APPLICATION_INFO,
+    ONLY_CONNECTIONS_WITH_OUTDATED_CLIENT_VERSION,
+    MAX_VALUE_LENGTH,
+    EXCLUDE_HISTORY_CONNECTIONS,
+    AGGREGATE_BY,
+    MAP(TIME_AGGREGATE_BY,
+      'NONE',        'YYYY/MM/DD HH24:MI:SS',
+      'HOUR',        'YYYY/MM/DD HH24',
+      'DAY',         'YYYY/MM/DD (DY)',
+      'HOUR_OF_DAY', 'HH24',
+      TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+    ORDER_BY
+  FROM
+  ( SELECT                   /* Modification section */
+      '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+      '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+      'SERVER' TIMEZONE,                              /* SERVER, UTC */
+      '%' HOST,
+      '%' PORT,
+      '%' SERVICE_NAME,
+      '%' CLIENT_HOST,
+      -1 CLIENT_PID,
+      -1 CONN_ID,
+      '%' CONNECTION_TYPE,
+      '%' CONNECTION_STATUS,
+      '%' CLOSE_REASON,
+      '%' CREATED_BY,
+      '%' SESSION_VARIABLES,
+      ' ' ONLY_CONNECTIONS_WITHOUT_APPLICATION_INFO,
+      'X' ONLY_CONNECTIONS_WITH_OUTDATED_CLIENT_VERSION,
+      30 MAX_VALUE_LENGTH,
+      'X' EXCLUDE_HISTORY_CONNECTIONS,
+      'NONE' AGGREGATE_BY,                  /* TIME, HOST, PORT, SERVICE, CLIENT_HOST, CLIENT_PID, TYPE, STATUS, CLOSE_REASON, CREATED_BY, SESS_VAR or comma separated combinations, NONE for no aggregation */
+      'NONE' TIME_AGGREGATE_BY,                 /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+      'CONNS' ORDER_BY                          /* TIME, HOST, CONNS */
+    FROM
+      DUMMY
+  )
+)
+SELECT
+  BEGIN_TIME,
+  HOST,
+  LPAD(PORT, 5) PORT,
+  SERVICE_NAME SERVICE,
+  LPAD(CONN_ID, 10) CONN_ID,
+  CONNECTION_TYPE,
+  CONNECTION_STATUS,
+  CLIENT_HOST,
+  LPAD(CLIENT_PID, 10) CLIENT_PID,
+  LPAD(CONNS, 8) CONNS,
+  LPAD(CUR_CONNS, 9) CUR_CONNS,
+  CLOSE_REASON,
+  CREATED_BY,
+  SESSION_VARIABLES
+FROM
+( SELECT
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(C.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE C.START_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(C.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE C.START_TIME END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END BEGIN_TIME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')         != 0 THEN C.HOST                           ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                           END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')         != 0 THEN TO_VARCHAR(C.PORT)               ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                           END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')      != 0 THEN S.SERVICE_NAME                   ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME)           END SERVICE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CLIENT_HOST')  != 0 THEN C.CLIENT_HOST                    ELSE MAP(BI.CLIENT_HOST, '%', 'any', BI.CLIENT_HOST)             END CLIENT_HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CLIENT_PID')   != 0 THEN TO_VARCHAR(C.CLIENT_PID)         ELSE MAP(BI.CLIENT_PID, -1, 'any', TO_VARCHAR(BI.CLIENT_PID))    END CLIENT_PID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CONN_ID')      != 0 THEN TO_VARCHAR(C.CONNECTION_ID)      ELSE MAP(BI.CONN_ID, -1, 'any', TO_VARCHAR(BI.CONN_ID))          END CONN_ID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')         != 0 THEN C.CONNECTION_TYPE                ELSE MAP(BI.CONNECTION_TYPE, '%', 'any', BI.CONNECTION_TYPE)     END CONNECTION_TYPE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STATUS')       != 0 THEN C.CONNECTION_STATUS              ELSE MAP(BI.CONNECTION_STATUS, '%', 'any', BI.CONNECTION_STATUS) END CONNECTION_STATUS,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CLOSE_REASON') != 0 THEN C.CLOSE_REASON                   ELSE MAP(BI.CLOSE_REASON, '%', 'any', BI.CLOSE_REASON)           END CLOSE_REASON,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CREATED_BY')   != 0 THEN C.CREATED_BY                     ELSE MAP(BI.CREATED_BY, '%', 'any', BI.CREATED_BY)               END CREATED_BY,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SESS_VAR')     != 0 THEN IFNULL(SC.SESSION_VARIABLES, '') ELSE MAP(BI.SESSION_VARIABLES, '%', 'any', BI.SESSION_VARIABLES) END SESSION_VARIABLES,
+    COUNT(*) CONNS,
+    SUM(CASE WHEN C.CONNECTION_ID < 0 THEN 0 ELSE 1 END) CUR_CONNS,
+    BI.ONLY_CONNECTIONS_WITHOUT_APPLICATION_INFO,
+    BI.ORDER_BY
+  FROM
+    BASIS_INFO BI INNER JOIN
+    M_SERVICES S ON
+      S.HOST LIKE BI.HOST AND
+      TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+      S.SERVICE_NAME LIKE BI.SERVICE_NAME INNER JOIN
+    M_CONNECTIONS C ON
+      ( CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(C.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE C.START_TIME END BETWEEN BI.BEGIN_TIME AND BI.END_TIME OR
+        CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(IFNULL(C.END_TIME, CURRENT_TIMESTAMP), SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE IFNULL(C.END_TIME, CURRENT_TIMESTAMP) END BETWEEN BI.BEGIN_TIME AND BI.END_TIME OR
+        CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(C.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE C.START_TIME END < BI.BEGIN_TIME AND CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(IFNULL(C.END_TIME, CURRENT_TIMESTAMP), SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE IFNULL(C.END_TIME, CURRENT_TIMESTAMP) END > BI.END_TIME 
+      ) AND
+      C.HOST LIKE BI.HOST AND
+      C.PORT = S.PORT AND
+      C.HOST = S.HOST AND
+      C.CLIENT_HOST LIKE BI.CLIENT_HOST AND
+      ( BI.CLIENT_PID = -1 OR C.CLIENT_PID = BI.CLIENT_PID ) AND
+      ( BI.CONN_ID = -1 OR C.CONNECTION_ID = BI.CONN_ID ) AND
+      UPPER(IFNULL(C.CONNECTION_STATUS, '')) LIKE UPPER(BI.CONNECTION_STATUS) AND
+      UPPER(C.CONNECTION_TYPE) LIKE UPPER(BI.CONNECTION_TYPE) AND
+      C.CLOSE_REASON LIKE BI.CLOSE_REASON AND
+      C.CREATED_BY LIKE BI.CREATED_BY AND
+      ( BI.EXCLUDE_HISTORY_CONNECTIONS = ' ' OR C.CONNECTION_ID >= 0 ) LEFT OUTER JOIN
+   ( SELECT
+       SC.HOST,
+       SC.PORT,
+       SC.CONNECTION_ID,
+       MIN(CASE WHEN SC.KEY LIKE 'DRIVERVERSION' AND SC.VALUE LIKE '_.%.%' THEN SUBSTR(SC.VALUE, 1, LOCATE(SC.VALUE, '.', 1, 2) - 1) ELSE '999' END) CLIENT_VERSION,
+       STRING_AGG(SC.KEY || '=' || MAP(BI.MAX_VALUE_LENGTH, -1, SC.VALUE, SUBSTR(SC.VALUE, 1, BI.MAX_VALUE_LENGTH) || CASE WHEN BI.MAX_VALUE_LENGTH < LENGTH(SC.VALUE) THEN '...' ELSE '' END), ', ' ORDER BY SC.KEY) SESSION_VARIABLES
+     FROM
+       BASIS_INFO BI,
+       M_SESSION_CONTEXT SC
+     GROUP BY
+       SC.HOST,
+       SC.PORT,
+       SC.CONNECTION_ID
+    ) SC ON
+      SC.HOST = C.HOST AND
+      SC.PORT = C.PORT AND
+      SC.CONNECTION_ID = C.CONNECTION_ID INNER JOIN
+    ( SELECT 
+        SUBSTR(VERSION, 1, 1) || '.' || LPAD(FLOOR(SUBSTR(VERSION, LOCATE(VERSION, '.', 1, 2) + 1, LOCATE(VERSION, '.', 1, 3) - LOCATE(VERSION, '.', 1, 2) - 1) / 10), 2, '0') SERVER_VERSION
+      FROM
+        M_DATABASE
+    ) D ON
+      BI.ONLY_CONNECTIONS_WITH_OUTDATED_CLIENT_VERSION = ' ' OR
+      IFNULL(SC.CLIENT_VERSION, '999') < D.SERVER_VERSION
+    WHERE
+      IFNULL(SC.SESSION_VARIABLES, '') LIKE BI.SESSION_VARIABLES
+  GROUP BY
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(C.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE C.START_TIME END) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(CASE BI.TIMEZONE WHEN 'UTC' THEN ADD_SECONDS(C.START_TIME, SECONDS_BETWEEN(CURRENT_TIMESTAMP, CURRENT_UTCTIMESTAMP)) ELSE C.START_TIME END, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')         != 0 THEN C.HOST                           ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                           END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')         != 0 THEN TO_VARCHAR(C.PORT)               ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                           END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')      != 0 THEN S.SERVICE_NAME                   ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME)           END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CLIENT_HOST')  != 0 THEN C.CLIENT_HOST                    ELSE MAP(BI.CLIENT_HOST, '%', 'any', BI.CLIENT_HOST)             END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CLIENT_PID')   != 0 THEN TO_VARCHAR(C.CLIENT_PID)         ELSE MAP(BI.CLIENT_PID, -1, 'any', TO_VARCHAR(BI.CLIENT_PID))    END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CONN_ID')      != 0 THEN TO_VARCHAR(C.CONNECTION_ID)      ELSE MAP(BI.CONN_ID, -1, 'any', TO_VARCHAR(BI.CONN_ID))          END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')         != 0 THEN C.CONNECTION_TYPE                ELSE MAP(BI.CONNECTION_TYPE, '%', 'any', BI.CONNECTION_TYPE)     END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STATUS')       != 0 THEN C.CONNECTION_STATUS              ELSE MAP(BI.CONNECTION_STATUS, '%', 'any', BI.CONNECTION_STATUS) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CLOSE_REASON') != 0 THEN C.CLOSE_REASON                   ELSE MAP(BI.CLOSE_REASON, '%', 'any', BI.CLOSE_REASON)           END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CREATED_BY')   != 0 THEN C.CREATED_BY                     ELSE MAP(BI.CREATED_BY, '%', 'any', BI.CREATED_BY)               END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SESS_VAR')     != 0 THEN IFNULL(SC.SESSION_VARIABLES, '') ELSE MAP(BI.SESSION_VARIABLES, '%', 'any', BI.SESSION_VARIABLES) END,
+    BI.ONLY_CONNECTIONS_WITHOUT_APPLICATION_INFO,
+    BI.ORDER_BY
+)
+WHERE
+( ONLY_CONNECTIONS_WITHOUT_APPLICATION_INFO = ' ' OR
+  ONLY_CONNECTIONS_WITHOUT_APPLICATION_INFO = 'X' AND ( SESSION_VARIABLES NOT LIKE '%APPLICATION=%' OR SESSION_VARIABLES LIKE '%APPLICATION=,%' ) )
+ORDER BY
+  MAP(ORDER_BY, 'TIME', BEGIN_TIME) DESC,
+  MAP(ORDER_BY, 'CONNS', CONNS) DESC,
+  HOST,
+  PORT
+WITH HINT (NO_JOIN_REMOVAL)

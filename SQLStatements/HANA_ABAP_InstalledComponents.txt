@@ -1,0 +1,213 @@
+WITH 
+
+/* 
+
+[NAME]
+
+- HANA_ABAP_InstalledComponents
+
+[DESCRIPTION]
+
+- Overview of installed ABAP components
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Tables CVERS, PAT03, PRDVERS and STACKHDR only available in SAP ABAP environments
+- You have to be connected to the SAP<sid> schema otherwise the following error is issued:
+
+  [259]: invalid table name: Could not find table/view PRDVERS in schema
+
+- If access to ABAP objects is possible but you cannot log on as ABAP user, you can switch the default schema before executing the command:
+
+  SET SCHEMA SAP<sid>
+
+[VALID FOR]
+
+- Revisions:              all
+- Client application:     ABAP
+
+[SQL COMMAND VERSION]
+
+- 2020/07/19:  1.0 (initial version)
+- 2020/09/15:  1.1 (SP_LEVEL included)
+- 2020/11/29:  1.2 (EXCLUDE_SUB_COMPONENTS included)
+- 2021/11/10:  1.3 (significant redesign)
+- 2021/12/03:  1.4 (SP included)
+- 2022/09/30:  1.5 (AVERS removed, now PAT03 and STACKHEADR used)
+
+[INVOLVED TABLES]
+
+- CVERS
+- PAT03
+- PRDVERS
+- STACKHDR
+
+[INPUT PARAMETERS]
+
+- COMPONENT
+
+  Installed component
+
+  'SAP_BASIS'     --> Show details for installed component SAP_BASIS
+  'PI%'           --> Show details for installed components starting with "PI"
+  '%'             --> No restriction related to installed component
+
+- RELEASE
+
+  Component release
+
+  '750'           --> Show components with release 750
+  '%'             --> No restriction related installed release
+
+- SP_LEVEL
+
+  Support package level
+
+  '0017'          --> Support package level 0017
+  '%'             --> No restriction related to support package level
+
+- DESCRIPTION
+
+  Component description
+
+  'Basis Plug-In' --> Show components with description "Basis Plug-In"
+  'DMIS%'         --> Show components with descriptions starting with "DMIS"
+  '%'             --> No restriction related to component description
+
+- SKIP_PREVIOUS_RELEASES
+
+  Possibility to skip older releases meanwhile replaced with a newer version
+
+  'X'             --> Only show most recent release of a component
+  ' '             --> Also show previously installed releases of a component
+
+- EXCLUDE_SUB_COMPONENTS
+
+  Possibility to exclude sub components
+
+  'X'             --> Only display main components
+  ' '             --> No restriction related to sub components
+  
+[OUTPUT PARAMETERS]
+
+- COMPONENT:   Component name
+- RELEASE:     Component release
+- SP_LEVEL:    Component support package level
+- DESCRIPTION: Component description
+- START_TIME:  Component installation time
+- END_TIME:    Component end installation time / last check time
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------------------------------------------
+|NAME                          |VERSION             |SP               |DESCRIPTION                              |INSTALL_TIME       |
+-------------------------------------------------------------------------------------------------------------------------------------
+|EHP3 FOR SAP SCM 7.0          |EHP3 FOR SAP SCM 7.0|22 (03/2021)     |EHP3 FOR SAP SCM 7.0                     |2021/10/24 00:03:36|
+|SAP GRC ACCESS CONTROL        |11                  |27 (11/2020)     |SAP ACCESS CONTROL 10.1                  |2021/10/24 00:03:36|
+|SAP GRC PROCESS CONTROL       |11                  |27 (11/2020)     |SAP PROCESS CONTROL 10.1                 |2021/10/24 00:03:36|
+|SAP LANDSCAPE MGMT ENTERPRISES|1.0                 |04 (09/2012)     |SAP NW LANDSC VIRT MGT ENT 1.0           |2018/10/20 17:43:36|
+|SAP NETWEAVER                 |7.4                 |25 (12/2020)     |SAP NETWEAVER 7.4                        |2021/10/24 00:03:36|
+|SAP SCM                       |7.0                 |23 (01/2021)     |SAP SCM 7.0                              |2021/10/24 00:03:36|
+|SAP TDMS 4.0                  |SAP TDMS 4.0        |SPS 20 (02/2021) |SAP TDMS 4.0                             |2021/10/24 00:03:36|
+|SLT                           |2.0                 |SP20 (02/2021) SP|SAP LT REPLICATION SERVER 2.0            |2021/10/24 00:03:36|
+|                              |                    |                 |                                         |                   |
+|BI_CONT                       |747                 |0034             |BI_CONT 747: Support Package 0034        |2021/10/24 00:03:26|
+|DMIS                          |2011_1_731          |0021             |DMIS 2011_1_731: SP 0021                 |2022/03/12 20:15:11|
+|DMIS_CNT                      |2011_1_731          |0021             |DMIS_CNT 2011_1_731: SP 0021             |2022/03/12 20:15:12|
+|EA-IPPE                       |400                 |0033             |SP 33 for EA-IPPE 4.00                   |2021/10/24 00:03:15|
+|GRCFND_A                      |V1100               |0027             |GRCFND_A V1100: SP 0027                  |2021/03/13 20:52:47|
+|GRCPINW                       |V1100_731           |0028             |GRCPINW V1100_731: SP 0028               |2021/03/13 20:52:48|
+...
+-------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+BASIS_INFO AS
+( SELECT                    /* Modification section */
+    '%' NAME,
+    '%' VERSION,
+    '%' DESCRIPTION,
+    'X' SKIP_PREVIOUS_RELEASES,
+    'X' EXCLUDE_SUB_COMPONENTS
+  FROM
+    DUMMY
+)
+SELECT
+  NAME,
+  VERSION,
+  SP,
+  DESCRIPTION,
+  INSTALL_TIME
+FROM
+( SELECT
+    LINE_NO LINE_NO,
+    NAME,
+    VERSION,
+    SP,
+    DESCRIPTION,
+    INSTALL_TIME
+  FROM
+  ( SELECT
+      ROW_NUMBER () OVER (ORDER BY P.NAME, P. VERSION) LINE_NO,
+      ROW_NUMBER () OVER (PARTITION BY P.NAME ORDER BY S.INST_DATE || S.INST_TIME DESC) LINE_NO_2,
+      P.NAME NAME,
+      P.VERSION VERSION,
+      IFNULL(S.DESCRIPT, '') SP,
+      P.DESCRIPT DESCRIPTION,
+      TO_VARCHAR(TO_TIMESTAMP(S.INST_DATE || S.INST_TIME, 'YYYYMMDDHH24MISS'), 'YYYY/MM/DD HH24:MI:SS') INSTALL_TIME,
+      BI.SKIP_PREVIOUS_RELEASES
+    FROM
+      BASIS_INFO BI,
+      PRDVERS P LEFT OUTER JOIN
+      STACKHEADR S ON
+        S.PROD_ID = P.ID
+    WHERE
+      P.NAME LIKE BI.NAME AND
+      P.VERSION LIKE BI.VERSION AND
+      P.DESCRIPT LIKE BI.DESCRIPTION AND
+	  P.INSTSTATUS = '+'
+  )
+  WHERE
+    ( SKIP_PREVIOUS_RELEASES = ' ' OR  LINE_NO_2 = 1  )
+  UNION ALL
+    SELECT 999, '', '', '', '', '' FROM DUMMY
+  UNION ALL
+  SELECT
+    2000 + LINE_NO LINE_NO,
+    NAME,
+    VERSION,
+    SP,
+    DESCRIPTION,
+    INSTALL_TIME
+  FROM
+  ( SELECT
+      ROW_NUMBER () OVER (ORDER BY C.COMPONENT, C.RELEASE) LINE_NO,
+      ROW_NUMBER () OVER (PARTITION BY C.COMPONENT ORDER BY P.IMPLE_DATE || P.IMPLE_TIME || P.DELIV_DATE || P.DELIV_TIME DESC) LINE_NO_2,
+      C.COMPONENT NAME,
+      C.RELEASE VERSION,
+      MAP(IFNULL(P.TO_REL, ''), '', IFNULL(C.EXTRELEASE, ''), IFNULL(P.TO_REL, '')) SP,
+      P.SHORT_TEXT DESCRIPTION,
+      TO_VARCHAR(TO_TIMESTAMP(P.IMPLE_DATE || P.IMPLE_TIME, 'YYYYMMDDHH24MISS'), 'YYYY/MM/DD HH24:MI:SS') INSTALL_TIME,
+      BI.SKIP_PREVIOUS_RELEASES
+    FROM
+      BASIS_INFO BI,
+      CVERS C LEFT OUTER JOIN
+      ( SELECT ADDON_ID COMP, ADDON_REL RELEASE, SHORT_TEXT, IMPLE_DATE, IMPLE_TIME, DELIV_DATE, DELIV_TIME, TO_REL FROM PAT03 UNION ALL
+        SELECT COMPONENT COMP, COMP_REL RELEASE, SHORT_TEXT, IMPLE_DATE, IMPLE_TIME, DELIV_DATE, DELIV_TIME, TO_REL FROM PAT03
+      ) P ON
+        C.COMPONENT = P.COMP AND C.RELEASE = P.RELEASE
+    WHERE
+      C.COMPONENT LIKE BI.NAME AND
+      C.RELEASE LIKE BI.VERSION AND
+      P.SHORT_TEXT LIKE BI.DESCRIPTION AND
+      ( BI.EXCLUDE_SUB_COMPONENTS = ' ' OR UPPER(SUBSTR(P.SHORT_TEXT, 1, 10)) NOT IN ('SUB COMPON', 'SUBCOMPONE') )
+  )
+  WHERE
+    ( SKIP_PREVIOUS_RELEASES = ' ' OR LINE_NO_2 = 1  )
+)
+ORDER BY
+  LINE_NO

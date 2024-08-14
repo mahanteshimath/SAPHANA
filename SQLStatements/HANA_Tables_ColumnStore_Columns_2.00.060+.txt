@@ -1,0 +1,661 @@
+SELECT
+/* 
+
+[NAME]
+
+HANA_Tables_ColumnStore_Columns_2.00.060+
+
+[DESCRIPTION]
+
+- Provides information for columns located in column store
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- M_CS_ALL_COLUMN_STATISTICS available with SAP HANA >= 2.00.030
+- M_CS_ALL_COLUMNS.PERSISTENT_MEMORY_SIZE_IN_TOTAL available with SAP HANA >= 2.00.030
+- M_CS_ALL_COLUMNS.NUMA_NODE_INDEX available with SAP HANA >= 2.00.040
+- Columns MOST_SELECTIVE_COLUMN_NAME and INVERTED_INDIVIDUAL_COST of M_CS_INDEXES available with SAP HANA >= 2.0 SPS 06
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.060
+
+[SQL COMMAND VERSION]
+
+- 2014/03/13:  1.0 (initial version)
+- 2014/04/02:  1.1 (NUM_DISTINCT included)
+- 2014/07/09:  1.2 (LOADED added)
+- 2014/10/20:  1.3 (OBJECT_LEVEL added)
+- 2015/01/17:  1.4 (FULLTEXT_INDEXES included)
+- 2015/07/21:  1.5 (EXCLUDE_PK_AND_UNIQUE included)
+- 2017/03/21:  1.6 (LAST_LOAD_TIME included)
+- 2018/12/17:  1.7 (dedicated 2.00.030+ version including M_CS_ALL_COLUMN_STATISTICS)
+- 2019/03/16:  1.8 (PERSISTENT_MEMORY included)
+- 2019/06/05:  1.9 (persistent memory details considered)
+- 2019/06/26:  2.0 (COLUMN_NAME filter added)
+- 2019/11/03:  2.1 (ONLY_PK_AND_UNIQUE added)
+- 2020/09/24:  2.2 (dedicated 2.00.040+ version including NUMA node information, PART_ID filter added)
+- 2020/10/01:  2.3 (PERSISTENCY_TYPE and LOAD_UNIT added)
+- 2020/12/05:  2.4 (MEM_PAGED_MB added)
+- 2021/06/15:  2.5 (DISK_MB and DISK_PAGE_MB added)
+- 2022/05/30:  2.6 (MIN_TOTAL_MEM_SIZE_MB included)
+- 2022/10/13:  2.7 (USED_FOR filter included)
+- 2022/10/21:  2.8 (dedicated 2.00.060+ version including MOST_SELECTIVE_COLUMN_NAME and INVERTED_INDIVIDUAL_COST)
+
+[INVOLVED TABLES]
+
+- CS_JOIN_CONDITIONS
+- CONSTRAINTS
+- INDEX_COLUMNS
+- INDEXES
+- M_CS_ALL_COLUMNS
+- M_CS_ALL_COLUMN_STATISTICS
+- M_CS_COLUMNS_PERSISTENCE
+- M_CS_INDEXES
+- TABLE_COLUMNS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- COLUMN_NAME
+
+  Column name
+
+  'MATNR'         --> Column MATNR
+  'Z%'            --> Columns starting with "Z"
+  '%'             --> No restriction related to columns
+
+- PART_ID
+
+  Partition number
+
+  2               --> Only show information for partition number 2
+  -1              --> No restriction related to partition number
+
+- DATA_TYPE
+
+  Column data type
+
+  'NCLOB'         --> Type 'NCLOB'
+  '%LOB%'         --> All types containing 'LOB'
+  '%'             --> All types
+
+- COLUMN_NAME_LENGTH_LIMIT
+
+  Maximum length of displayed column name (truncation if name is longer)
+
+  40              --> Display a maximum of 40 characters of column name
+  -1              --> Display complete column names
+
+- ATTRIBUTE_TYPE
+
+  Column attribute type
+
+  'ROWID'         --> Restriction to columns with internal attribute type 'ROWID'
+  'TREX%'         --> Restriction to columns with internal attribute type starting with 'TREX'
+  '%'             --> No restriction by internal attribute type
+
+- LOADED
+
+  Column memory load state
+
+  'TRUE'          --> Column loaded into memory
+  'FALSE'         --> Columns not loaded into memory
+  '%'             --> No restriction related to column load state
+
+- LOAD_UNIT
+
+  Column load unit
+
+  'COLUMN'        --> Load unit COLUMN (i.e. loading of complete column)
+  'PAGE'          --> Load unit PAGE (i.e. page-wise loads)
+
+- PAGEABLE
+
+  Restriction to pageable / non-pageable columns (paged attributes, see SAP Note 1871386)
+
+  'YES'           --> Only show columns that can be defined as paged attributes
+  'NO'            --> Only show columns that cannot be defined as paged attributes
+  '%'             --> No restriction related to paged attributes
+
+- PERSISTENT_MEMORY
+
+  Utilization of persistent memory (SAP Note 2700084)
+
+  'TRUE'          --> Only show tables using persistent memory
+  'FALSE'         --> Only show tables not using persistent memory
+  '%'             --> No restriction related to persistent memory
+
+- PERSISTENCE_TYPE
+
+  Persistence type of column
+
+  'SINGLE'        --> Persistence type SINGLE
+  'VIRTUAL_FILE'  --> Persistence type VIRTUAL_FILE
+  '%'             --> No restriction related to persistence type
+
+- USED_FOR
+
+  Usage of concat attributes (e.g. indexes, views)
+
+  'Index:%'       --> Concat attributes used for indexes
+  '%'             --> No restriction related to concat attribute usage
+
+- ONLY_INTERNAL_COLUMNS
+
+  Activates / deactivates restriction to internal columns
+
+  'X'             --> Only internal columns (typically starting with '$') are considered
+  ' '             --> All columns are considered
+
+- EXCLUDE_PK_AND_UNIQUE
+
+  Possibility to exclude columns related to primary keys and unique indexes
+
+  'X'             --> Exclude columns related to primary keys and unique indexes
+  ' '             --> No restriction related to primary keys and unique indexes
+
+- ONLY_PK_AND_UNIQUE
+
+  Possibility to restrict output to columns related to primary keys and unique indexes
+
+  'X'             --> Only display (concat) columns related to primary keys and unique indexes
+  ' '             --> No restriction related to primary keys and unique indexes
+
+- MIN_MEM_SIZE_MB
+
+  Minimum memory size (MB)
+
+  10              --> Only consider results with a memory size of at least 10 MB
+  -1              --> No restriction related to minimum memory size
+
+- MIN_TOTAL_SIZE_MB
+
+  Minimum total (i.e. final) memory size (MB)
+
+  10              --> Only consider results with a total memory size of at least 10 MB
+  -1              --> No restriction related to minimum total memory size
+
+- ONLY_UNUSED_CONCAT_ATTRIBUTES
+
+  Possibility to restrict the output to concat attributes that were not accessed as part of a statement execution since HANA restart
+
+  'X'             --> Only show concat attributes (i.e. multi-column indexes) that are not used so far
+  ' '             --> No restriction related to concat attributes
+
+- GENERATE_DROP_CONCAT_ATT_COMMAND
+
+  Activates / deactivates the generation of a DROP command for potentially droppable concat attributes (SAP Note 1986747)
+
+  'X'             --> Drop command is generated for potentially droppable concat attributes
+  ' '             --> No drop commands are generated
+
+- OBJECT_LEVEL
+
+  Controls display of partitions
+
+  'PARTITION'     --> Result is shown on partition level
+  'TABLE'         --> Result is shown on table level
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort order
+
+  'SIZE'          --> Sorting by size (available values are provided in comment)
+  'TABLE'         --> Sorting by table name
+
+- RESULT_ROWS
+
+  Number of records to be returned by the query
+
+  100             --> Return a maximum number of 100 records
+  -1              --> Return all records
+
+[OUTPUT PARAMETERS]
+
+- HOST:            Host name
+- PORT:            Port
+- SERVICE:         Service name
+- SCHEMA_NAME:     Schema name
+- TABLE_NAME:      Table name
+- COLUMN_NAME:     Column name
+- NUMA:            NUMA node
+- NUM_COLS:        Number of columns
+- NUM_DISTINCT:    Distinct values
+- COMPRESSION:     Column compression type
+- DATA_TYPE:       Column data type
+- ATTRIBUTE_TYPE:  Column attribute type
+- LOADED:          TRUE if column is loaded into memory, otherwise FALSE
+- PAGEABLE:        Indicates if column can be set up as paged attribute or not
+- LOAD_UNIT:       Column load unit
+- PERS_TYPE:       Column persistence type
+- USED_FOR:        Reason of (internal) column
+- MEM_TOTAL_MB:    Total column size in memory (MB)
+- MEM_INDEX_MB:    Index column size in memory (MB)
+- MEM_PERS_MB:     Persistent memory size (MB)
+- MEM_PAGED_MB:    Paged memory size (MB)
+- DISK_MB:         Disk size (MB)
+- DISK_PAGED_MB:   Paged disk size (MB)
+- SCANNED_RECORDS: Number of scanned records
+- INDEX_LOOKUPS:   Number of index lookups
+- LAST_LOAD_TIME:  Timestamp of last column load
+- SEL_COL_NAME:    Most selective column name for inverted individual index
+- INDIV_COSTS:     Inverted individual index costs
+- COMMENT:         Column comment
+- DROP_COMMAND:    Command to drop a potentially droppable concat attribute
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|HOST     |SERVICE_NAME|SCHEMA_NAME|TABLE_NAME|COLUMN_NAME      |NUM_DISTINCT|DATA_TYPE|ATTRIBUTE_TYPE   |LOADED|PAGEABLE|USED_FOR                         |MEM_SIZE_MB|DROP_COMMAND|
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|saphana21|indexserver |SAPECC     |DBSTATC   |$trexexternalkey$|         504|         |TREX_EXTERNAL_KEY|TRUE  |NO      |Index _SYS_TREE_CS_#173463_#0_#P0|       0.01|            |
+|saphana21|indexserver |SAPECC     |DBSTATC   |DBOBJ            |         498|NVARCHAR |                 |TRUE  |NO      |                                 |       0.00|            |
+|saphana21|indexserver |SAPECC     |DBSTATC   |DBTYP            |           3|NVARCHAR |                 |TRUE  |NO      |                                 |       0.00|            |
+|saphana21|indexserver |SAPECC     |DBSTATC   |DOTYP            |           1|NVARCHAR |                 |TRUE  |NO      |                                 |       0.00|            |
+|saphana21|indexserver |SAPECC     |DBSTATC   |OBJOW            |           1|NVARCHAR |                 |TRUE  |NO      |                                 |       0.00|            |
+|saphana21|indexserver |SAPECC     |DBSTATC   |$trex_udiv$      |          -1|         |TREX_UDIV        |FALSE |NO      |                                 |       0.00|            |
+|saphana21|indexserver |SAPECC     |DBSTATC   |ACTIV            |           3|NVARCHAR |                 |TRUE  |YES     |                                 |       0.00|            |
+|saphana21|indexserver |SAPECC     |DBSTATC   |$rowid$          |         505|         |ROWID            |TRUE  |NO      |                                 |       0.00|            |
+|saphana21|indexserver |SAPECC     |DBSTATC   |AEDAT            |          -1|NVARCHAR |                 |FALSE |YES     |                                 |       0.00|            |
+|saphana21|indexserver |SAPECC     |DBSTATC   |AMETH            |          -1|NVARCHAR |                 |FALSE |YES     |                                 |       0.00|            |
+|saphana21|indexserver |SAPECC     |DBSTATC   |DURAT            |          -1|NVARCHAR |                 |FALSE |YES     |                                 |       0.00|            |
+|saphana21|indexserver |SAPECC     |DBSTATC   |HISTO            |          -1|NVARCHAR |                 |FALSE |YES     |                                 |       0.00|            |
+|saphana21|indexserver |SAPECC     |DBSTATC   |OBJEC            |          -1|NVARCHAR |                 |FALSE |YES     |                                 |       0.00|            |
+|saphana21|indexserver |SAPECC     |DBSTATC   |OPTIO            |          -1|NVARCHAR |                 |FALSE |YES     |                                 |       0.00|            |
+|saphana21|indexserver |SAPECC     |DBSTATC   |PLAND            |          -1|NVARCHAR |                 |FALSE |YES     |                                 |       0.00|            |
+|saphana21|indexserver |SAPECC     |DBSTATC   |TDDAT            |          -1|NVARCHAR |                 |FALSE |YES     |                                 |       0.00|            |
+|saphana21|indexserver |SAPECC     |DBSTATC   |TOBDO            |          -1|NVARCHAR |                 |FALSE |YES     |                                 |       0.00|            |
+|saphana21|indexserver |SAPECC     |DBSTATC   |VWTYP            |          -1|NVARCHAR |                 |FALSE |YES     |                                 |       0.00|            |
+|saphana21|indexserver |SAPECC     |DBSTATC   |SIGNI            |          -1|SMALLINT |                 |FALSE |YES     |                                 |       0.00|            |
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  PORT,
+  SERVICE_NAME SERVICE,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  COLUMN_NAME,
+  LPAD(NUMA_NODE, 4) NUMA,
+  LPAD(NUM_COLUMNS, 8) NUM_COLS,
+  NUM_DISTINCT,
+  COMPRESSION,
+  DATA_TYPE,
+  ATTRIBUTE_TYPE,
+  LOADED,
+  PAGEABLE,
+  LOAD_UNIT,
+  PERSISTENCE_TYPE PERS_TYPE,
+  USED_FOR,
+  LPAD(TO_DECIMAL(MEM_TOTAL_MB, 11, 2), 12) MEM_TOTAL_MB,
+  LPAD(TO_DECIMAL(MEM_INDEX_MB, 11, 2), 12) MEM_INDEX_MB,
+  LPAD(TO_DECIMAL(MEM_PERS_MB, 11, 2), 11) MEM_PERS_MB,
+  LPAD(TO_DECIMAL(MEM_PAGED_MB, 12, 2), 12) MEM_PAGED_MB,
+  LPAD(TO_DECIMAL(DISK_MB, 10, 2), 10) DISK_MB,
+  LPAD(TO_DECIMAL(DISK_PAGE_MB, 12, 2), 12) DISK_PAGE_MB,
+  LPAD(SCANNED_RECORDS, 17) SCANNED_RECORDS,
+  LPAD(INDEX_LOOKUPS, 13) INDEX_LOOKUPS,
+  TO_CHAR(LAST_LOAD_TIME, 'YYYY/MM/DD HH24:MI:SS') LAST_LOAD_TIME,
+  SEL_COL_NAME,
+  LPAD(INDIV_COSTS, 11) INDIV_COSTS,
+  COMMENT,
+  DROP_COMMAND
+FROM
+( SELECT
+    HOST,
+    PORT,
+    SERVICE_NAME,
+    SCHEMA_NAME,
+    TABLE_NAME,
+    MAP(COLUMN_NAME_LENGTH_LIMIT, -1, COLUMN_NAME, SUBSTR(COLUMN_NAME, 1, COLUMN_NAME_LENGTH_LIMIT) ||
+      CASE WHEN LENGTH(COLUMN_NAME) > COLUMN_NAME_LENGTH_LIMIT THEN '...' ELSE '' END) COLUMN_NAME,
+    NUM_COLUMNS,
+    NUM_DISTINCT,
+    NUMA_NODE,
+    COMPRESSION,
+    DATA_TYPE,
+    IFNULL(ATTRIBUTE_TYPE, '') ATTRIBUTE_TYPE,
+    LOADED,
+    IFNULL(LOAD_UNIT, '') LOAD_UNIT,
+    LAST_LOAD_TIME,
+    PAGEABLE,
+    IFNULL(PERSISTENCE_TYPE, '') PERSISTENCE_TYPE,
+    MEM_TOTAL_MB,
+    MEM_INDEX_MB,
+    MEM_PERS_MB,
+    MEM_PAGED_MB,
+    DISK_MB,
+    DISK_PAGE_MB,
+    SCANNED_RECORDS,
+    INDEX_LOOKUPS,
+    COMMENT,
+    USED_FOR,
+    SEL_COL_NAME,
+    INDIV_COSTS,
+    CASE
+      WHEN ATTRIBUTE_TYPE = 'CONCAT_ATTRIBUTE' AND USED_FOR NOT LIKE 'Index %' AND USED_FOR NOT LIKE 'View %' AND 
+        USED_FOR NOT LIKE 'Unique index %' AND GENERATE_DROP_CONCAT_ATT_COMMAND = 'X' THEN
+        'ALTER TABLE "' || SCHEMA_NAME || '"."' || TABLE_NAME || '" WITH PARAMETERS (' || CHAR(39) || 'DELETE_CONCAT_ATTRIBUTE' || 
+        CHAR(39) || '=' || CHAR(39) || COLUMN_NAME || CHAR(39) || ')' || CHAR(59)
+      ELSE
+        ''
+      END DROP_COMMAND,
+    ROW_NUMBER () OVER (ORDER BY MAP(ORDER_BY, 'SIZE', MEM_TOTAL_MB, 1) DESC, MAP(ORDER_BY, 'TABLE', TABLE_NAME), COLUMN_NAME) ROW_NUM,
+    MIN_TOTAL_MEM_SIZE_MB,
+    RESULT_ROWS
+  FROM
+  ( SELECT
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')        != 0 THEN HOST                  ELSE MAP(BI_HOST, '%', 'any', BI_HOST)                           END HOST,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')        != 0 THEN TO_VARCHAR(PORT)      ELSE MAP(BI_PORT, '%', 'any', BI_PORT)                           END PORT,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SERVICE')     != 0 THEN SERVICE_NAME          ELSE MAP(BI_SERVICE_NAME, '%', 'any', BI_SERVICE_NAME)           END SERVICE_NAME,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SCHEMA')      != 0 THEN SCHEMA_NAME           ELSE MAP(BI_SCHEMA_NAME, '%', 'any', BI_SCHEMA_NAME)             END SCHEMA_NAME,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TABLE')       != 0 THEN TABLE_NAME            ELSE MAP(BI_TABLE_NAME, '%', 'any', BI_TABLE_NAME)               END TABLE_NAME,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'COLUMN')      != 0 THEN COLUMN_NAME           ELSE 'any'                                                       END COLUMN_NAME,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'NUMA')        != 0 THEN TO_VARCHAR(NUMA_NODE) ELSE MAP(BI_NUMA_NODE, -1, 'any', TO_VARCHAR(BI_NUMA_NODE))      END NUMA_NODE,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'DATA_TYPE')   != 0 THEN DATA_TYPE             ELSE MAP(BI_DATA_TYPE, '%', 'any', BI_DATA_TYPE)                 END DATA_TYPE,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'COMPRESSION') != 0 THEN COMPRESSION_TYPE      ELSE MAP(BI_COMP_TYPE, '%', 'any', BI_COMP_TYPE)                 END COMPRESSION,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'ATT_TYPE')    != 0 THEN ATTRIBUTE_TYPE        ELSE MAP(BI_ATTRIBUTE_TYPE, '%', 'any', BI_ATTRIBUTE_TYPE)       END ATTRIBUTE_TYPE,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'LOADED')      != 0 THEN LOADED                ELSE MAP(BI_LOADED, '%', 'any', BI_LOADED)                       END LOADED,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'LOAD_UNIT')   != 0 THEN LOAD_UNIT             ELSE MAP(BI_LOAD_UNIT, '%', 'any', BI_LOAD_UNIT)                 END LOAD_UNIT,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PAGEABLE')    != 0 THEN PAGEABLE              ELSE MAP(BI_PAGEABLE, '%', 'any', BI_PAGEABLE)                   END PAGEABLE,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PERSMEM')     != 0 THEN PERSISTENT_MEMORY     ELSE MAP(BI_PERSISTENT_MEMORY, '%', 'any', BI_PERSISTENT_MEMORY) END PERSISTENT_MEMORY,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PERSTYPE')    != 0 THEN PERSISTENCE_TYPE      ELSE MAP(BI_PERSISTENCE_TYPE, '%', 'any', BI_PERSISTENCE_TYPE)   END PERSISTENCE_TYPE,
+      CASE WHEN AGGREGATE_BY = 'NONE'                                            THEN COMMENT               ELSE 'any'                                                       END COMMENT,
+      COUNT(*) NUM_COLUMNS,
+      LPAD(MAX(NUM_DISTINCT), 12) NUM_DISTINCT,
+      SUM(MEM_TOTAL_MB) MEM_TOTAL_MB,
+      SUM(MEM_INDEX_MB) MEM_INDEX_MB,
+      SUM(MEM_PERS_MB) MEM_PERS_MB,
+      SUM(MEM_PAGED_MB) MEM_PAGED_MB,
+      SUM(DISK_MB) DISK_MB,
+      SUM(DISK_PAGE_MB) DISK_PAGE_MB,
+      SUM(SCANNED_RECORD_COUNT) SCANNED_RECORDS,
+      SUM(INDEX_LOOKUP_COUNT) INDEX_LOOKUPS,
+      IFNULL(MAP(MIN(USED_FOR), MAX(USED_FOR), MIN(USED_FOR), ''), '') USED_FOR,
+      IFNULL(MAP(MIN(SEL_COL_NAME), MAX(SEL_COL_NAME), MIN(SEL_COL_NAME), ''), '') SEL_COL_NAME,
+      IFNULL(MAP(MIN(INDIV_COSTS), MAX(INDIV_COSTS), MIN(INDIV_COSTS), 0), 0) INDIV_COSTS,
+      MAX(LAST_LOAD_TIME) LAST_LOAD_TIME,
+      COLUMN_NAME_LENGTH_LIMIT,
+      GENERATE_DROP_CONCAT_ATT_COMMAND,
+      MIN_TOTAL_MEM_SIZE_MB,
+      ORDER_BY,
+      RESULT_ROWS
+    FROM
+    ( SELECT
+        C.HOST,
+        C.PORT,
+        S.SERVICE_NAME,
+        C.SCHEMA_NAME,
+        C.TABLE_NAME || CASE WHEN BI.OBJECT_LEVEL = 'PARTITION' AND C.PART_ID != 0 THEN CHAR(32) || '(' || C.PART_ID || ')' ELSE '' END TABLE_NAME, 
+        C.COLUMN_NAME,
+        C.NUMA_NODE,
+        C.NUM_DISTINCT,
+        C.DATA_TYPE,
+        C.COMPRESSION_TYPE,
+        C.ATTRIBUTE_TYPE,
+        C.LOADED,
+        C.LAST_LOAD_TIME,
+        C.PAGEABLE,
+        C.PERSISTENT_MEMORY,
+        C.MEM_TOTAL_MB,
+        C.MEM_INDEX_MB,
+        C.MEM_PERS_MB,
+        C.MEM_PAGED_MB,
+        C.DISK_MB,
+        C.DISK_PAGE_MB,
+        C.SCANNED_RECORD_COUNT,
+        C.INDEX_LOOKUP_COUNT,
+        C.COMMENT,
+        C.PERSISTENCE_TYPE,
+        C.LOAD_UNIT,
+        C.USED_FOR,
+        C.SEL_COL_NAME,
+        C.INDIV_COSTS,
+        BI.HOST BI_HOST,
+        BI.PORT BI_PORT,
+        BI.SERVICE_NAME BI_SERVICE_NAME,
+        BI.SCHEMA_NAME BI_SCHEMA_NAME,
+        BI.TABLE_NAME BI_TABLE_NAME,
+        BI.COLUMN_NAME_LENGTH_LIMIT,
+        BI.COMPRESSION_TYPE BI_COMP_TYPE,
+        BI.DATA_TYPE BI_DATA_TYPE,
+        BI.ATTRIBUTE_TYPE BI_ATTRIBUTE_TYPE,
+        BI.LOADED BI_LOADED,
+        BI.LOAD_UNIT BI_LOAD_UNIT,
+        BI.PAGEABLE BI_PAGEABLE,
+        BI.PERSISTENT_MEMORY BI_PERSISTENT_MEMORY,
+        BI.PERSISTENCE_TYPE BI_PERSISTENCE_TYPE,
+        BI.NUMA_NODE BI_NUMA_NODE,
+        BI.GENERATE_DROP_CONCAT_ATT_COMMAND,
+        BI.MIN_TOTAL_MEM_SIZE_MB,
+        BI.AGGREGATE_BY,
+        BI.ORDER_BY,
+        BI.RESULT_ROWS
+      FROM
+      ( SELECT                                      /* Modification section */
+          '%' HOST,
+          '%' PORT,
+          '%' SERVICE_NAME,
+          '%' SCHEMA_NAME,
+          '%' TABLE_NAME,
+          '%' COLUMN_NAME,
+          -1 PART_ID,
+          '%' DATA_TYPE,
+          -1  COLUMN_NAME_LENGTH_LIMIT,
+          '%' ATTRIBUTE_TYPE,       /* CONCAT_ATTRIBUTE, TREX_EXTERNAL_KEY, TREX_UDIV, ROWID, TEXT, UNKNOWN, % */
+          '%' COMPRESSION_TYPE,
+          '%' LOADED,
+          '%' LOAD_UNIT,
+          '%' PAGEABLE,
+          '%' PERSISTENT_MEMORY,
+          '%' PERSISTENCE_TYPE,
+          '%' USED_FOR,
+          -1 NUMA_NODE,
+          -1 MIN_MEM_SIZE_MB,
+          1024 MIN_TOTAL_MEM_SIZE_MB,
+          ' ' ONLY_INTERNAL_COLUMNS,
+          ' ' EXCLUDE_PK_AND_UNIQUE,
+          'X' ONLY_PK_AND_UNIQUE,
+          ' ' ONLY_UNUSED_CONCAT_ATTRIBUTES,
+          ' ' GENERATE_DROP_CONCAT_ATT_COMMAND,
+          'TABLE' OBJECT_LEVEL,    /* TABLE, PARTITION */
+          'NONE' AGGREGATE_BY,     /* HOST, PORT, SERVICE, SCHEMA, TABLE, COLUMN, DATA_TYPE, ATT_TYPE, PAGEABLE, LOADED, LOAD_UNIT, COMPRESSION, PERSMEM, PERSTYPE, NUMA or combinations, NONE for no aggregation */
+          'SIZE' ORDER_BY,                          /* SIZE, TABLE, PERSMEM, PAGEDMEM, TOTALDISK, PAGEDDISK */
+          -1 RESULT_ROWS
+        FROM
+          DUMMY
+      ) BI,
+        M_SERVICES S,
+      ( SELECT
+          C.HOST,
+          C.PORT,
+          C.SCHEMA_NAME,
+          C.TABLE_NAME,
+          C.PART_ID,
+          C.COLUMN_NAME,
+          C.NUMA_NODE_INDEX NUMA_NODE,
+          C.DISTINCT_COUNT NUM_DISTINCT,
+          C.COMPRESSION_TYPE,
+          C.LAST_LOAD_TIME,
+          C.INTERNAL_ATTRIBUTE_TYPE ATTRIBUTE_TYPE,
+          ( C.MEMORY_SIZE_IN_TOTAL + C.PERSISTENT_MEMORY_SIZE_IN_TOTAL ) / 1024 / 1024 MEM_TOTAL_MB,
+          ( C.MAIN_MEMORY_SIZE_IN_INDEX + C.MAIN_PERSISTENT_MEMORY_SIZE_IN_INDEX + C.DELTA_MEMORY_SIZE_IN_INDEX ) / 1024 / 1024 MEM_INDEX_MB,
+          C.PERSISTENT_MEMORY_SIZE_IN_TOTAL / 1024 / 1024 MEM_PERS_MB,
+          C.MEMORY_SIZE_IN_PAGE_LOADABLE_MAIN / 1024 / 1024 MEM_PAGED_MB,
+          C.LOADED,
+          IFNULL(C.PERSISTENT_MEMORY, '') PERSISTENT_MEMORY,
+          CS.SCANNED_RECORD_COUNT,
+          CS.INDEX_LOOKUP_COUNT,
+          IFNULL(TC.COMMENTS, '') COMMENT,
+          IFNULL(TC.DATA_TYPE_NAME, '') DATA_TYPE,
+          CASE WHEN BITAND(C.IMPLEMENTATION_FLAGS, 64) > 0 THEN 'YES' ELSE 'NO' END PAGEABLE,
+          CP.PERSISTENCE_TYPE,
+          CP.MAIN_PHYSICAL_SIZE / 1024 / 1024 DISK_MB,
+          CP.MAIN_PHYSICAL_SIZE_IN_PAGE_LOADABLE / 1024 / 1024 DISK_PAGE_MB,
+          C.LOAD_UNIT,
+          IFNULL(U.USED_FOR, '') USED_FOR,
+          IFNULL(U.MOST_SELECTIVE_COLUMN_NAME, '') SEL_COL_NAME,
+          IFNULL(U.INVERTED_INDIVIDUAL_COST, 0) INDIV_COSTS
+        FROM
+          M_CS_ALL_COLUMNS C INNER JOIN
+          M_CS_ALL_COLUMN_STATISTICS CS ON
+            C.SCHEMA_NAME = CS.SCHEMA_NAME AND
+            C.TABLE_NAME = CS.TABLE_NAME AND
+            C.COLUMN_NAME = CS.COLUMN_NAME AND
+            C.PART_ID = CS.PART_ID LEFT OUTER JOIN
+          TABLE_COLUMNS TC ON
+            C.SCHEMA_NAME = TC.SCHEMA_NAME AND
+            C.TABLE_NAME = TC.TABLE_NAME AND
+            C.COLUMN_NAME = TC.COLUMN_NAME LEFT OUTER JOIN
+          INDEX_COLUMNS IC ON
+            C.SCHEMA_NAME = IC.SCHEMA_NAME AND
+            C.TABLE_NAME = IC.TABLE_NAME AND
+            C.COLUMN_NAME = IC.COLUMN_NAME AND
+            IC.CONSTRAINT = 'PRIMARY KEY' LEFT OUTER JOIN
+          M_CS_COLUMNS_PERSISTENCE CP ON
+            C.SCHEMA_NAME = CP.SCHEMA_NAME AND
+            C.TABLE_NAME = CP.TABLE_NAME AND
+            C.COLUMN_NAME = CP.COLUMN_NAME AND
+            C.PART_ID = CP.PART_ID LEFT OUTER JOIN
+          ( SELECT
+              SCHEMA_NAME,
+              TABLE_NAME,
+              COLUMN_NAME,
+              USED_FOR,
+              MOST_SELECTIVE_COLUMN_NAME,
+              INVERTED_INDIVIDUAL_COST
+            FROM
+            ( SELECT
+                ROW_NUMBER () OVER (PARTITION BY SCHEMA_NAME, TABLE_NAME, CONCAT_COLUMN_NAME ORDER BY MEMORY_SIZE_IN_TOTAL DESC) ROWNO,
+                SCHEMA_NAME,
+                TABLE_NAME,
+                CONCAT_COLUMN_NAME COLUMN_NAME,
+                CASE
+                  WHEN CONCAT_COLUMN_NAME LIKE '$uc%' THEN 'Unique index ' || INDEX_NAME
+                  WHEN CONCAT_COLUMN_NAME = '$trexexternalkey$' THEN 'Primary key index ' || INDEX_NAME
+                  ELSE 'Index ' || INDEX_NAME
+                END USED_FOR,
+                MOST_SELECTIVE_COLUMN_NAME,
+                INVERTED_INDIVIDUAL_COST
+              FROM
+                M_CS_INDEXES
+            )
+            WHERE
+              ROWNO = 1
+          ) U ON
+            U.SCHEMA_NAME = C.SCHEMA_NAME AND
+            U.TABLE_NAME = C.TABLE_NAME AND
+            U.COLUMN_NAME = C.COLUMN_NAME
+      ) C
+      WHERE
+        S.HOST LIKE BI.HOST AND
+        TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+        S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+        C.HOST = S.HOST AND
+        C.PORT = S.PORT AND
+        C.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+        C.TABLE_NAME LIKE BI.TABLE_NAME AND
+        C.COLUMN_NAME LIKE BI.COLUMN_NAME AND
+        ( BI.PART_ID = -1 OR C.PART_ID = BI.PART_ID ) AND
+        ( BI.NUMA_NODE = -1 OR C.NUMA_NODE = BI.NUMA_NODE ) AND
+        C.USED_FOR LIKE BI.USED_FOR AND
+        IFNULL(C.ATTRIBUTE_TYPE, '') LIKE BI.ATTRIBUTE_TYPE AND
+        C.COMPRESSION_TYPE LIKE BI.COMPRESSION_TYPE AND
+        ( BI.ONLY_INTERNAL_COLUMNS = ' ' OR C.ATTRIBUTE_TYPE IS NOT NULL ) AND
+        ( BI.EXCLUDE_PK_AND_UNIQUE = ' ' OR ( IFNULL(C.ATTRIBUTE_TYPE, '') != 'TREX_EXTERNAL_KEY' AND C.COLUMN_NAME NOT LIKE '$uc%' ) ) AND
+        ( BI.ONLY_PK_AND_UNIQUE = ' ' OR IFNULL(C.ATTRIBUTE_TYPE, '') = 'TREX_EXTERNAL_KEY' OR C.COLUMN_NAME LIKE '$uc%' ) AND
+        C.PAGEABLE LIKE BI.PAGEABLE AND
+        C.LOADED LIKE BI.LOADED AND
+        C.PERSISTENT_MEMORY LIKE BI.PERSISTENT_MEMORY AND
+        C.DATA_TYPE LIKE BI.DATA_TYPE AND
+        ( BI.MIN_MEM_SIZE_MB = -1 OR C.MEM_TOTAL_MB >= BI.MIN_MEM_SIZE_MB ) AND
+        ( BI.ONLY_UNUSED_CONCAT_ATTRIBUTES = ' ' OR
+          BI.ONLY_UNUSED_CONCAT_ATTRIBUTES = 'X' AND C.INDEX_LOOKUP_COUNT = 0 AND C.ATTRIBUTE_TYPE = 'CONCAT_ATTRIBUTE'
+        ) AND
+        ( BI.PERSISTENCE_TYPE = '%' OR C.PERSISTENCE_TYPE LIKE BI.PERSISTENCE_TYPE ) AND
+        ( BI.LOAD_UNIT = '%' OR C.LOAD_UNIT LIKE BI.LOAD_UNIT )
+    )
+    GROUP BY
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'HOST')        != 0 THEN HOST                  ELSE MAP(BI_HOST, '%', 'any', BI_HOST)                           END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PORT')        != 0 THEN TO_VARCHAR(PORT)      ELSE MAP(BI_PORT, '%', 'any', BI_PORT)                           END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SERVICE')     != 0 THEN SERVICE_NAME          ELSE MAP(BI_SERVICE_NAME, '%', 'any', BI_SERVICE_NAME)           END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'SCHEMA')      != 0 THEN SCHEMA_NAME           ELSE MAP(BI_SCHEMA_NAME, '%', 'any', BI_SCHEMA_NAME)             END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'TABLE')       != 0 THEN TABLE_NAME            ELSE MAP(BI_TABLE_NAME, '%', 'any', BI_TABLE_NAME)               END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'COLUMN')      != 0 THEN COLUMN_NAME           ELSE 'any'                                                       END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'NUMA')        != 0 THEN TO_VARCHAR(NUMA_NODE) ELSE MAP(BI_NUMA_NODE, -1, 'any', TO_VARCHAR(BI_NUMA_NODE))      END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'DATA_TYPE')   != 0 THEN DATA_TYPE             ELSE MAP(BI_DATA_TYPE, '%', 'any', BI_DATA_TYPE)                 END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'COMPRESSION') != 0 THEN COMPRESSION_TYPE      ELSE MAP(BI_COMP_TYPE, '%', 'any', BI_COMP_TYPE)                 END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'ATT_TYPE')    != 0 THEN ATTRIBUTE_TYPE        ELSE MAP(BI_ATTRIBUTE_TYPE, '%', 'any', BI_ATTRIBUTE_TYPE)       END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'LOADED')      != 0 THEN LOADED                ELSE MAP(BI_LOADED, '%', 'any', BI_LOADED)                       END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'LOAD_UNIT')   != 0 THEN LOAD_UNIT             ELSE MAP(BI_LOAD_UNIT, '%', 'any', BI_LOAD_UNIT)                 END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PAGEABLE')    != 0 THEN PAGEABLE              ELSE MAP(BI_PAGEABLE, '%', 'any', BI_PAGEABLE)                   END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PERSMEM')     != 0 THEN PERSISTENT_MEMORY     ELSE MAP(BI_PERSISTENT_MEMORY, '%', 'any', BI_PERSISTENT_MEMORY) END,
+      CASE WHEN AGGREGATE_BY = 'NONE' OR INSTR(AGGREGATE_BY, 'PERSTYPE')    != 0 THEN PERSISTENCE_TYPE      ELSE MAP(BI_PERSISTENCE_TYPE, '%', 'any', BI_PERSISTENCE_TYPE)   END,
+      CASE WHEN AGGREGATE_BY = 'NONE'                                            THEN COMMENT               ELSE 'any'                                                       END,
+      COLUMN_NAME_LENGTH_LIMIT,
+      GENERATE_DROP_CONCAT_ATT_COMMAND,
+      ORDER_BY,
+      MIN_TOTAL_MEM_SIZE_MB,
+      RESULT_ROWS
+  )
+  ORDER BY
+    MAP(ORDER_BY, 'SIZE', MEM_TOTAL_MB, 'PERSMEM', MEM_PERS_MB, 'PAGEDMEM', MEM_PAGED_MB, 'TOTALDISK', DISK_MB, 'PAGEDDISK', DISK_PAGE_MB) DESC,
+    MAP(ORDER_BY, 'TABLE', TABLE_NAME),
+    COLUMN_NAME
+)
+WHERE
+( MIN_TOTAL_MEM_SIZE_MB = -1 OR MEM_TOTAL_MB >= MIN_TOTAL_MEM_SIZE_MB ) AND
+( RESULT_ROWS = -1 OR ROW_NUM <= RESULT_ROWS )

@@ -1,0 +1,325 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_ABAP_Workflow_WorkItems
+
+[DESCRIPTION]
+
+- Overview of existing ABAP work items
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Table SWWWIHEAD only available in SAP ABAP environments
+- You have to be connected to the SAP<sid> schema otherwise the following error is issued:
+
+  [259]: invalid table name: Could not find table/view SWWWIHEAD in schema
+
+- If access to ABAP objects is possible but you cannot log on as ABAP user, you can switch the default schema before executing the command:
+
+  SET SCHEMA SAP<sid>
+
+[VALID FOR]
+
+- Revisions:              all
+- Client application:     ABAP
+
+[SQL COMMAND VERSION]
+
+- 2022/04/13:  1.0 (initial version)
+
+[INVOLVED TABLES]
+
+- SWWWIHEAD
+
+[INPUT PARAMETERS]
+
+- BEGIN_TIME
+
+  Begin time
+
+  '2018/12/05 14:05:00' --> Set begin time to 5th of December 2018, 14:05
+  'C'                   --> Set begin time to current time
+  'C-S900'              --> Set begin time to current time minus 900 seconds
+  'C-M15'               --> Set begin time to current time minus 15 minutes
+  'C-H5'                --> Set begin time to current time minus 5 hours
+  'C-D1'                --> Set begin time to current time minus 1 day
+  'C-W4'                --> Set begin time to current time minus 4 weeks
+  'E-S900'              --> Set begin time to end time minus 900 seconds
+  'E-M15'               --> Set begin time to end time minus 15 minutes
+  'E-H5'                --> Set begin time to end time minus 5 hours
+  'E-D1'                --> Set begin time to end time minus 1 day
+  'E-W4'                --> Set begin time to end time minus 4 weeks
+  'MIN'                 --> Set begin time to minimum (1000/01/01 00:00:00)
+
+- END_TIME
+
+  End time
+
+  '2018/12/08 14:05:00' --> Set end time to 8th of December 2018, 14:05
+  'C'                   --> Set end time to current time
+  'C-S900'              --> Set end time to current time minus 900 seconds
+  'C-M15'               --> Set end time to current time minus 15 minutes
+  'C-H5'                --> Set end time to current time minus 5 hours
+  'C-D1'                --> Set end time to current time minus 1 day
+  'C-W4'                --> Set end time to current time minus 4 weeks
+  'B+S900'              --> Set end time to begin time plus 900 seconds
+  'B+M15'               --> Set end time to begin time plus 15 minutes
+  'B+H5'                --> Set end time to begin time plus 5 hours
+  'B+D1'                --> Set end time to begin time plus 1 day
+  'B+W4'                --> Set end time to begin time plus 4 weeks
+  'MAX'                 --> Set end time to maximum (9999/12/31 23:59:59)
+
+- MANDT
+
+  ABAP MANDT
+
+  '100'           --> ABAP MANDT 100
+  '%'             --> No restriction to ABAP MANDT
+
+- WI_ID
+
+  Work item identifier
+
+  '000212782740'  --> Work item identifier 000212782740
+  '%'             --> No restriction related to work item identifier
+
+- WI_TYPE
+
+  Work item type
+
+  'B'             --> Work item type B
+  '%'             --> No restriction related to work item type
+
+- WI_CREATOR
+
+  Work item creator
+
+  'MRX'           --> Work item creator MRX
+  'FLOWITEM%'     --> Work item creators starting with 'FLOWITEM'
+  '%'             --> No restriction related to work item creator
+
+- WI_LANG
+
+  Work item language
+
+  'E'             --> Work item language F
+  '%'             --> No restriction related to work item language
+
+- WI_TEXT
+
+  Work item text
+
+  'Mail%'         --> Work items with texts starting with 'Mail'
+  '%'             --> No restriction related to work item texts
+
+- WI_STAT
+
+  Work item status
+
+  'ERROR'         --> Work items with status ERROR
+  '%'             --> No restriction related to work item status
+  
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TIME'          --> Aggregation by time
+  'LANG, STAT'    --> Aggregation by work item language and status
+  'NONE'          --> No aggregation
+
+- TIME_AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'HOUR'          --> Aggregation by hour
+  'YYYY/WW'       --> Aggregation by calendar week
+  'TS<seconds>'   --> Time slice aggregation based on <seconds> seconds
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'TIME'          --> Sorting by change time
+  'COUNT'         --> Sorting by number of work items
+
+[OUTPUT PARAMETERS]
+
+- CHANGE_TIME: Work item change time
+- CNT:         Number of work items
+- MANDT:       ABAP client
+- WI_ID:       Work item identifier
+- WI_TYPE:     Work item type
+- WI_CREATOR:  Work item creator
+- WI_LANG:     Work item language
+- WI_TEXT:     Work item text
+- WI_STAT:     Work item status
+
+[EXAMPLE OUTPUT]
+
+----------------------------
+|CHANGE_TIME|CNT   |WI_STAT|
+----------------------------
+|2022       |    83|ERROR  |
+|2021       |   265|ERROR  |
+|2020       | 28425|ERROR  |
+|2019       | 46157|ERROR  |
+|2018       | 42815|ERROR  |
+|2017       |  8546|ERROR  |
+|2016       |   579|ERROR  |
+|2015       |   526|ERROR  |
+|2014       |  1318|ERROR  |
+----------------------------
+
+*/
+
+  CHANGE_TIME,
+  LPAD(CNT, 6) CNT,
+  LPAD(MANDT, 5) MANDT,
+  WI_ID,
+  WI_TYPE,
+  WI_CREATOR,
+  WI_LANG,
+  WI_TEXT,
+  WI_STAT
+FROM
+( SELECT
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), W.CHANGE_TIME) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(W.CHANGE_TIME, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END CHANGE_TIME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MANDT')        != 0 THEN W.MANDT             ELSE MAP(BI.MANDT,        '%', 'any', BI.MANDT)        END MANDT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'ID')           != 0 THEN W.WI_ID             ELSE MAP(BI.WI_ID,        '%', 'any', BI.WI_ID)        END WI_ID,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')         != 0 THEN W.WI_TYPE           ELSE MAP(BI.WI_TYPE,      '%', 'any', BI.WI_TYPE)      END WI_TYPE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CREATOR')      != 0 THEN W.WI_CREATOR        ELSE MAP(BI.WI_CREATOR,   '%', 'any', BI.WI_CREATOR)   END WI_CREATOR,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LANG')         != 0 THEN W.WI_LANG           ELSE MAP(BI.WI_LANG,      '%', 'any', BI.WI_LANG)      END WI_LANG,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TEXT')         != 0 THEN W.WI_TEXT           ELSE MAP(BI.WI_TEXT,      '%', 'any', BI.WI_TEXT)      END WI_TEXT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STAT')         != 0 THEN W.WI_STAT           ELSE MAP(BI.WI_STAT,      '%', 'any', BI.WI_STAT)      END WI_STAT,
+    COUNT(*) CNT,
+    BI.ORDER_BY
+  FROM
+  ( SELECT
+      CASE
+        WHEN BEGIN_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN BEGIN_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-S'))
+        WHEN BEGIN_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-M') * 60)
+        WHEN BEGIN_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(BEGIN_TIME, 'C-W') * 86400 * 7)
+        WHEN BEGIN_TIME LIKE 'E-S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-S'))
+        WHEN BEGIN_TIME LIKE 'E-M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-M') * 60)
+        WHEN BEGIN_TIME LIKE 'E-H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-H') * 3600)
+        WHEN BEGIN_TIME LIKE 'E-D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-D') * 86400)
+        WHEN BEGIN_TIME LIKE 'E-W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS'), -SUBSTR_AFTER(BEGIN_TIME, 'E-W') * 86400 * 7)
+        WHEN BEGIN_TIME =    'MIN'                           THEN TO_TIMESTAMP('1000/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(BEGIN_TIME, 1, 1) NOT IN ('C', 'E', 'M') THEN TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END BEGIN_TIME,
+      CASE
+        WHEN END_TIME =    'C'                             THEN CURRENT_TIMESTAMP
+        WHEN END_TIME LIKE 'C-S%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-S'))
+        WHEN END_TIME LIKE 'C-M%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-M') * 60)
+        WHEN END_TIME LIKE 'C-H%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-H') * 3600)
+        WHEN END_TIME LIKE 'C-D%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-D') * 86400)
+        WHEN END_TIME LIKE 'C-W%'                          THEN ADD_SECONDS(CURRENT_TIMESTAMP, -SUBSTR_AFTER(END_TIME, 'C-W') * 86400 * 7)
+        WHEN END_TIME LIKE 'B+S%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+S'))
+        WHEN END_TIME LIKE 'B+M%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+M') * 60)
+        WHEN END_TIME LIKE 'B+H%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+H') * 3600)
+        WHEN END_TIME LIKE 'B+D%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+D') * 86400)
+        WHEN END_TIME LIKE 'B+W%'                          THEN ADD_SECONDS(TO_TIMESTAMP(BEGIN_TIME, 'YYYY/MM/DD HH24:MI:SS'), SUBSTR_AFTER(END_TIME, 'B+W') * 86400 * 7)
+        WHEN END_TIME =    'MAX'                           THEN TO_TIMESTAMP('9999/12/31 00:00:00', 'YYYY/MM/DD HH24:MI:SS')
+        WHEN SUBSTR(END_TIME, 1, 1) NOT IN ('C', 'B', 'M') THEN TO_TIMESTAMP(END_TIME, 'YYYY/MM/DD HH24:MI:SS')
+      END END_TIME,
+      MANDT,
+      WI_ID,
+      WI_TYPE,
+      WI_CREATOR,
+      WI_LANG,
+      WI_TEXT,
+      WI_STAT,
+      AGGREGATE_BY,
+      MAP(TIME_AGGREGATE_BY,
+        'NONE',        'YYYY/MM/DD HH24:MI:SS',
+        'HOUR',        'YYYY/MM/DD HH24',
+        'DAY',         'YYYY/MM/DD (DY)',
+        'HOUR_OF_DAY', 'HH24',
+        TIME_AGGREGATE_BY ) TIME_AGGREGATE_BY,
+      ORDER_BY
+    FROM
+    ( SELECT         /* Modification section */
+        '1000/10/18 07:58:00' BEGIN_TIME,                  /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, E-S<seconds>, E-M<minutes>, E-H<hours>, E-D<days>, E-W<weeks>, MIN */
+        '9999/10/18 08:05:00' END_TIME,                    /* YYYY/MM/DD HH24:MI:SS timestamp, C, C-S<seconds>, C-M<minutes>, C-H<hours>, C-D<days>, C-W<weeks>, B+S<seconds>, B+M<minutes>, B+H<hours>, B+D<days>, B+W<weeks>, MAX */
+        '%' MANDT,
+        '%' WI_ID,
+        '%' WI_TYPE,
+        '%' WI_CREATOR,
+        '%' WI_LANG,
+        '%' WI_TEXT,
+        'ERROR' WI_STAT,
+        'TIME' AGGREGATE_BY,           /* TIME, MANDT, ID, TYPE, CREATOR, LANG, TEXT, STAT or comma separated combinations, NONE for no aggregation */
+        'YYYY' TIME_AGGREGATE_BY,     /* HOUR, DAY, HOUR_OF_DAY or database time pattern, TS<seconds> for time slice, NONE for no aggregation */
+        'TIME' ORDER_BY                /* TIME, ID, COUNT */
+      FROM
+        DUMMY
+     )
+  ) BI,
+  ( SELECT
+      CLIENT MANDT,
+      WI_ID,
+      WI_TYPE,
+      WI_CREATOR,
+      WI_LANG,
+      WI_TEXT,
+      WI_STAT,
+      TO_DATE(WI_CD || WI_CT, 'YYYYMMDDHH24MISS') CHANGE_TIME
+    FROM
+      SWWWIHEAD
+  ) W
+  WHERE
+    W.CHANGE_TIME BETWEEN BI.BEGIN_TIME AND BI.END_TIME AND
+    W.MANDT LIKE BI.MANDT AND
+    W.WI_ID LIKE BI.WI_ID AND
+    W.WI_TYPE LIKE BI.WI_TYPE AND
+    W.WI_CREATOR LIKE BI.WI_CREATOR AND
+    W.WI_LANG LIKE BI.WI_LANG AND
+    W.WI_TEXT LIKE BI.WI_TEXT AND
+    W.WI_STAT LIKE BI.WI_STAT
+  GROUP BY
+    CASE 
+      WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TIME') != 0 THEN 
+        CASE 
+          WHEN BI.TIME_AGGREGATE_BY LIKE 'TS%' THEN
+            TO_VARCHAR(ADD_SECONDS(TO_TIMESTAMP('2014/01/01 00:00:00', 'YYYY/MM/DD HH24:MI:SS'), FLOOR(SECONDS_BETWEEN(TO_TIMESTAMP('2014/01/01 00:00:00', 
+            'YYYY/MM/DD HH24:MI:SS'), W.CHANGE_TIME) / SUBSTR(BI.TIME_AGGREGATE_BY, 3)) * SUBSTR(BI.TIME_AGGREGATE_BY, 3)), 'YYYY/MM/DD HH24:MI:SS')
+          ELSE TO_VARCHAR(W.CHANGE_TIME, BI.TIME_AGGREGATE_BY)
+        END
+      ELSE 'any' 
+    END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'MANDT')        != 0 THEN W.MANDT             ELSE MAP(BI.MANDT,        '%', 'any', BI.MANDT)        END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'ID')           != 0 THEN W.WI_ID             ELSE MAP(BI.WI_ID,        '%', 'any', BI.WI_ID)        END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TYPE')         != 0 THEN W.WI_TYPE           ELSE MAP(BI.WI_TYPE,      '%', 'any', BI.WI_TYPE)      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CREATOR')      != 0 THEN W.WI_CREATOR        ELSE MAP(BI.WI_CREATOR,   '%', 'any', BI.WI_CREATOR)   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LANG')         != 0 THEN W.WI_LANG           ELSE MAP(BI.WI_LANG,      '%', 'any', BI.WI_LANG)      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TEXT')         != 0 THEN W.WI_TEXT           ELSE MAP(BI.WI_TEXT,      '%', 'any', BI.WI_TEXT)      END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STAT')         != 0 THEN W.WI_STAT           ELSE MAP(BI.WI_STAT,      '%', 'any', BI.WI_STAT)      END,
+    BI.ORDER_BY
+)
+ORDER BY
+  MAP(ORDER_BY, 'TIME', CHANGE_TIME) DESC,
+  MAP(ORDER_BY, 'ID', WI_ID),
+  MAP(ORDER_BY, 'COUNT', CNT) DESC,
+  CHANGE_TIME,
+  CNT
+  

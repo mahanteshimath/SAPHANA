@@ -1,0 +1,289 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_LOBs_LOBFiles_2.00.040+
+
+[DESCRIPTION]
+
+- Overview of disk LOB files
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- M_TABLE_LOB_STATISTICS available with SAP HANA >= 1.00.120
+- M_TABLE_LOB_STATISTICS has lower runtimes and resource consumption compared to M_TABLE_LOB_FILES
+- LOB_STORAGE_TYPE available starting SAP HANA 2.00.000
+- Column MEMORY_SIZE of M_TABLE_LOB_STATISTICS available with SAP HANA >= 2.00.040
+- Accessing the new MEMORY_SIZE column is quite expensive - if you do not need this information you can use
+  an older statement version with improved performance
+- Calculated LOB sizes may be too small with SAP HANA 2.00.043 - 2.00.046 due to bug 238070 in definition of
+  M_TABLE_LOB_STATISTICS
+- See SAP Note 2220627 for more information related to LOBs
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.040
+
+[SQL COMMAND VERSION]
+
+- 2016/02/16:  1.0 (initial version)
+- 2016/02/26:  1.1 (PHYS_PER_FILE_MB and BIN_PER_FILE_MB added)
+- 2016/10/25:  1.2 (dedicated Rev. 1.00.120+ version)
+- 2018/11/15:  1.3 (dedicated 2.00.000+ version including LOB_STORAGE_TYPE)
+- 2019/04/13:  1.4 (dedicated 2.00.040+ version including MEMORY_SIZE)
+- 2019/10/04:  1.5 (STORE included)
+
+[INVOLVED TABLES]
+
+- M_TABLE_LOB_STATISTICS
+- TABLES
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- SCHEMA_NAME
+
+  Schema name or pattern
+
+  'SAPSR3'        --> Specific schema SAPSR3
+  'SAP%'          --> All schemata starting with 'SAP'
+  '%'             --> All schemata
+
+- TABLE_NAME           
+
+  Table name or pattern
+
+  'T000'          --> Specific table T000
+  'T%'            --> All tables starting with 'T'
+  '%'             --> All tables
+
+- COLUMN_NAME
+
+  Column name
+
+  'MATNR'         --> Column MATNR
+  'Z%'            --> Columns starting with "Z"
+  '%'             --> No restriction related to columns
+
+- LOB_TYPE
+
+  LOB storage type
+
+  'PACKED'        --> Packed LOBs
+  'FILE'          --> Classic disk LOBs
+  '%'             --> No restriction related to LOB storage type
+
+- STORE
+
+  Table store
+
+  'ROW'           --> Row store
+  '%COLUMN%'      --> Column store
+  '%'             --> No restriction related to table store
+
+- PART_ID
+
+  Partition number
+
+  2               --> Only show information for partition number 2
+  -1              --> No restriction related to partition number
+
+- MIN_LOB_FILES
+
+  Minimum number of LOB files
+
+  10000000        --> Only display lines representing at least 10,000,000 LOB files
+  -1              --> No restriction related to number of LOB files
+
+- MAX_AVG_BIN_KB
+
+  Maximum average binary size of LOB file
+
+  4               --> Only display lines with average binary LOB file size of <= 4 KB
+  -1              --> No restriction related to average binary LOB file size
+
+- OBJECT_LEVEL
+
+  Controls display of partitions
+
+  'PARTITION'     --> Result is shown on partition level
+  'TABLE'         --> Result is shown on table level
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'TABLE'         --> Aggregation by table name
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'FRAG'          --> Sorting by fragmentation
+  'TABLE'         --> Sorting by table name
+
+[OUTPUT PARAMETERS]
+
+- HOST:         Host name
+- PORT:         Port
+- SERVICE:      Service name
+- SCHEMA_NAME:  Schema name
+- TABLE_NAME:   Table name
+- COLUMN_NAME:  LOB column name
+- LOB_TYPE:     LOB storage type (PACKED for packed LOBs, FILE for classic disk LOBs)
+- STORE:        Table store (ROW, COLUMN)
+- NUM_FILES:    Number of LOB files
+- PHYS_SIZE_MB: Physical LOB size (MB)
+- BIN_SIZE_MB:  Binary LOB size (MB)
+- FRAG_SIZE_MB: LOB fragmentation size (MB), i.e. difference between physical size and binary size
+- FRAG_PCT:     LOB fragmentation (%)
+- MEM_SIZE_MB:  Memory size (MB), part of heap allocator Pool/PersistenceManager/PersistentSpace/DefaultLPA/LOBPage
+- AVG_PHYS_KB:  Physical size per disk LOB file (KB)
+- AVG_BIN_KB:   Binary size per disk LOB file (KB)
+- READS:        Number of reads
+
+[EXAMPLE OUTPUT]
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+|HOST  |PORT |SERVICE_NAME|SCHEMA_NAME    |TABLE_NAME                       |COLUMN_NAME             |LOB_TYPE|NUM_FILES|PHYS_SIZE_MB|BIN_SIZE_MB|PAGES    |
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+|hana01|34003|indexserver |SAPSR3         |CRMCONT                          |CLUSTD                  |BLOB    | 54466127|  1450294.14| 1392335.53|107639484|
+|hana01|34003|indexserver |SAPSR3         |SXMSCLUR                         |CLUSTD                  |BLOB    | 12313837|   357465.10|  346449.88| 25003870|
+|hana01|34003|indexserver |SAPSR3         |CRMORDERCONT                     |CLUSTD                  |BLOB    | 11600387|   329599.05|  318481.46| 23234345|
+|hana01|34003|indexserver |SAPSR3         |/SVC/RSP_DATAIN                  |CLUSTD                  |BLOB    | 60779358|   237419.36|  165666.89| 60779358|
+|hana01|34003|indexserver |SAPSR3         |STXL                             |CLUSTD                  |BLOB    | 24849124|   101025.71|   27587.47| 25862582|
+|hana01|34003|indexserver |SAPSR3         |SMW3_BDOC2                       |CLUSTD                  |BLOB    |  1891297|    26211.42|   22119.89|  5838718|
+|hana01|34003|indexserver |SAPSR3         |SXMSCLUP                         |CLUSTD                  |BLOB    |  3226300|    16875.74|   11129.09|  4319591|
+|hana01|34003|indexserver |SAPSR3         |ODQDATA_F                        |XDATA                   |BLOB    |   399218|    11520.00|   10498.02|  1121714|
+|hana01|34003|indexserver |SAPSR3         |SOFFCONT1                        |CLUSTD                  |BLOB    |   927512|     9840.21|    8069.65|  1313953|
+|hana01|34003|indexserver |SAPSR3         |REPOLOAD                         |                        |BLOB    |   496973|     9327.41|    8069.18|  1051222|
+|hana01|34003|indexserver |SAPSR3         |/SNO/DT_EO_DB2                   |EO_DATA                 |BLOB    |   123712|     7346.57|    6831.03|   294777|
+|hana01|34003|indexserver |SAPSR3         |/SDF/SMON_CLUST                  |CLUSTD                  |BLOB    |   157351|     4911.63|    4795.79|   314998|
+|hana01|34003|indexserver |SAPSR3         |REPOSRC                          |DATA                    |BLOB    |   793095|     4143.80|    2265.38|   948478|
+|hana01|34003|indexserver |_SYS_REPO      |OBJECT_HISTORY                   |CVERSION                |NCLOB   |    47649|     1270.37|    1128.87|    92686|
+|hana01|34003|indexserver |_SYS_STATISTICS|HOST_SQL_PLAN_CACHE_BASE         |STATEMENT_STRING        |NCLOB   |   111506|     1018.07|     742.15|   214370|
+|hana01|34003|indexserver |SAPSR3         |/SVC/D_TEXT_M                    |TEXT                    |NCLOB   |   143968|      749.91|     419.20|   170982|
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  HOST,
+  PORT,
+  SERVICE_NAME,
+  SCHEMA_NAME,
+  TABLE_NAME,
+  COLUMN_NAME,
+  LOB_TYPE,
+  STORE,
+  LPAD(NUM, 10) NUM_FILES,
+  LPAD(TO_DECIMAL(PHYS_SIZE_MB, 10, 2), 12) PHYS_SIZE_MB,
+  LPAD(TO_DECIMAL(BIN_SIZE_MB, 10, 2), 11) BIN_SIZE_MB,
+  LPAD(TO_DECIMAL(PHYS_SIZE_MB - BIN_SIZE_MB, 10, 2), 12) FRAG_SIZE_MB,
+  LPAD(TO_DECIMAL(MAP(PHYS_SIZE_MB, 0, 0, (PHYS_SIZE_MB - BIN_SIZE_MB) / PHYS_SIZE_MB * 100), 10, 2), 8) FRAG_PCT,
+  LPAD(TO_DECIMAL(MAP(NUM, 0, 0, PHYS_SIZE_MB * 1024 / NUM), 10, 2), 11) AVG_PHYS_KB,
+  LPAD(TO_DECIMAL(MAP(NUM, 0, 0, BIN_SIZE_MB * 1024 / NUM), 10, 2), 11) AVG_BIN_KB,
+  LPAD(TO_DECIMAL(IFNULL(MEM_SIZE_MB, 0), 10, 2), 11) MEM_SIZE_MB,
+  LPAD(READS, 9) READS
+FROM
+( SELECT
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')     != 0 THEN L.HOST                                                                  ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                 END HOST,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')     != 0 THEN TO_VARCHAR(L.PORT)                                                      ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                 END PORT,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')  != 0 THEN S.SERVICE_NAME                                                          ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME) END SERVICE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')   != 0 THEN L.SCHEMA_NAME                                                           ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)   END SCHEMA_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')    != 0 THEN L.TABLE_NAME || MAP(BI.OBJECT_LEVEL, 'TABLE', '', MAP(L.PART_ID, 0, '', -1, '', ' (' || L.PART_ID || ')')) ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME) END TABLE_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'COLUMN')   != 0 THEN L.COLUMN_NAME                                                           ELSE MAP(BI.COLUMN_NAME, '%', 'any', BI.COLUMN_NAME)   END COLUMN_NAME,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STORAGE')  != 0 THEN L.LOB_STORAGE_TYPE                                                      ELSE MAP(BI.LOB_TYPE, '%', 'any', BI.LOB_TYPE)         END LOB_TYPE,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STORE')    != 0 THEN T.TABLE_TYPE                                                            ELSE MAP(BI.STORE, '%', 'any', BI.STORE)               END STORE,
+    SUM(LOB_COUNT) NUM,
+    SUM(DISK_SIZE) / 1024 / 1024 PHYS_SIZE_MB,
+    SUM(BINARY_SIZE) / 1024 / 1024 BIN_SIZE_MB,
+    SUM(READ_COUNT) READS,
+    SUM(MEMORY_SIZE) / 1024 / 1024 MEM_SIZE_MB,
+    BI.ORDER_BY,
+    BI.MIN_LOB_FILES,
+    BI.MAX_AVG_BIN_KB
+  FROM
+  ( SELECT                 /* Modification section */
+      '%' HOST,
+      '%' PORT,
+      '%' SERVICE_NAME,
+      '%' SCHEMA_NAME,
+      '%' TABLE_NAME,
+      '%' COLUMN_NAME,
+      'FILE' LOB_TYPE,
+      '%' STORE,
+      -1 PART_ID,
+      -1 MIN_LOB_FILES,
+      -1 MAX_AVG_BIN_KB,
+      'TABLE' OBJECT_LEVEL,               /* TABLE, PARTITION */
+      'NONE' AGGREGATE_BY,                 /* HOST, PORT, SERVICE, SCHEMA, TABLE, COLUMN, STORAGE, STORE or comma separated combinations, NONE for no aggregation */
+      'MEM' ORDER_BY                      /* TABLE, COUNT, PHYS, BIN, FRAG, READS, MEM */
+    FROM
+      DUMMY
+  ) BI,
+    M_SERVICES S,
+    M_TABLE_LOB_STATISTICS L,
+    TABLES T
+  WHERE
+    S.HOST LIKE BI.HOST AND
+    TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+    L.HOST = S.HOST AND
+    L.PORT = S.PORT AND
+    L.SCHEMA_NAME LIKE BI.SCHEMA_NAME AND
+    L.TABLE_NAME LIKE BI.TABLE_NAME AND
+    L.COLUMN_NAME LIKE BI.COLUMN_NAME AND
+    L.LOB_STORAGE_TYPE LIKE BI.LOB_TYPE AND
+    ( BI.PART_ID = -1 OR L.PART_ID = BI.PART_ID ) AND
+    T.SCHEMA_NAME = L.SCHEMA_NAME AND
+    T.TABLE_NAME = L.TABLE_NAME AND
+    T.TABLE_TYPE LIKE BI.STORE
+  GROUP BY
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')     != 0 THEN L.HOST                                                                  ELSE MAP(BI.HOST, '%', 'any', BI.HOST)                 END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')     != 0 THEN TO_VARCHAR(L.PORT)                                                      ELSE MAP(BI.PORT, '%', 'any', BI.PORT)                 END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')  != 0 THEN S.SERVICE_NAME                                                          ELSE MAP(BI.SERVICE_NAME, '%', 'any', BI.SERVICE_NAME) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SCHEMA')   != 0 THEN L.SCHEMA_NAME                                                           ELSE MAP(BI.SCHEMA_NAME, '%', 'any', BI.SCHEMA_NAME)   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'TABLE')    != 0 THEN L.TABLE_NAME || MAP(BI.OBJECT_LEVEL, 'TABLE', '', MAP(L.PART_ID, 0, '', -1, '', ' (' || L.PART_ID || ')')) ELSE MAP(BI.TABLE_NAME, '%', 'any', BI.TABLE_NAME) END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'COLUMN')   != 0 THEN L.COLUMN_NAME                                                           ELSE MAP(BI.COLUMN_NAME, '%', 'any', BI.COLUMN_NAME)   END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STORAGE')  != 0 THEN L.LOB_STORAGE_TYPE                                                      ELSE MAP(BI.LOB_TYPE, '%', 'any', BI.LOB_TYPE)         END,
+    CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'STORE')    != 0 THEN T.TABLE_TYPE                                                            ELSE MAP(BI.STORE, '%', 'any', BI.STORE)               END,
+    BI.ORDER_BY,
+    BI.MIN_LOB_FILES,
+    BI.MAX_AVG_BIN_KB
+)
+WHERE
+  ( MIN_LOB_FILES = -1 OR NUM >= MIN_LOB_FILES ) AND
+  ( MAX_AVG_BIN_KB = -1 OR MAP(NUM, 0, 0, BIN_SIZE_MB * 1024 / NUM) <= MAX_AVG_BIN_KB )
+ORDER BY
+  MAP(ORDER_BY, 'TABLE', HOST || PORT || SCHEMA_NAME || TABLE_NAME || COLUMN_NAME),
+  MAP(ORDER_BY, 'COUNT', NUM_FILES, 'PHYS', PHYS_SIZE_MB, 'BIN', BIN_SIZE_MB, 'FRAG', FRAG_SIZE_MB, 'MEM', MEM_SIZE_MB, 'READS', READS) DESC

@@ -1,0 +1,253 @@
+SELECT
+
+/* 
+
+[NAME]
+
+- HANA_Disks_Data_Overview_2.00.030+
+
+[DESCRIPTION]
+
+- Rough breakdown of disk space allocation in DATA area
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- M_TABLE_LOB_STATISTICS available with SAP HANA >= 1.00.120
+- M_COLLECTION_TABLE_VIRTUAL_FILES available with SAP HANA >= 2.00.030
+- OTHER_GB contains all space that can not be assigned to an area properly. Among others the following scenarios are possible:
+
+  - SDI issues (e.g. queued or blocked remote subscriptions or multiple subscriptions using the same user and prefix) can
+    result in increased dpserver OTHER_GB sizes
+  - Snapshot related previous page versions (SAP Note 2815538)
+  - Consequence of persistence corruptions (e.g. bug 183074)
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.030
+
+[SQL COMMAND VERSION]
+
+- 2018/04/19:  1.0 (initial version)
+- 2019/12/30:  1.1 (dedicated 2.00.030+ version including M_COLLECTION_TABLE_VIRTUAL_FILES)
+- 2020/01/09:  1.2 (replacement of M_RS_TABLES with M_DATA_VOLUME_PAGE_STATISTICS for proper row store disk size calculation)
+
+[INVOLVED TABLES]
+
+- M_COLLECTION_TABLE_VIRTUAL_FILES
+- M_DATA_VOLUME_PAGE_STATISTICS
+- M_LIVECACHE_CONTAINER_STATISTICS
+- M_TABLE_LOB_STATISTICS
+- M_TABLE_VIRTUAL_FILES
+- M_UNDO_CLEANUP_FILES
+- M_VOLUME_FILES
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specific host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'HOST'          --> Sorting by host name
+  'USED '         --> Sorting by used disk space
+
+[OUTPUT PARAMETERS]
+
+- HOST:        Host name
+- PORT:        Port
+- ALLOC_GB:    Allocated data size (GB)
+- USED_GB:     Used data size (GB)
+- COLTAB_GB:   Size of column store tables + indexes (GB)
+- ROWTAB_GB:   Size of row store tables + indexes (GB)
+- FLOB_GB:     Size of classic file disk LOBs (GB)
+- PLOB_GB:     Size of packed disk LOBs (GB)
+- HISTORY_GB:  Size of undo and cleanup files (GB)
+- SHADOW_GB:   Size of shadow pages (GB)
+- LIVEACHE_GB: Size of liveCache pages (GB)
+- DOCSTORE_GB: Size of docstore (GB)
+- OTHER_GB:    Size of other areas (GB)
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------------------------
+|HOST     |PORT |ALLOC_GB  |USED_GB   |COLTAB_GB|ROWTAB_GB|LOB_GB   |HISTORY_GB|SHADOW_GB |LIVECACHE_GB|OTHER_GB  |
+-------------------------------------------------------------------------------------------------------------------
+|hana00600|36003|   2962.37|   2674.26|  1518.28|     0.00|     0.00|      0.05|      0.01|        0.00|   1155.91|
+|hana00800|36003|   3105.25|   2664.80|  1656.63|     0.00|     0.00|      0.10|      0.01|        0.00|   1008.04|
+|hana00700|36003|   3060.18|   2511.28|  1744.43|     5.88|     0.00|      0.16|      0.02|        0.00|    760.76|
+|hana01200|36003|   2833.73|   2481.79|  1683.77|     0.00|     0.00|      0.19|      0.70|        0.00|    797.12|
+|hana01400|36003|   2662.12|   2286.50|  1676.48|     0.00|     0.00|      0.12|      0.04|        0.00|    609.85|
+|hana00300|36003|   2599.37|   2237.26|  1658.48|     0.00|     0.04|      0.47|      0.02|        0.00|    578.23|
+|hana00500|36003|   3002.06|   2026.32|  1673.87|     0.00|     0.00|      0.20|      0.01|        0.00|    352.22|
+|hana00400|36003|   3149.02|   1975.85|  1682.02|     0.00|     0.00|      0.17|      0.01|        0.00|    293.63|
+|hana01300|36003|   2218.56|   1939.02|  1492.52|     0.00|     0.00|      0.15|      0.01|        0.00|    446.32|
+|hana01000|36003|   2141.43|   1836.95|  1388.86|     0.00|     0.00|      0.17|      0.02|        0.00|    447.88|
+|hana00900|36003|   2417.31|   1714.47|  1509.98|     0.00|     0.09|      0.16|      0.03|        0.00|    204.20|
+|hana00200|36003|   2397.81|   1668.79|  1430.73|     0.00|     0.00|      0.23|      0.10|        0.00|    237.71|
+|hana00100|36003|   1440.30|   1243.55|   216.59|   593.23|    86.58|      0.62|      1.76|        0.00|    344.75|
+|hana00100|36007|      0.25|      0.06|     0.00|     0.00|     0.00|      0.00|      0.00|        0.00|      0.06|
+-------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  V.HOST,
+  LPAD(V.PORT, 5) PORT,
+  LPAD(TO_DECIMAL(TOTAL_ALLOC_GB, 10, 2), 10) ALLOC_GB,
+  LPAD(TO_DECIMAL(TOTAL_USED_GB, 10, 2), 10) USED_GB,
+  LPAD(TO_DECIMAL(IFNULL(COLTAB_GB, 0), 10, 2), 9) COLTAB_GB,
+  LPAD(TO_DECIMAL(IFNULL(ROWTAB_GB, 0), 10, 2), 9) ROWTAB_GB,
+  LPAD(TO_DECIMAL(IFNULL(FLOB_GB, 0), 10, 2), 9) FLOB_GB,
+  LPAD(TO_DECIMAL(IFNULL(PLOB_GB, 0), 10, 2), 9) PLOB_GB,
+  LPAD(TO_DECIMAL(IFNULL(HISTORY_GB, 0), 10, 2), 10) HISTORY_GB,
+  LPAD(TO_DECIMAL(IFNULL(SHADOW_GB, 0), 10, 2), 10) SHADOW_GB,
+  LPAD(TO_DECIMAL(IFNULL(LIVECACHE_GB, 0), 10, 2), 12) LIVECACHE_GB,
+  LPAD(TO_DECIMAL(IFNULL(DOCSTORE_GB, 0), 10, 2), 11) DOCSTORE_GB,
+  LPAD(TO_DECIMAL(TOTAL_USED_GB - IFNULL(COLTAB_GB, 0) - IFNULL(ROWTAB_GB, 0) - IFNULL(FLOB_GB, 0) - IFNULL(PLOB_GB, 0) - IFNULL(HISTORY_GB, 0) - 
+    IFNULL(SHADOW_GB, 0)- IFNULL(LIVECACHE_GB, 0) - IFNULL(DOCSTORE_GB, 0), 10, 2), 10) OTHER_GB
+FROM
+( SELECT                      /* Modification section */
+    '%' HOST,
+    '%' PORT,
+    'USED' ORDER_BY            /* HOST, ALLOC, USED */
+  FROM
+    DUMMY
+) BI INNER JOIN
+( SELECT
+    HOST,
+    PORT,
+    SUM(TOTAL_SIZE) / 1024 / 1024 / 1024 TOTAL_ALLOC_GB,
+    SUM(USED_SIZE) / 1024 / 1024 / 1024 TOTAL_USED_GB
+  FROM
+    M_VOLUME_FILES
+  WHERE
+    FILE_TYPE = 'DATA'
+  GROUP BY
+    HOST,
+    PORT
+) V ON
+  V.HOST LIKE BI.HOST AND
+  TO_VARCHAR(V.PORT) LIKE BI.PORT LEFT OUTER JOIN
+( SELECT
+    HOST,
+    PORT,
+    SUM(PHYSICAL_SIZE) / 1024 / 1024 / 1024 COLTAB_GB
+  FROM
+    M_TABLE_VIRTUAL_FILES
+  GROUP BY
+    HOST,
+    PORT
+) RCT ON
+  RCT.HOST = V.HOST AND
+  RCT.PORT = V.PORT LEFT OUTER JOIN
+( SELECT
+    HOST,
+    PORT,
+    SUM(USED_BLOCK_COUNT / 1024 / 1024 * 16) ROWTAB_GB
+  FROM
+    M_DATA_VOLUME_PAGE_STATISTICS
+  WHERE
+    PAGE_SIZECLASS = '16k-RowStore'
+  GROUP BY
+    HOST,
+    PORT
+) RT ON
+  RT.HOST = V.HOST AND
+  RT.PORT = V.PORT LEFT OUTER JOIN
+( SELECT
+    HOST,
+    PORT,
+    SUM(DISK_SIZE) / 1024 / 1024 / 1024 FLOB_GB
+  FROM
+    M_TABLE_LOB_STATISTICS
+  WHERE
+    LOB_STORAGE_TYPE = 'FILE'
+  GROUP BY
+    HOST,
+    PORT
+) LF ON
+  LF.HOST = V.HOST AND
+  LF.PORT = V.PORT LEFT OUTER JOIN
+( SELECT
+    HOST,
+    PORT,
+    SUM(DISK_SIZE) / 1024 / 1024 / 1024 PLOB_GB
+  FROM
+    M_TABLE_LOB_STATISTICS
+  WHERE
+    LOB_STORAGE_TYPE = 'PACKED'
+  GROUP BY
+    HOST,
+    PORT
+) LP ON
+  LP.HOST = V.HOST AND
+  LP.PORT = V.PORT LEFT OUTER JOIN
+( SELECT
+    HOST,
+    PORT,
+    SUM(IFNULL(RAW_SIZE, 0)) / 1024 / 1024 / 1024 HISTORY_GB
+  FROM
+    M_UNDO_CLEANUP_FILES
+  GROUP BY
+    HOST,
+    PORT
+) H ON
+  H.HOST = V.HOST AND
+  H.PORT = V.PORT LEFT OUTER JOIN
+( SELECT
+    HOST,
+    PORT,
+    SUM(SHADOW_BLOCK_COUNT * PAGE_SIZE) / 1024 / 1024 / 1024 SHADOW_GB
+  FROM
+    M_DATA_VOLUME_PAGE_STATISTICS
+  GROUP BY
+    HOST,
+    PORT
+) SH ON
+  SH.HOST = V.HOST AND
+  SH.PORT = V.PORT LEFT OUTER JOIN
+( SELECT
+    HOST,
+    PORT,
+    SUM(PAGE_SIZE_SUM) / 1024 / 1024 / 1024 LIVECACHE_GB
+  FROM
+    M_LIVECACHE_CONTAINER_STATISTICS
+  GROUP BY
+    HOST,
+    PORT
+) LC ON
+  LC.HOST = V.HOST AND
+  LC.PORT = V.PORT LEFT OUTER JOIN
+( SELECT
+    HOST,
+    PORT,
+    SUM(PHYSICAL_SIZE) / 1024 / 1024 / 1024 DOCSTORE_GB
+  FROM
+    M_COLLECTION_TABLE_VIRTUAL_FILES
+  GROUP BY
+    HOST,
+    PORT
+) DT ON
+  DT.HOST = V.HOST AND
+  DT.PORT = V.PORT
+ORDER BY
+  MAP(BI.ORDER_BY, 'HOST', V.HOST || V.PORT),
+  MAP(BI.ORDER_BY, 'ALLOC', V.TOTAL_ALLOC_GB, 'USED', V.TOTAL_USED_GB) DESC

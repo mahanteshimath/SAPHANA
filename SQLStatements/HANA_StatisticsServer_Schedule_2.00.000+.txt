@@ -1,0 +1,200 @@
+SELECT
+/* 
+
+[NAME]
+
+- HANA_StatisticsServer_Schedule_2.00.000+
+
+[DESCRIPTION]
+
+- Statistics server schedule
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- EXTENSION_TYPE available with SAP HANA >= 2.00.000
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.000
+
+[SQL COMMAND VERSION]
+
+- 2014/11/18:  1.0 (initial version)
+- 2015/03/25:  1.1 (TIME_S_PER_H and ORDER_BY included)
+- 2015/10/19:  1.2 (ACTION_NAME included)
+- 2016/02/18:  1.3 (NEXT_RUN included)
+- 2022/05/27:  1.4 (dedicated 2.00.000+ version including EXTENSION_TYPE)
+
+[INVOLVED TABLES]
+
+- STATISTICS_SCHEDULE
+- STATISTICS_OBJECTS
+
+[INPUT PARAMETERS]
+
+- STATUS:
+
+  Status of check scheduling
+
+  'Disabled'      --> Disabled checks
+  'Idle'          --> Idle checks
+  '%'             --> No restriction related to check scheduling state
+
+- STAT_SERVER_OBJECT_TYPE
+
+  Statisticsserver object type
+
+  'ALERT'         --> Alerts
+  'COLLECTOR'     --> History collectors
+  '%'             --> No restriction related to object type
+
+- ID
+
+  ID of alert or history collector
+
+  55              --> Alert 55
+  -1              --> No restriction related to alert identifier
+
+- ACTION_NAME
+
+  Name of statistics server action
+
+  '%thread%'      --> Only return actions with names containing 'thread'
+  '%'             --> No restriction related to the action name
+
+- EXTENSION_TYPE
+
+  Statistics server extension type
+
+  'SR'            --> Actions considering all kinds of remote system replication sites
+  'AA'            --> Actions consideredn Active/Active (read enabled) system replication sites
+  '%'             --> No restriction related to extension type
+
+- ONLY_UNKNOWN_STATES
+
+  Possibility to restrict the output to actions with an unknown state (different from 'Disabled', 'Idle', 'Inactive' and 'Scheduled')
+
+  'X'             --> Only show actions with a state different from 'Disabled', 'Idle', 'Inactive' and 'Scheduled'
+  ' '             --> No restriction related to action state
+
+- ONLY_DELAYED_RUNS
+
+  Possibility to restrict output to checks exceeding the configured interval length by at least factor 2
+
+  'X'             --> Only show checks which have not run since at least twice the configured interval length
+  ' '             --> No restriction in terms of last execution time
+
+- ORDER_BY
+
+  Sort criteria (available values are provided in comment)
+
+  'ID'            --> Sorting by check ID
+  'TIME_PER_H'    --> Sorting by estimated runtime per hour
+
+[OUTPUT PARAMETERS]
+
+- ID:               Check ID
+- NAME:             Check name
+- TYPE:             Check type
+- EXT_TYPE:         Extension type ('SR' -> consider remote system replication sites, 'AA' -> consider remote active/active system replication sites)
+- STATUS:           Scheduling status (e.g. 'Disabled' for disabled checks)
+- RET_DAYS:         Retention time (days)
+- INTERVAL_S:       Check interval (s)
+- TIME_SINCE_RUN_S: Time since last check run (s)
+- NEXT_RUN:         Planned time of next execution
+- DURATION_S:       Duration of last check run (s)
+- TIME_S_PER_H:     Runtime per hour (s)
+- DESCRIPTION:      Action description
+
+[EXAMPLE OUTPUT]
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+|ID   |NAME                                            |TYPE     |STATUS            |RET_DAYS|INTERVAL_S|TIME_SINCE_RUN_S|DURATION_S|DESCRIPTION|
+-------------------------------------------------------------------------------------------------------------------------------------------------
+| 5001|Collector_Global_Rowstore_Tables_Size           |Collector|Idle              |      42|      3600|            2887|     35.47|           |
+| 5002|Collector_Host_Service_Component_Memory         |Collector|Idle              |      42|      3600|            2875|     28.88|           |
+| 5003|Collector_Host_Service_Memory                   |Collector|Idle              |      42|        60|              46|      3.54|           |
+| 5004|Collector_Host_Service_Statistics               |Collector|Idle              |      42|        60|              43|      0.15|           |
+| 5005|Collector_Host_Resource_Utilization_Statistics  |Collector|Idle              |      42|        60|              43|      0.30|           |
+| 5006|Collector_Host_Heap_Allocators                  |Collector|Idle              |      42|       900|             516|     56.02|           |
+| 5007|Collector_Host_Column_Tables_Part_Size          |Collector|Idle              |      42|       900|             516|      9.30|           |
+| 5008|Collector_Global_Dec_Extractor_Status           |Collector|Idle              |       7|       900|             515|     20.72|           |
+| 5009|Collector_Global_Disks                          |Collector|Idle              |      42|       300|             223|      0.15|           |
+| 5010|Collector_Global_Table_Persistence_Statistics   |Collector|Inactive          |      42|     86400|                |          |           |
+| 5011|Collector_Global_Persistence_Statistics         |Collector|Idle              |      42|       300|             222|      0.07|           |
+| 5012|Collector_Host_Volume_Files                     |Collector|Idle              |      42|       300|             222|      0.12|           |
+| 5013|Collector_Host_Data_Volume_Page_Statistics      |Collector|Idle              |      42|       300|             222|      0.08|           |
+| 5014|Collector_Host_Savepoints                       |Collector|Idle              |      42|      3600|             506|      0.09|           |
+| 5015|Collector_Host_Volume_IO_Detailed_Statistics    |Collector|Idle              |      42|       300|             222|      0.09|           |
+| 5016|Collector_Host_Volume_IO_Retry_Statistics       |Collector|Idle              |      42|       300|             222|      0.08|           |
+| 5017|Collector_Host_Volume_IO_Total_Statistics       |Collector|Idle              |      42|       300|             222|      0.08|           |
+| 5019|Collector_Host_One_Day_File_Count               |Collector|Idle              |      42|     86400|           85788|      0.15|           |
+| 5020|Collector_Host_Blocked_Transactions             |Collector|Disabled (timeout)|       7|        60|          103641|     18.84|           |
+| 5021|Collector_Host_Long_Serializable_Transaction    |Collector|Idle              |      42|       900|             505|      0.15|           |
+| 5022|Collector_Host_Uncommitted_Write_Transaction    |Collector|Idle              |      42|       900|             505|      0.19|           |
+| 5023|Collector_Host_Long_Idle_Cursor                 |Collector|Idle              |      42|       900|             505|      6.36|           |
+| 5024|Collector_Host_Connections                      |Collector|Idle              |      42|       300|             222|      0.16|           |
+| 5025|Collector_Host_Connection_Statistics            |Collector|Inactive          |      42|       300|                |          |           |
+| 5026|Collector_Global_Internal_Events                |Collector|Idle              |       1|       300|             222|      0.06|           |
+| 5028|Collector_Host_Long_Running_Statements          |Collector|Idle              |       7|        60|              43|      0.30|           |
+| 5029|Collector_Host_Sql_Plan_Cache                   |Collector|Idle              |      42|      3600|             498|      4.31|           |
+| 5030|Collector_Host_Sql_Plan_Cache_Overview          |Collector|Idle              |      42|      3600|             494|      0.46|           |
+| 5031|Collector_Host_Object_Locks                     |Collector|Idle              |       7|      3600|             494|      0.08|           |
+| 5032|Collector_Host_Object_Lock_Statistics           |Collector|Idle              |      42|        60|              43|      0.07|           |
+| 5033|Collector_Host_Record_Locks                     |Collector|Inactive          |       7|       900|                |          |           |
+| 5034|Collector_Host_Service_Thread_Samples           |Collector|Idle              |       1|      3600|             493|     16.04|           |
+| 5035|Collector_Host_CS_Unloads                       |Collector|Idle              |       1|      3600|             493|      5.96|           |
+| 5036|Collector_Host_Delta_Merge_Statistics           |Collector|Idle              |      42|       300|             222|      0.27|           |
+| 5037|Collector_Host_Data_Volume_Superblock_Statistics|Collector|Idle              |      42|       300|             222|      0.06|           |
+| 5038|Collector_Host_RS_Memory                        |Collector|Idle              |      42|      3600|             487|      0.08|           |
+| 5039|Collector_Host_Workload                         |Collector|Idle              |      42|        60|              42|      0.07|           |
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+  LPAD(SS.ID, 5) ID,
+  SO.NAME,
+  SO.TYPE,
+  SS.EXTENSION_TYPE EXT_TYPE,
+  SS.STATUS || MAP(SS.STATUSREASON, NULL, '', '', '', CHAR(32) || '(' || SS.STATUSREASON || ')') STATUS,
+  LPAD(IFNULL(SS.RETENTION_DAYS_CURRENT, SS.RETENTION_DAYS_DEFAULT), 8) RET_DAYS,
+  LPAD(SS.INTERVALLENGTH, 10) INTERVAL_S,
+  IFNULL(LPAD(SECONDS_BETWEEN(SS.LATEST_START_SERVERTIME, CURRENT_TIMESTAMP), 16), '') TIME_SINCE_RUN_S,
+  IFNULL(TO_VARCHAR(ADD_SECONDS(SS.LATEST_START_SERVERTIME, SS.INTERVALLENGTH), 'YYYY/MM/DD HH24:MI:SS'), '') NEXT_RUN,
+  IFNULL(LPAD(TO_DECIMAL(SS.LATEST_DURATION / 1000, 10, 2), 10), '') DURATION_S,
+  IFNULL(LPAD(MAP(SS.INTERVALLENGTH, 0, 0, TO_DECIMAL(ROUND(SS.LATEST_DURATION / 1000 * 3600 / SS.INTERVALLENGTH), 10, 0)), 12), '') TIME_S_PER_H,
+  IFNULL(A.ALERT_DESCRIPTION, '') DESCRIPTION
+FROM
+( SELECT                                  /* Modification section */
+    '%' STATUS,                           /* IDLE, INACTIVE, DISABLED, ... */
+    '%' STAT_SERVER_OBJECT_TYPE,          /* ALERT, COLLECTOR, ... */
+    -1 ID,
+    '%' ACTION_NAME,
+    '%' EXTENSION_TYPE,
+    ' ' ONLY_UNKNOWN_STATES,
+    ' ' ONLY_DELAYED_RUNS,
+    'TIME_PER_H' ORDER_BY                 /* ID, TIME_PER_H */
+  FROM
+    DUMMY
+) BI INNER JOIN
+  _SYS_STATISTICS.STATISTICS_SCHEDULE SS ON
+    UPPER(SS.STATUS) LIKE UPPER(BI.STATUS) AND
+    ( BI.ID = -1 OR SS.ID = BI.ID ) AND
+    SS.EXTENSION_TYPE LIKE BI.EXTENSION_TYPE AND
+    ( BI.ONLY_UNKNOWN_STATES = ' ' OR SS.STATUS NOT IN ( 'Disabled', 'Idle', 'Inactive', 'Scheduled' ) ) INNER JOIN
+  _SYS_STATISTICS.STATISTICS_OBJECTS SO ON
+    UPPER(SO.TYPE) LIKE UPPER(BI.STAT_SERVER_OBJECT_TYPE) AND
+    ( BI.ONLY_DELAYED_RUNS = ' ' OR 
+      SS.STATUS != 'Inactive' AND SECONDS_BETWEEN(SS.LATEST_START_SERVERTIME, CURRENT_TIMESTAMP) >= 2 * SS.INTERVALLENGTH
+    ) AND
+    UPPER(SO.NAME) LIKE UPPER(BI.ACTION_NAME) AND
+    SS.ID = SO.ID LEFT OUTER JOIN
+  _SYS_STATISTICS.STATISTICS_ALERT_INFORMATION A ON
+    A.ALERT_ID = SO.ID
+ORDER BY
+  MAP(BI.ORDER_BY, 'ID', SS.ID),
+  MAP(BI.ORDER_BY, 'TIME_PER_H', MAP(SS.INTERVALLENGTH, 0, 0, TO_DECIMAL(ROUND(SS.LATEST_DURATION / 1000 * 3600 / SS.INTERVALLENGTH), 10, 0))) DESC

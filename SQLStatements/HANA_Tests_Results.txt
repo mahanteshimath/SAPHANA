@@ -1,0 +1,198 @@
+WITH
+
+/* 
+
+[NAME]
+
+- HANA_Tests_Results
+
+[DESCRIPTION]
+
+- Evaluation of runtime results of SAP HANA test commands (SQL: "HANA_Tests_*")
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- Can be run after executing any of the following test commands available via SAP Note 1969700:
+
+  - SQL: "HANA_Tests_ArithmeticOperations"
+  - SQL: "HANA_Tests_MemoryOperations"
+  - SQL: "HANA_Tests_StringOperations"
+
+- RESET can be performed via:
+
+  ALTER SYSTEM RESET MONITORING VIEW M_SQL_PLAN_CACHE_RESET
+
+[VALID FOR]
+
+- Revisions:              all
+
+[SQL COMMAND VERSION]
+
+- 2021/01/03:  1.0 (initial version)
+- 2021/04/16:  1.1 (MEMORY_OPERATION_TAG added)
+- 2021/05/02:  1.2 (structure synchronized with other mini check commands)
+
+[INVOLVED TABLES]
+
+- M_SQL_PLAN_CACHE_RESET
+
+[INPUT PARAMETERS]
+
+- ONLY_POTENTIALLY_CRITICAL_RESULTS
+
+  Possibility to restrict the output to potentially critical issues
+
+  'X'             --> Output only contains issues that can potentially indicate a problem
+  ' '             --> no output restriction
+
+- CHECK_ID
+
+  Possibility to restrict the output to a specific check ID
+
+  250             --> Restrict output to check ID 250
+  -1              --> No restriction to a particular check ID
+
+- CHECK_ID_PREFIX
+
+  Prefix for CHID value
+
+  'M'             --> Prefix check ID number with 'M' (e.g. 'M1234')
+  ''              --> No prefix for check ID numbers
+
+- CPU_ARITHMETIC_TAG
+
+  Tag for identifying SQL cache entry related to previous execution of "HANA_Tests_ArithmeticOperations" command
+
+  'ZMF_TEST_CPU_ARITHMETIC' -> Use SQL cache tag ZMF_TEST_CPU_ARITHMETIC
+
+- MEMORY_OPERATION_TAG
+
+  Tag for identifying SQL cache entry related to previous execution of "HANA_Tests_MemoryOperations" command
+
+  'ZMF_TEST_MEMORY_OPERATION' -> Use SQL cache tag ZMF_TEST_MEMORY_OPERATION
+
+- STRING_OPERATION_TAG
+
+  Tag for identifying SQL cache entry related to previous execution of "HANA_Tests_StringOperations" command
+
+  'ZMF_TEST_STRING_OPERATION' -> Use SQL cache tag ZMF_TEST_STRING_OPERATION
+
+[OUTPUT PARAMETERS]
+
+- CHID:           Check identifier (defined and used by this analysis command)
+- DESCRIPTION:    Check description
+- EXECUTIONS:     Number of SQL executions found for particular test
+- VALUE:          Test runtime result (ms / execution)
+- EXPECTED_VALUE: Expected test runtime result
+- C:              'X' if value found on the system is outside of the expected values (indication for potentially critical problem)
+- TEST_COMMAND:   Analysis command used for executing the test
+
+[EXAMPLE OUTPUT]
+
+---------------------------------------------------------------------------------------------------------------------------
+|CHID |DESCRIPTION          |EXECUTIONS|VALUE             |EXPECTED_VALUE        |C|TEST_COMMAND                          |
+---------------------------------------------------------------------------------------------------------------------------
+|Y0100|Arithmetic operations|         5|278 ms / execution|<= 500 ms / execution | |SQL: "HANA_Tests_ArithmeticOperations"|
+|Y0200|Memory operations    |         5|467 ms / execution|<= 1000 ms / execution| |SQL: "HANA_Tests_MemoryOperations"    |
+|Y0300|String operations    |         5|657 ms / execution|<= 1000 ms / execution| |SQL: "HANA_Tests_StringOperations"    |
+---------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+BASIS_INFO AS
+( SELECT
+    ONLY_POTENTIALLY_CRITICAL_RESULTS,
+    CHECK_ID,
+    CHECK_ID_PREFIX,
+    '%' || CPU_ARITHMETIC_TAG || '%' CPU_ARITHMETIC_TAG,
+    '%' || MEMORY_OPERATION_TAG || '%' MEMORY_OPERATION_TAG,
+    '%' || STRING_OPERATION_TAG || '%' STRING_OPERATION_TAG
+  FROM
+  ( SELECT                                               /* Modification section */
+      ' ' ONLY_POTENTIALLY_CRITICAL_RESULTS,
+      -1 CHECK_ID,
+      'Y' CHECK_ID_PREFIX,
+      'ZMF_TEST_CPU_ARITHMETIC' CPU_ARITHMETIC_TAG,
+      'ZMF_TEST_MEMORY_OPERATION' MEMORY_OPERATION_TAG,
+      'ZMF_TEST_STRING_OPERATION' STRING_OPERATION_TAG
+    FROM
+      DUMMY
+  )
+),
+TEST_SCENARIOS AS
+( SELECT
+    *
+  FROM
+  ( SELECT 100 CHECK_ID, 'TEST_CPU_ARITHMETIC' NAME, 'Arithmetic operations' DESCRIPTION, 'SQL: "HANA_Tests_ArithmeticOperations"' TEST_COMMAND,  '<=' EXPECTED_OP, '500' EXPECTED_VALUE FROM DUMMY ) UNION ALL
+  ( SELECT 200, 'TEST_MEMORY_OPERATION', 'Memory operations', 'SQL: "HANA_Tests_MemoryOperations"', '<=', '500' FROM DUMMY ) UNION ALL
+  ( SELECT 300, 'TEST_STRING_OPERATION', 'String operations', 'SQL: "HANA_Tests_StringOperations"', '<=', '1000' FROM DUMMY )
+)
+SELECT
+  CASE WHEN DESCRIPTION = '' THEN '' ELSE CHECK_ID_PREFIX || LPAD(CHECK_ID, 4, '0') END CHID,
+  DESCRIPTION,
+  EXECUTIONS,
+  VALUE,
+  EXPECTED_VALUE,
+  CASE WHEN VALUE = 'n/a' OR EXPECTED_VALUE = '' OR LPAD(VALUE, 100) <= LPAD(EXPECTED_VALUE_ORIG || CHAR(32) || 'ms / execution', 100) THEN ' ' ELSE 'X' END C,
+  TEST_COMMAND
+FROM
+( SELECT CHECK_ID_PREFIX FROM BASIS_INFO ) BI,
+( SELECT
+    5 CHECK_ID,
+    'Generated with' DESCRIPTION,
+    '' EXECUTIONS,
+    'SQL: "HANA_Tests_Results"' VALUE,
+    '' EXPECTED_VALUE,
+    '' EXPECTED_VALUE_ORIG,
+    '' TEST_COMMAND
+  FROM
+    DUMMY
+  UNION ALL
+  ( SELECT 8, 'System ID / database name', '', SYSTEM_ID || CHAR(32) || '/' || CHAR(32) || DATABASE_NAME, '', '', '' FROM M_DATABASE )
+  UNION ALL
+  ( SELECT TOP 1
+      10, 'Analysis date', '', TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYY/MM/DD HH24:MI:SS') || MAP(VALUE, NULL, '', CHAR(32) || '(' || VALUE || ')'), '', '', ''
+    FROM
+      DUMMY LEFT OUTER JOIN
+      M_HOST_INFORMATION ON
+        KEY = 'timezone_name'
+  )
+  UNION ALL
+  ( SELECT 20, '', '', '', '', '', '' FROM DUMMY )
+  UNION ALL
+  SELECT
+    T.CHECK_ID,
+    T.DESCRIPTION,
+    LPAD(IFNULL(SUM(EXECUTION_COUNT), 0), 10) EXECUTIONS, 
+    MAP(SUM(EXECUTION_COUNT), NULL, 'n/a', 0, 'n/a', TO_DECIMAL(SUM(TOTAL_EXECUTION_TIME) / SUM(EXECUTION_COUNT) / 1000, 10, 0) || CHAR(32) || 'ms / execution') VALUE,
+    T.EXPECTED_OP || CHAR(32) || T.EXPECTED_VALUE || CHAR(32) || 'ms / execution'  EXPECTED_VALUE,
+    T.EXPECTED_VALUE EXPECTED_VALUE_ORIG,
+    T.TEST_COMMAND
+  FROM 
+    TEST_SCENARIOS T INNER JOIN
+    BASIS_INFO BI ON
+      1 = 1 LEFT OUTER JOIN
+    M_SQL_PLAN_CACHE_RESET S ON
+      S.EXECUTION_COUNT > 0 AND
+      ( T.NAME = 'TEST_CPU_ARITHMETIC'   AND S.STATEMENT_STRING LIKE BI.CPU_ARITHMETIC_TAG OR
+        T.NAME = 'TEST_MEMORY_OPERATION' AND S.STATEMENT_STRING LIKE BI.MEMORY_OPERATION_TAG OR
+        T.NAME = 'TEST_STRING_OPERATION' AND S.STATEMENT_STRING LIKE BI.STRING_OPERATION_TAG 
+      ) AND
+      ( BI.CHECK_ID = -1 OR T.CHECK_ID = BI.CHECK_ID ) AND
+      S.STATEMENT_STRING LIKE '%- HANA_Tests%' AND
+      S.STATEMENT_STRING NOT LIKE '%- HANA_Tests_Results%' AND
+      S.STATEMENT_STRING NOT LIKE 'CALL GET_ACCESSED_OBJECTS_IN_STATEMENT%'
+  GROUP BY
+    BI.CHECK_ID_PREFIX,
+    T.CHECK_ID,
+    T.DESCRIPTION,
+    T.EXPECTED_OP,
+    T.EXPECTED_VALUE,
+    T.TEST_COMMAND
+)
+ORDER BY
+  CHECK_ID

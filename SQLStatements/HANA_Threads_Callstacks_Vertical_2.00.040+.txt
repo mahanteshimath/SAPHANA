@@ -1,0 +1,602 @@
+WITH 
+/* 
+
+[NAME]
+
+- HANA_Threads_Callstacks_Vertical_2.00.040+
+
+[DESCRIPTION]
+
+- Thread all stacks displayed vertically (i.e. one line per call stack level)
+
+[SOURCE]
+
+- SAP Note 1969700
+
+[DETAILS AND RESTRICTIONS]
+
+- WITH clause requires at least Rev. 70
+- WITH clause does not work with older DBACOCKPIT transactions before SAP BASIS 7.02 SP16 / 7.30 SP12 / 7.31 SP12 / SAP_BASIS 7.40 SP07 (empty result returned) 
+- Callstacks can only be displayed for currently running threads
+- M_SERVICE_THREADS.STATEMENT_HASH available as of Rev. 100
+- ORDER BY clause for STRING_AGG only available as of Rev. 100
+
+[VALID FOR]
+
+- Revisions:              >= 2.00.040
+
+[SQL COMMAND VERSION]
+
+- 2015/03/24:  1.0 (initial version)
+- 2015/09/19:  1.1 (CONN_ID included)
+- 2016/02/23:  1.2 (dedicated Rev100+ version)
+- 2016/06/05:  1.3 (dedicated 'vertical' version)
+- 2017/08/01:  1.4 (EXCLUDE_PHANTOM_THREADS included)
+- 2018/04/17:  1.5 (CALLER / CALLING included)
+- 2019/07/27:  1.6 (dedicated 2.00.040+ version including M_SERVICE_THREAD_CALLSTACKS.IS_ACTIVE evaluation)
+- 2020/04/29:  1.7 (ACTIVITY_TYPE included)
+
+[INVOLVED TABLES]
+
+- M_SERVICE_THREAD_CALLSTACKS
+- M_SERVICE_THREADS
+
+[INPUT PARAMETERS]
+
+- HOST
+
+  Host name
+
+  'saphana01'     --> Specic host saphana01
+  'saphana%'      --> All hosts starting with saphana
+  '%'             --> All hosts
+
+- PORT
+
+  Port number
+
+  '30007'         --> Port 30007
+  '%03'           --> All ports ending with '03'
+  '%'             --> No restriction to ports
+
+- SERVICE_NAME
+
+  Service name
+
+  'indexserver'   --> Specific service indexserver
+  '%server'       --> All services ending with 'server'
+  '%'             --> All services  
+
+- CONN_ID
+
+  Connection ID
+
+  330655          --> Connection ID 330655
+  -1              --> No connection ID restriction
+
+- THREAD_ID
+
+  Thread identifier
+
+  4567            --> Thread 4567
+  -1              --> No thread identifier restriction
+
+- STATEMENT_HASH      
+ 
+  Hash of SQL statement to be analyzed
+
+  '2e960d7535bf4134e2bd26b9d80bd4fa' --> SQL statement with hash '2e960d7535bf4134e2bd26b9d80bd4fa'
+  '%'                                --> No statement hash restriction (only possible if hash is not mandatory)
+
+- THREAD_TYPE
+
+  Type of thread (e.g. 'SqlExecutor', 'JobWorker' or 'MergedogMonitor')
+
+  'SqlExecutor'   --> Threads with type 'SqlExecutor'
+  '%'             --> No thread type restriction
+
+- THREAD_STATE
+
+  State of thread (e.g. e.g. 'Running', 'Network Read' or 'Semaphore Wait')
+
+  'Running'       --> Threads with state 'Running'
+  '%'             --> No thread state restriction
+
+- THREAD_METHOD
+
+  Thread method
+
+  'aggregate'     --> Threads with method 'aggregate'
+  '%'             --> No thread state restriction
+
+- THREAD_DETAIL
+
+  Thread detail information (e.g. SQL text)
+
+  '%insert%'      --> Only thread details containing 'insert'
+  '%'             --> No thread detail restriction
+
+- LOCK_NAME
+
+  Lock wait name
+
+  '%Mutex%'       --> Restrict result to lock names containing "Mutex"
+  '%'             --> No restriction related to lock name
+
+- CALLER
+
+  Caller of this thread
+
+  '12345'         --> Show only threads called by thread 12345
+  '%'             --> No restriction related to caller
+
+- CALLING
+
+  Threads called by this thread
+
+  '123,456'       --> Show only threads calling threads 123 and 456 (at the same time)
+  '%'             --> No restriction related to called threads
+
+- CALLSTACK_PATTERN
+
+  Callstack pattern
+
+  '%comm::read%'  --> Only show thread all stacks that contain 'comm::read' at any place
+  '%'             --> No restriction related to all stack details
+
+- ACTIVITY_TYPE
+
+  Callstack activity type
+
+  'CPU'           --> Callstacks indicating CPU consumption
+  'NETWORK'       --> Callstacks related to network communications
+  'SYSCALL'       --> Callstacks related to system calls (e.g. lock waits)
+  'WAIT'          --> Callstacks indicating wait states (includes NETWORK and SYSCALL)
+  '%'             --> No restriction related to activity type
+
+- MAX_CALL_LEN
+
+  Maximum length of call information in output (longer values are truncated)
+
+  40              --> Limit length of call information to 40
+  -1              --> No restriction related to call length
+
+- MAX_LEVELS
+
+  Maximum number of displayed all stack levels
+
+  16              --> Only show that first 16 all stack levels
+  -1              --> No restriction related to all stack levels
+
+- ONLY_ACTIVE_THREADS
+
+  Possibility to restrict output to active threads
+
+  'X'             --> Only all stacks for active threads are shown
+  ' '             --> No restriction in terms of all stacks
+
+- ONLY_ACTIVE_CALLSTACKS
+
+  Possibility to restrict output to active call stacks
+
+  'X'             --> Only call stacks indicating current activity are shown
+  ' '             --> No restriction in terms of call stack activities
+
+- IGNORE_OWN_THREADS
+
+  Possibility to exclude threads related to own connection
+
+  'X'             --> Only show threads not belonging to own connection
+  ' '             --> Show all threads
+
+- IGNORE_IDLE_THREADS
+
+  Possibility to exclude idle threads (waiting for idle events like 'Job Exec Waiting')
+
+  'X'             --> Only show busy threads
+  ' '             --> Show all threads
+
+- EXCLUDE_PHANTOM_THREADS
+
+  Possibility to exclude idle threads that are shown as "active" due to SAP HANA bugs
+
+  'X'             --> Do not show idle threads that are shown as active threads
+  ' '             --> No restriction of displayed threads
+
+- SHORT_CALLS
+
+  Possibility to activate a reduced output of call information
+
+  'X'             --> Display only the main procedure
+  ' '             --> Display complete call information
+
+- AGGREGATE_BY
+
+  Aggregation criteria (possible values can be found in comment)
+
+  'CALLSTACK'     --> Aggregation by all stack
+  'HOST, PORT'    --> Aggregation by host and port
+  'NONE'          --> No aggregation
+
+[OUTPUT PARAMETERS]
+
+- NUM:            Number of threads (1 if no aggregation is done)
+- PCT:            Percentage of threads compared to overall number of threads
+- LVL:            Callstack level
+- CALL:           Callstack information
+- DETAILS:        Details for threads related to all stack
+
+[EXAMPLE OUTPUT]
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+|NUM|PCT|LVL|CALL                                                                            |DETAILS                                                      |
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+|   |   |   |2016/06/05 12:06:45                                                             |                                                             |
+|   |   |   |                                                                                |                                                             |
+|144| 33|  1|__GI___poll+0x62                                                                |HOST / PORT / SERVICE:         any / any / any               |
+|   |   |  2|System::UX::poll                                                                |CONN_ID / THREAD_ID:           -1 / any                      |
+|   |   |  3|Stream::CompletionSet::poll                                                     |STATEMENT_HASH:                any                           |
+|   |   |  4|Stream::NetworkChannel::receiveBlocking                                         |THREAD_STATE / THREAD_TYPE:    Network Poll / PreprocessorJob|
+|   |   |  5|comm::read                                                                      |THREAD_METHOD / THREAD_DETAIL: - / any                       |
+|   |   |  6|TrexNet::Channel::receive                                                       |LOCK_NAME:                     -                             |
+|   |   |  7|TrexNet::BufferedIO::fillBuffer                                                 |                                                             |
+|   |   |  8|TrexNet::BufferedIO::peekBuffer                                                 |                                                             |
+|   |   |  9|TrexNet::BufferedNetInput::peek                                                 |                                                             |
+|   |   | 10|TrexNet::Request::in                                                            |                                                             |
+|   |   | 11|preprocessor::PreprocessorJob::ReadData                                         |                                                             |
+|   |   | 12|preprocessor::PreprocessorJob::WriteData                                        |                                                             |
+|   |   | 13|preprocessor::PreprocessorJob::run                                              |                                                             |
+|   |   | 14|preprocessor::JobExecutor::run                                                  |                                                             |
+|   |   | 15|TrexThreads::PoolThread::run                                                    |                                                             |
+|   |   | 16|TrexThreads::PoolThread::run                                                    |                                                             |
+| 23|  5|  1|__lll_lock_wait+0x20                                                            |HOST / PORT / SERVICE:         any / any / any               |
+|   |   |  2|_L_lock_1008+0xb                                                                |CONN_ID / THREAD_ID:           -1 / any                      |
+|   |   |  3|__pthread_mutex_lock_internal+0x3a                                              |STATEMENT_HASH:                any                           |
+|   |   |  4|inxight::lock::acquire                                                          |THREAD_STATE / THREAD_TYPE:    Running / Request             |
+|   |   |  5|inxight::platform_implementation::safe_release_lexicon_spec_lexicon             |THREAD_METHOD / THREAD_DETAIL: prep/indexing / any           |
+|   |   |  6|inxight::platform_implementation::release_lexicon_spec_lexicon                  |LOCK_NAME:                     -                             |
+|   |   |  7|inxight::tagged_stemming_implementation::tagged_stemming_implementation         |                                                             |
+|   |   |  8|inxight::make_tagged_stemming                                                   |                                                             |
+|   |   |  9|SAP::TextAnalysis::DocumentAnalysis::LinguisticAnalysis::LinguisticAnalyzer::Lin|                                                             |
+|   |   | 10|SAP::TextAnalysis::DocumentAnalysis::LinguisticAnalysis::LinguisticAnalyzer::Lin|                                                             |
+|   |   | 11|SAP::TextAnalysis::DocumentAnalysis::LinguisticAnalysis::LinguisticAnalyzer::Lin|                                                             |
+|   |   | 12|preprocessor::TextAnalysisController::analyze                                   |                                                             |
+|   |   | 13|preprocessor::PreprocessorImpl::tasdkActivity                                   |                                                             |
+|   |   | 14|preprocessor::PreprocessorImpl::process                                         |                                                             |
+|   |   | 15|preprocessor::Preprocessor::dispatch                                            |                                                             |
+|   |   | 16|preprocessor::Preprocessor::handleIndexing                                      |                                                             |
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*/
+
+BASIS_INFO AS
+( SELECT                     /* Modification section */
+    '%' HOST,
+    '%' PORT,
+    '%' SERVICE_NAME,
+    -1 CONN_ID,
+    -1 THREAD_ID,
+    '%' STATEMENT_HASH,
+    '%' THREAD_TYPE,
+    '%' THREAD_STATE,
+    '%' THREAD_METHOD,
+    '%' THREAD_DETAIL,
+    '%' LOCK_NAME,
+    '%' CALLER,
+    '%' CALLING,
+    '%' CALLSTACK_PATTERN,
+    '%' ACTIVITY_TYPE,                                 /* CPU, WAIT, SYSCALL, NETWORK, % */
+    80 MAX_CALL_LEN,
+    -1 MAX_LEVELS,
+    ' ' ONLY_ACTIVE_THREADS,
+    'X' ONLY_ACTIVE_CALLSTACKS,
+    'X' IGNORE_OWN_THREADS,
+    'X' IGNORE_IDLE_THREADS,
+    'X' EXCLUDE_PHANTOM_THREADS,
+    ' ' SHORT_CALLS,
+    'NONE' AGGREGATE_BY     /* HOST, PORT, SERVICE, CONN_ID, THREAD_ID, HASH, THREAD_STATE, THREAD_TYPE, THREAD_METHOD, THREAD_DETAIL, LOCK_NAME, CALLER, CALLING, CALLSTACK or comma separated combinations, NONE for no aggregation */
+  FROM
+    DUMMY
+),
+THREADS AS
+( SELECT
+    HOST,
+    PORT,
+    CONNECTION_ID,
+    THREAD_ID,
+    STATEMENT_HASH,
+    THREAD_STATE,
+    CASE
+      WHEN THREAD_TYPE LIKE 'JobWrk%' THEN 'JobWorker'
+      ELSE THREAD_TYPE
+    END THREAD_TYPE,
+    CASE 
+      WHEN THREAD_METHOD LIKE 'GCJob%' THEN 'GCJob' 
+      ELSE THREAD_METHOD 
+    END THREAD_METHOD,
+    THREAD_DETAIL,
+    LOCK_WAIT_NAME LOCK_NAME,
+    IS_ACTIVE,
+    CALLER,
+    CALLING
+  FROM
+    M_SERVICE_THREADS 
+),
+CALLSTACKS AS
+( SELECT
+    HOST,
+    PORT,
+    THREAD_ID,
+    IS_ACTIVE,
+    FRAME_LEVEL LVL,
+    FRAME_NAME CALL
+  FROM
+    M_SERVICE_THREAD_CALLSTACKS
+  GROUP BY
+    HOST,
+    PORT,
+    THREAD_ID,
+    IS_ACTIVE,
+    FRAME_LEVEL,
+    FRAME_NAME
+),
+CALLSTACKS_CONCAT AS
+( SELECT
+    TC.HOST,
+    TC.PORT,
+    TC.THREAD_ID,
+    TC.IS_ACTIVE,
+    STRING_AGG(TC.CALL, '' ORDER BY TC.LVL) CALLSTACK_CONCAT
+  FROM
+    BASIS_INFO BI,
+    CALLSTACKS TC
+  WHERE
+  ( BI.MAX_LEVELS = -1 OR TC.LVL <= BI.MAX_LEVELS )
+  GROUP BY
+    TC.HOST,
+    TC.PORT,
+    TC.THREAD_ID,
+    TC.IS_ACTIVE
+)
+SELECT
+  MAP(LVL, '  1', NUM, '') NUM,
+  MAP(LVL, '  1', PERCENT, '') PCT,
+  LVL,
+  CALL,
+  CASE LVL
+    WHEN '  1' THEN RPAD('HOST / PORT / SERVICE:', 31) || HOST || CHAR(32) || '/' || CHAR (32) || PORT || CHAR(32) || '/' || CHAR(32) || SERVICE
+    WHEN '  2' THEN RPAD('CONN_ID / THREAD_ID:', 31) || CONN_ID || CHAR(32) || '/' || CHAR(32) || THREAD_ID
+    WHEN '  3' THEN RPAD('STATEMENT_HASH:', 31) || STATEMENT_HASH
+    WHEN '  4' THEN RPAD('THREAD_STATE / THREAD_TYPE:', 31) || MAP(THREAD_STATE, '', '-', NULL, '-', THREAD_STATE) || CHAR(32) || '/' || 
+                    CHAR (32) || MAP(THREAD_TYPE, '', '-', NULL, '-', THREAD_TYPE) 
+    WHEN '  5' THEN RPAD('THREAD_METHOD / THREAD_DETAIL:', 31) || MAP(THREAD_METHOD, '', '-', NULL, '-', THREAD_METHOD) || CHAR(32) || '/' || 
+                    CHAR (32) || MAP(THREAD_DETAIL, '', '-', NULL, '-', THREAD_DETAIL)
+    WHEN '  6' THEN RPAD('LOCK_NAME:', 31) || MAP(LOCK_NAME, '', '-', NULL, '-', LOCK_NAME)
+    WHEN '  7' THEN RPAD('CALLER:', 31) || MAP(CALLER, '', '-', NULL, '-', CALLER)
+    WHEN '  8' THEN RPAD('CALLING:', 31) || MAP(CALLING, '', '-', NULL, '_', CALLING)
+    ELSE ''
+  END DETAILS
+FROM
+( SELECT
+    TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYY/MM/DD HH24:MI:SS') CALL,
+    '' LVL,
+    '' NUM,
+    '' PERCENT,
+    '' HOST,
+    '' PORT,
+    '' SERVICE,
+    '' CONN_ID,
+    '' THREAD_ID,
+    '' STATEMENT_HASH,
+    '' THREAD_STATE,
+    '' THREAD_TYPE,
+    '' THREAD_METHOD,
+    '' THREAD_DETAIL,
+    '' LOCK_NAME,
+    '' CALLER,
+    '' CALLING,
+    '' CALLSTACK_CONCAT,
+    10 LINE_NO
+  FROM 
+    DUMMY
+  UNION ALL
+  SELECT
+    '' CALL,
+    '' LEVEL,
+    '' NUM,
+    '' PERCENT,
+    '' HOST,
+    '' PORT,
+    '' SERVICE,
+    '' CONN_ID,
+    '' THREAD_ID,
+    '' STATEMENT_HASH,
+    '' THREAD_STATE,
+    '' THREAD_TYPE,
+    '' THREAD_METHOD,
+    '' THREAD_DETAIL,
+    '' LOCK_NAME,
+    '' CALLER,
+    '' CALLING,
+    '' CALLSTACK_CONCAT,
+    20 LINE_NO
+  FROM 
+    DUMMY
+  UNION ALL
+  SELECT
+    CALL,
+    LPAD(LVL, 3) LVL,
+    LPAD(THREADS, 3) NUM,
+    LPAD(TO_DECIMAL(ROUND(MAP(SUM(MAP(LVL, 1, THREADS, 0)) OVER () * 100, 0, 0, THREADS / SUM(MAP(LVL, 1, THREADS, 0)) OVER () * 100)), 10, 0), 3) PERCENT,
+    HOST,
+    PORT,
+    SERVICE_NAME SERVICE,
+    CONN_ID,
+    THREAD_ID,
+    STATEMENT_HASH,
+    THREAD_STATE,
+    THREAD_TYPE,
+    THREAD_METHOD,
+    THREAD_DETAIL,
+    LOCK_NAME,
+    CALLER,
+    CALLING,
+    CALLSTACK_CONCAT,
+    30 LINE_NO
+  FROM
+  ( SELECT
+      HOST,
+      PORT,
+      SERVICE_NAME,
+      CONN_ID,
+      THREAD_ID,
+      STATEMENT_HASH,
+      THREAD_STATE,
+      THREAD_TYPE,
+      THREAD_METHOD,
+      THREAD_DETAIL,
+      LOCK_NAME,
+      CALLER,
+      CALLING,
+      SUM(THREADS) THREADS,
+      LVL,
+      MAP(SHORT_CALLS, 'X', MAP(INSTR(CALL, '('), 0, CALL, SUBSTR_BEFORE(CALL,  '(')), CALL) CALL,
+      CALLSTACK_CONCAT
+    FROM
+    ( SELECT
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')          != 0 THEN T.HOST                         ELSE MAP(BI.HOST,           '%', 'any', BI.HOST)                  END HOST,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')          != 0 THEN TO_VARCHAR(T.PORT)             ELSE MAP(BI.PORT,           '%', 'any', BI.PORT)                  END PORT,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')       != 0 THEN S.SERVICE_NAME                 ELSE MAP(BI.SERVICE_NAME,   '%', 'any', BI.SERVICE_NAME)          END SERVICE_NAME,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CONN_ID')       != 0 THEN TO_VARCHAR(T.CONNECTION_ID)    ELSE MAP(BI.CONN_ID,        -1,  'any', TO_VARCHAR(BI.CONN_ID))   END CONN_ID,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_ID')     != 0 THEN TO_VARCHAR(T.THREAD_ID)        ELSE MAP(BI.THREAD_ID,      -1,  'any', TO_VARCHAR(BI.THREAD_ID)) END THREAD_ID,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HASH')          != 0 THEN T.STATEMENT_HASH               ELSE MAP(BI.STATEMENT_HASH, '%', 'any', BI.STATEMENT_HASH)        END STATEMENT_HASH,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_STATE')  != 0 THEN T.THREAD_STATE                 ELSE MAP(BI.THREAD_STATE,   '%', 'any', BI.THREAD_STATE)          END THREAD_STATE,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_TYPE')   != 0 THEN T.THREAD_TYPE                  ELSE MAP(BI.THREAD_TYPE,    '%', 'any', BI.THREAD_TYPE)           END THREAD_TYPE,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_METHOD') != 0 THEN T.THREAD_METHOD                ELSE MAP(BI.THREAD_METHOD,  '%', 'any', BI.THREAD_METHOD)         END THREAD_METHOD,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_DETAIL') != 0 THEN SUBSTR(T.THREAD_DETAIL, 1, 80) ELSE MAP(BI.THREAD_DETAIL,  '%', 'any', BI.THREAD_DETAIL)         END THREAD_DETAIL,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOCK_NAME')     != 0 THEN T.LOCK_NAME                    ELSE MAP(BI.LOCK_NAME,      '%', 'any', BI.LOCK_NAME)             END LOCK_NAME,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CALLER')        != 0 THEN T.CALLER                       ELSE MAP(BI.CALLER,         '%', 'any', BI.CALLER)                END CALLER,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CALLING')       != 0 THEN T.CALLING                      ELSE MAP(BI.CALLING,        '%', 'any', BI.CALLING)               END CALLING,
+        COUNT(*) THREADS,
+        TC.LVL,
+        MAP(BI.MAX_CALL_LEN, -1, TC.CALL,  SUBSTR(TC.CALL,  1, BI.MAX_CALL_LEN)) CALL,
+        TCC.CALLSTACK_CONCAT,
+        BI.SHORT_CALLS
+      FROM
+        BASIS_INFO BI,
+        M_SERVICES S,
+        THREADS T,
+        CALLSTACKS TC,
+        CALLSTACKS_CONCAT TCC
+      WHERE
+        S.HOST LIKE BI.HOST AND
+        TO_VARCHAR(S.PORT) LIKE BI.PORT AND
+        S.SERVICE_NAME LIKE BI.SERVICE_NAME AND
+        TC.HOST = S.HOST AND
+        TC.PORT = S.PORT AND
+        ( BI.CONN_ID = -1 OR BI.CONN_ID = T.CONNECTION_ID ) AND
+        ( BI.THREAD_ID = -1 OR BI.THREAD_ID = TC.THREAD_ID ) AND
+        T.HOST = TC.HOST AND
+        T.PORT = TC.PORT AND
+        T.THREAD_ID = TC.THREAD_ID AND
+        TCC.HOST = TC.HOST AND
+        TCC.PORT = TC.PORT AND
+        TCC.THREAD_ID = TC.THREAD_ID AND
+        T.STATEMENT_HASH LIKE BI.STATEMENT_HASH AND
+        T.THREAD_TYPE LIKE BI.THREAD_TYPE AND
+        T.THREAD_STATE LIKE BI.THREAD_STATE AND
+        T.THREAD_METHOD LIKE BI.THREAD_METHOD AND
+        T.THREAD_DETAIL LIKE BI.THREAD_DETAIL AND
+        IFNULL(T.LOCK_NAME, '') LIKE BI.LOCK_NAME AND
+        IFNULL(T.CALLER, '') LIKE BI.CALLER AND
+        IFNULL(T.CALLING, '') LIKE BI.CALLING AND
+        UPPER(TCC.CALLSTACK_CONCAT) LIKE UPPER(BI.CALLSTACK_PATTERN) AND
+        ( BI.ACTIVITY_TYPE = '%' OR
+          BI.ACTIVITY_TYPE IN ( 'SYSCALL', 'WAIT' ) AND SUBSTR(TCC.CALLSTACK_CONCAT, 1, 7) IN ( 'do_fute', 'io_queu', '__nanos', '__pthre', 'syscall' ) OR
+          BI.ACTIVITY_TYPE IN ( 'NETWORK', 'WAIT' ) AND SUBSTR(TCC.CALLSTACK_CONCAT, 1, 7) IN ( '__GI___', '__GI_ep', '__epoll', '__libc_', '__poll_', '__read_', '__write' ) OR
+          BI.ACTIVITY_TYPE = 'CPU'                  AND SUBSTR(TCC.CALLSTACK_CONCAT, 1, 7) NOT IN ( 'do_fute', '__GI___', '__GI_ep', 'io_queu', '__epoll', '__libc_', '__nanos', '__poll_', '__pthre', '__read_', 'syscall', '__write' )
+        ) AND
+      ( BI.EXCLUDE_PHANTOM_THREADS = ' ' OR NOT
+        ( T.THREAD_TYPE = 'AgentPingThread'                     AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'DPPeriodicThreadWaitSemaphore'                                  OR
+          T.THREAD_TYPE = 'BackupMonitor_TransferThread'        AND T.THREAD_STATE = 'Sleeping'                                                                                                     OR
+          T.THREAD_TYPE = 'ChildIOThreads::ErrorStream'         AND T.THREAD_STATE = 'Running'                                                                                                      OR
+          T.THREAD_TYPE = 'ChildIOThreads::OutputStream'        AND T.THREAD_STATE = 'Running'                                                                                                      OR
+          T.THREAD_TYPE LIKE 'DPDistributor%'                   AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'DPCommitTranPersistentDistributorQueueReaderAvailableSemaphore' OR
+          T.THREAD_TYPE LIKE 'DPReceiverCleaner%'               AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'DPPersistentTranDataCleanerDataAvailableSemaphore'              OR
+          T.THREAD_TYPE LIKE 'DPReceiverWriter%'                AND T.THREAD_STATE LIKE 'ConditionalVar% Wait'   AND T.LOCK_NAME = 'DPReceiverInboundQueueEmptyCond'                                OR
+          T.THREAD_TYPE = 'Generic'                             AND T.THREAD_STATE = 'Running'                                                                                                      OR
+          T.THREAD_TYPE = 'IndexingQueue'                       AND T.THREAD_STATE = 'Sleeping'                                                                                                     OR
+          T.THREAD_TYPE = 'JobWorker'                           AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'DPReceiverDispatcherHouseKeepingTaskAvailableSemaphore'         OR
+          T.THREAD_TYPE = 'JobWorker'                           AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'DPReceiverHouseKeepingTaskAvailableSemaphore'                   OR
+          T.THREAD_TYPE = 'JobWorker'                           AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'LogBackupQueue'                                                 OR
+          T.THREAD_TYPE = 'LogExceptionQueueThread'             AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'AdapterServiceFixedQueueListSemaphore'                          OR
+          T.THREAD_TYPE = 'LogRecovery'                         AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'LogRecoveryPointInTimeQueue'                                    OR
+          T.THREAD_TYPE = 'MaintenanceThread'                   AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'DPPeriodicThreadWaitSemaphore'                                  OR
+          T.THREAD_TYPE = 'Native'                              AND T.THREAD_DETAIL LIKE '%sysv_open_semaphore%'                                                                                    OR
+          T.THREAD_TYPE = 'PostCommitExecutor'                  AND T.THREAD_STATE LIKE 'ConditionalVar% Wait'   AND T.LOCK_NAME = 'RegularTaskQueueCV'                                             OR
+          T.THREAD_TYPE = 'PriPostCommitExecutor'               AND T.THREAD_STATE LIKE 'ConditionalVar% Wait'   AND T.LOCK_NAME = 'PrioritizedTaskQueueCV'                                         OR
+          T.THREAD_TYPE = 'StatsThread'                         AND T.THREAD_STATE LIKE 'ConditionalVar% Wait'   AND T.LOCK_NAME = 'DPStatsThreadCond'                                              OR
+          T.THREAD_TYPE = 'PushBufferIntoReplayThread'          AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'system replication: push buffer into replay semaphore'          OR
+          T.THREAD_TYPE = 'SecondarySlaveLogPositionSendThread' AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'system replication: slave log position send semaphore'          OR
+          T.THREAD_TYPE = 'SystemReplicationAsyncLogSender'     AND T.THREAD_STATE = 'Semaphore Wait'            AND T.LOCK_NAME = 'system replication: AsyncLogBufferHandlerQueueSem'
+        )
+      ) AND
+        ( BI.ONLY_ACTIVE_THREADS = ' ' OR T.IS_ACTIVE = 'TRUE' ) AND
+        ( BI.ONLY_ACTIVE_CALLSTACKS = ' ' OR TC.IS_ACTIVE = 'TRUE' ) AND
+        ( BI.IGNORE_OWN_THREADS = ' ' OR T.CONNECTION_ID != CURRENT_CONNECTION ) AND
+        ( BI.IGNORE_IDLE_THREADS = ' ' OR T.THREAD_STATE != 'Job Exec Waiting' ) AND
+        ( BI.MAX_LEVELS = -1 OR TC.LVL <= BI.MAX_LEVELS )
+      GROUP BY
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HOST')          != 0 THEN T.HOST                         ELSE MAP(BI.HOST,           '%', 'any', BI.HOST)                  END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'PORT')          != 0 THEN TO_VARCHAR(T.PORT)             ELSE MAP(BI.PORT,           '%', 'any', BI.PORT)                  END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'SERVICE')       != 0 THEN S.SERVICE_NAME                 ELSE MAP(BI.SERVICE_NAME,   '%', 'any', BI.SERVICE_NAME)          END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CONN_ID')       != 0 THEN TO_VARCHAR(T.CONNECTION_ID)    ELSE MAP(BI.CONN_ID,        -1,  'any', TO_VARCHAR(BI.CONN_ID))   END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_ID')     != 0 THEN TO_VARCHAR(T.THREAD_ID)        ELSE MAP(BI.THREAD_ID,      -1,  'any', TO_VARCHAR(BI.THREAD_ID)) END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'HASH')          != 0 THEN T.STATEMENT_HASH               ELSE MAP(BI.STATEMENT_HASH, '%', 'any', BI.STATEMENT_HASH)        END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_STATE')  != 0 THEN T.THREAD_STATE                 ELSE MAP(BI.THREAD_STATE,   '%', 'any', BI.THREAD_STATE)          END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_TYPE')   != 0 THEN T.THREAD_TYPE                  ELSE MAP(BI.THREAD_TYPE,    '%', 'any', BI.THREAD_TYPE)           END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_METHOD') != 0 THEN T.THREAD_METHOD                ELSE MAP(BI.THREAD_METHOD,  '%', 'any', BI.THREAD_METHOD)         END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'THREAD_DETAIL') != 0 THEN SUBSTR(T.THREAD_DETAIL, 1, 80) ELSE MAP(BI.THREAD_DETAIL,  '%', 'any', BI.THREAD_DETAIL)         END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'LOCK_NAME')     != 0 THEN T.LOCK_NAME                    ELSE MAP(BI.LOCK_NAME,      '%', 'any', BI.LOCK_NAME)             END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CALLER')        != 0 THEN T.CALLER                       ELSE MAP(BI.CALLER,         '%', 'any', BI.CALLER)                END,
+        CASE WHEN BI.AGGREGATE_BY = 'NONE' OR INSTR(BI.AGGREGATE_BY, 'CALLING')       != 0 THEN T.CALLING                      ELSE MAP(BI.CALLING,        '%', 'any', BI.CALLING)               END,
+        TC.LVL,
+        MAP(BI.MAX_CALL_LEN, -1, TC.CALL,  SUBSTR(TC.CALL,  1, BI.MAX_CALL_LEN)),
+        TCC.CALLSTACK_CONCAT,
+        BI.SHORT_CALLS
+    )
+    GROUP BY
+      HOST,
+      PORT,
+      SERVICE_NAME,
+      CONN_ID,
+      THREAD_ID,
+      STATEMENT_HASH,
+      THREAD_TYPE,
+      THREAD_STATE,
+      THREAD_METHOD,
+      THREAD_DETAIL,
+      LOCK_NAME,
+      CALLER,
+      CALLING,
+      LVL,
+      MAP(SHORT_CALLS, 'X', MAP(INSTR(CALL, '('), 0, CALL, SUBSTR_BEFORE(CALL,  '(')), CALL),
+      CALLSTACK_CONCAT
+  )
+) S
+ORDER BY
+  LINE_NO,
+  S.NUM DESC,
+  HOST,
+  PORT,
+  SERVICE,
+  CONN_ID,
+  THREAD_ID,
+  STATEMENT_HASH,
+  THREAD_STATE,
+  THREAD_TYPE,
+  THREAD_METHOD,
+  THREAD_DETAIL,
+  LOCK_NAME,
+  CALLSTACK_CONCAT,
+  LVL
